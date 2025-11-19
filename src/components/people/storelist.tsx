@@ -1,19 +1,126 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React from "react";
+import React, { useState, MouseEvent } from "react";
 import  Table  from "@/core/common/pagination/datatable";
 import Link from "next/link";
 import { Edit, Eye, PlusCircle } from "react-feather";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
-import { CustomerData } from "@/core/json/customer_data";
-
+import { useStores } from "@/hooks/useStores";
+import { storeService } from "@/services/api";
 
 export default function StoreListComponent () {
-  const data = CustomerData;
+  const { stores, loading, error, refetch } = useStores({ page: 1, limit: 50 });
 
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreCode, setNewStoreCode] = useState("");
+  const [newStoreEmail, setNewStoreEmail] = useState("");
+  const [newStorePhone, setNewStorePhone] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [editStoreId, setEditStoreId] = useState<string | null>(null);
+  const [editStoreName, setEditStoreName] = useState("");
+  const [editStoreCode, setEditStoreCode] = useState("");
+  const [editStoreEmail, setEditStoreEmail] = useState("");
+  const [editStorePhone, setEditStorePhone] = useState("");
+  const [editStoreActive, setEditStoreActive] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const [deleteStoreId, setDeleteStoreId] = useState<string | null>(null);
+  const [deleteStoreName, setDeleteStoreName] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const dataSource =
+    stores?.data?.map((store) => ({
+      id: store.id,
+      CustomerName: store.name,
+      Customer: store.code,
+      Email: store.email || "",
+      Phone: store.phone || "",
+      Country: store.address || "",
+      Code: store.code,
+      isActive: store.isActive,
+    })) || [];
+
+  const handleOpenEdit = (record: any) => {
+    setEditStoreId(record.id);
+    setEditStoreName(record.CustomerName || "");
+    setEditStoreCode(record.Customer || "");
+    setEditStoreEmail(record.Email || "");
+    setEditStorePhone(record.Phone || "");
+    setEditStoreActive(record.isActive ?? true);
+  };
+
+  const handleOpenDelete = (record: any) => {
+    setDeleteStoreId(record.id);
+    setDeleteStoreName(record.CustomerName || null);
+  };
+
+  const handleCreateStore = async () => {
+    if (!newStoreName || !newStoreCode) {
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      await storeService.createStore({
+        name: newStoreName,
+        code: newStoreCode,
+        email: newStoreEmail || null,
+        phone: newStorePhone || null,
+      });
+      setNewStoreName("");
+      setNewStoreCode("");
+      setNewStoreEmail("");
+      setNewStorePhone("");
+      await refetch();
+    } catch (err) {
+      console.error("Error creating store:", err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleUpdateStore = async () => {
+    if (!editStoreId || !editStoreName || !editStoreCode) {
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      await storeService.updateStore(editStoreId, {
+        name: editStoreName,
+        code: editStoreCode,
+        email: editStoreEmail || null,
+        phone: editStorePhone || null,
+        isActive: editStoreActive,
+      });
+      await refetch();
+    } catch (err) {
+      console.error("Error updating store:", err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleConfirmDelete = async (
+    event: MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    if (!deleteStoreId) return;
+
+    try {
+      setIsDeleting(true);
+      await storeService.deleteStore(deleteStoreId);
+      await refetch();
+    } catch (err) {
+      console.error("Error deleting store:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const columns = [
     {
@@ -60,7 +167,7 @@ export default function StoreListComponent () {
     {
       title: "Action",
       dataIndex: "action",
-      render: () => (
+      render: (_: unknown, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
@@ -74,6 +181,7 @@ export default function StoreListComponent () {
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#edit-store"
+              onClick={() => handleOpenEdit(record)}
             >
               <Edit className="feather-edit" />
             </Link>
@@ -83,6 +191,7 @@ export default function StoreListComponent () {
               data-bs-target="#delete-modal"
               className="p-2 d-flex align-items-center border rounded"
               href="#"
+              onClick={() => handleOpenDelete(record)}
             >
               <i data-feather="trash-2" className="feather-trash-2" />
             </Link>
@@ -93,6 +202,34 @@ export default function StoreListComponent () {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+            <div className="text-center">
+              <h5 className="text-danger">Error loading stores</h5>
+              <p className="text-muted">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -158,7 +295,7 @@ export default function StoreListComponent () {
             </div>
             <div className="card-body pb-0">
               <div className=" table-responsive">
-                <Table columns={columns} dataSource={data} />
+                <Table columns={columns} dataSource={dataSource} />
               </div>
             </div>
           </div>
@@ -195,19 +332,29 @@ export default function StoreListComponent () {
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
-              <form >
+              <form>
                 <div className="modal-body">
                   <div className="mb-3">
                     <label className="form-label">
                       Store Name <span className="text-danger">*</span>
                     </label>
-                    <input type="text" className="form-control" />
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newStoreName}
+                      onChange={(e) => setNewStoreName(e.target.value)}
+                    />
                   </div>
                   <div className="mb-3">
                     <label className="form-label">
                       User Name <span className="text-danger">*</span>
                     </label>
-                    <input type="text" className="form-control" />
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newStoreCode}
+                      onChange={(e) => setNewStoreCode(e.target.value)}
+                    />
                   </div>
                   <div className="input-blocks mb-3">
                     <label className="form-label">
@@ -222,13 +369,23 @@ export default function StoreListComponent () {
                     <label className="form-label">
                       Email <span className="text-danger">*</span>
                     </label>
-                    <input type="email" className="form-control" />
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={newStoreEmail}
+                      onChange={(e) => setNewStoreEmail(e.target.value)}
+                    />
                   </div>
                   <div className="mb-3">
                     <label className="form-label">
                       Phone <span className="text-danger">*</span>
                     </label>
-                    <input type="text" className="form-control" />
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newStorePhone}
+                      onChange={(e) => setNewStorePhone(e.target.value)}
+                    />
                   </div>
                   <div className="mb-0">
                     <div className="status-toggle modal-status d-flex justify-content-between align-items-center">
@@ -255,8 +412,10 @@ export default function StoreListComponent () {
                     type="button"
                     data-bs-dismiss="modal"
                     className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                    onClick={handleCreateStore}
+                    disabled={isCreating}
                   >
-                    Add Store
+                    {isCreating ? "Adding..." : "Add Store"}
                   </button>
                 </div>
               </form>
@@ -290,7 +449,8 @@ export default function StoreListComponent () {
                     <input
                       type="text"
                       className="form-control"
-                      defaultValue="Electro Mart"
+                      value={editStoreName}
+                      onChange={(e) => setEditStoreName(e.target.value)}
                     />
                   </div>
                   <div className="mb-3">
@@ -300,7 +460,8 @@ export default function StoreListComponent () {
                     <input
                       type="text"
                       className="form-control"
-                      defaultValue="johnsmith"
+                      value={editStoreCode}
+                      onChange={(e) => setEditStoreCode(e.target.value)}
                     />
                   </div>
                   <div className="input-blocks mb-3">
@@ -323,7 +484,8 @@ export default function StoreListComponent () {
                     <input
                       type="email"
                       className="form-control"
-                      defaultValue="electromart@example.com"
+                      value={editStoreEmail}
+                      onChange={(e) => setEditStoreEmail(e.target.value)}
                     />
                   </div>
                   <div className="mb-3">
@@ -333,7 +495,8 @@ export default function StoreListComponent () {
                     <input
                       type="text"
                       className="form-control"
-                      defaultValue={+12498345785}
+                      value={editStorePhone}
+                      onChange={(e) => setEditStorePhone(e.target.value)}
                     />
                   </div>
                   <div className="mb-0">
@@ -343,7 +506,8 @@ export default function StoreListComponent () {
                         type="checkbox"
                         id="user1"
                         className="check"
-                        defaultChecked
+                        checked={editStoreActive}
+                        onChange={(e) => setEditStoreActive(e.target.checked)}
                       />
                       <label htmlFor="user1" className="checktoggle" />
                     </div>
@@ -361,8 +525,10 @@ export default function StoreListComponent () {
                     type="button"
                     data-bs-dismiss="modal"
                     className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                    onClick={handleUpdateStore}
+                    disabled={isUpdating}
                   >
-                    save Changes
+                    {isUpdating ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
@@ -384,7 +550,7 @@ export default function StoreListComponent () {
                   Delete Store
                 </h4>
                 <p className="text-gray-6 mb-0 fs-16">
-                  Are you sure you want to delete employee?
+                  Are you sure you want to delete {deleteStoreName || "this store"}?
                 </p>
                 <div className="modal-footer-btn mt-3 d-flex justify-content-center">
                   <button
@@ -398,8 +564,10 @@ export default function StoreListComponent () {
                     type="button"
                     data-bs-dismiss="modal"
                     className="btn btn-submit fs-13 fw-medium p-2 px-3"
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
                   >
-                    Yes Delete
+                    {isDeleting ? "Deleting..." : "Yes Delete"}
                   </button>
                 </div>
               </div>

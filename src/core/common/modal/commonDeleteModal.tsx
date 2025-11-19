@@ -4,8 +4,11 @@ import Link from 'next/link';
 
 import React from 'react'
 
+interface CommonDeleteModalProps {
+  onConfirm?: () => void
+}
 
-const CommonDeleteModal = () => {
+const CommonDeleteModal = ({ onConfirm }: CommonDeleteModalProps) => {
     return (
         <>
             {/* delete modal */}
@@ -32,6 +35,7 @@ const CommonDeleteModal = () => {
                                     <Link href='#'
                                         data-bs-dismiss="modal"
                                         className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                                        onClick={onConfirm}
                                     >
                                         Yes Delete
                                     </Link>

@@ -2,10 +2,33 @@
 import Link from "next/link";
 /* eslint-disable @next/next/no-img-element */
 
-import React from "react";
+import React, { useEffect, useState, FormEvent, MouseEvent } from "react";
 import Select from "react-select";
+import { supplierService } from "@/services/api";
 
-const SupplierModal = () => {
+interface EditingSupplier {
+  id: string;
+  supplierName: string;
+  email: string;
+  phone: string;
+}
+
+interface DeletingSupplier {
+  id: string;
+  supplierName: string;
+}
+
+interface SupplierModalProps {
+  editingSupplier: EditingSupplier | null;
+  deletingSupplier: DeletingSupplier | null;
+  onRefetch: () => void | Promise<void>;
+}
+
+const SupplierModal: React.FC<SupplierModalProps> = ({
+  editingSupplier,
+  deletingSupplier,
+  onRefetch,
+}) => {
   const city = [
     { value: "Choose", label: "Choose" },
     { value: "Varrel", label: "Varrel" },
@@ -24,6 +47,129 @@ const SupplierModal = () => {
     { value: "Germany", label: "Germany" },
     { value: "Mexico", label: "Mexico" },
   ];
+
+  const [addFirstName, setAddFirstName] = useState("");
+  const [addLastName, setAddLastName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPhone, setAddPhone] = useState("");
+  const [addAddress, setAddAddress] = useState("");
+  const [addActive, setAddActive] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editingSupplier) {
+      const parts = editingSupplier.supplierName.split(" ");
+      setEditFirstName(parts[0] || "");
+      setEditLastName(parts.slice(1).join(" ") || "");
+      setEditEmail(editingSupplier.email || "");
+      setEditPhone(editingSupplier.phone || "");
+      setEditAddress("");
+      setEditActive(true);
+      setEditError(null);
+    }
+  }, [editingSupplier]);
+
+  const handleAddSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!addFirstName.trim() || !addEmail.trim() || !addPhone.trim()) {
+      setAddError("First name, email, and phone are required");
+      return;
+    }
+
+    setIsAdding(true);
+    setAddError(null);
+
+    try {
+      const name = `${addFirstName} ${addLastName}`.trim();
+
+      await supplierService.createSupplier({
+        name,
+        email: addEmail.trim(),
+        phone: addPhone.trim(),
+        address: addAddress.trim() || null,
+        isActive: addActive,
+      });
+
+      await onRefetch();
+
+      setAddFirstName("");
+      setAddLastName("");
+      setAddEmail("");
+      setAddPhone("");
+      setAddAddress("");
+      setAddActive(true);
+    } catch (err) {
+      setAddError(
+        err instanceof Error ? err.message : "Failed to add supplier"
+      );
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!editingSupplier) return;
+
+    if (!editFirstName.trim() || !editEmail.trim() || !editPhone.trim()) {
+      setEditError("First name, email, and phone are required");
+      return;
+    }
+
+    setIsEditing(true);
+    setEditError(null);
+
+    try {
+      const name = `${editFirstName} ${editLastName}`.trim();
+
+      await supplierService.updateSupplier(editingSupplier.id, {
+        name,
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        address: editAddress.trim() || null,
+        isActive: editActive,
+      });
+
+      await onRefetch();
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Failed to update supplier"
+      );
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleDeleteClick = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (!deletingSupplier) return;
+
+    setDeleteError(null);
+
+    try {
+      await supplierService.deleteSupplier(deletingSupplier.id);
+      await onRefetch();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete supplier"
+      );
+    }
+  };
 
   return (
     <div>
@@ -45,7 +191,7 @@ const SupplierModal = () => {
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
-              <form>
+              <form onSubmit={handleAddSubmit}>
                 <div className="modal-body">
                   <div className="row">
                     <div className="col-lg-12">
@@ -77,7 +223,12 @@ const SupplierModal = () => {
                         <label className="form-label">
                           First Name <span className="text-danger">*</span>
                         </label>
-                        <input type="text" className="form-control" />
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={addFirstName}
+                          onChange={(e) => setAddFirstName(e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="col-lg-6">
@@ -85,7 +236,12 @@ const SupplierModal = () => {
                         <label className="form-label">
                           Last Name <span className="text-danger">*</span>
                         </label>
-                        <input type="text" className="form-control" />
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={addLastName}
+                          onChange={(e) => setAddLastName(e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="col-lg-12">
@@ -93,7 +249,12 @@ const SupplierModal = () => {
                         <label className="form-label">
                           Email <span className="text-danger">*</span>
                         </label>
-                        <input type="email" className="form-control" />
+                        <input
+                          type="email"
+                          className="form-control"
+                          value={addEmail}
+                          onChange={(e) => setAddEmail(e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="col-lg-12">
@@ -101,7 +262,12 @@ const SupplierModal = () => {
                         <label className="form-label">
                           Phone <span className="text-danger">*</span>
                         </label>
-                        <input type="text" className="form-control" />
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={addPhone}
+                          onChange={(e) => setAddPhone(e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="col-lg-12">
@@ -109,7 +275,12 @@ const SupplierModal = () => {
                         <label className="form-label">
                           Address <span className="text-danger">*</span>
                         </label>
-                        <input type="text" className="form-control" />
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={addAddress}
+                          onChange={(e) => setAddAddress(e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="col-lg-6 col-sm-10 col-10">
@@ -164,13 +335,19 @@ const SupplierModal = () => {
                             type="checkbox"
                             id="users5"
                             className="check"
-                            defaultChecked
+                            checked={addActive}
+                            onChange={(e) => setAddActive(e.target.checked)}
                           />
                           <label htmlFor="users5" className="checktoggle mb-0" />
                         </div>
                       </div>
                     </div>
                   </div>
+                  {addError && (
+                    <div className="mt-3 alert alert-danger" role="alert">
+                      {addError}
+                    </div>
+                  )}
                 </div>
                 <div className="modal-footer">
                   <button
@@ -183,8 +360,10 @@ const SupplierModal = () => {
                   <button
                     type="submit"
                     className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                    disabled={isAdding}
+                    data-bs-dismiss={isAdding ? undefined : "modal"}
                   >
-                    Add Supplier
+                    {isAdding ? "Saving..." : "Add Supplier"}
                   </button>
                 </div>
               </form>
@@ -210,7 +389,7 @@ const SupplierModal = () => {
                     <span aria-hidden="true">×</span>
                   </button>
                 </div>
-                <form>
+                <form onSubmit={handleEditSubmit}>
                   <div className="modal-body">
                     <div className="row">
                       <div className="col-lg-12">
@@ -246,7 +425,8 @@ const SupplierModal = () => {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue="Apex"
+                            value={editFirstName}
+                            onChange={(e) => setEditFirstName(e.target.value)}
                           />
                         </div>
                       </div>
@@ -258,7 +438,8 @@ const SupplierModal = () => {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue="Computers"
+                            value={editLastName}
+                            onChange={(e) => setEditLastName(e.target.value)}
                           />
                         </div>
                       </div>
@@ -270,7 +451,8 @@ const SupplierModal = () => {
                           <input
                             type="email"
                             className="form-control"
-                            defaultValue="carlevans@example.com"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
                           />
                         </div>
                       </div>
@@ -282,7 +464,8 @@ const SupplierModal = () => {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue={+15964712634}
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
                           />
                         </div>
                       </div>
@@ -294,7 +477,8 @@ const SupplierModal = () => {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue="46 Perry Street"
+                            value={editAddress}
+                            onChange={(e) => setEditAddress(e.target.value)}
                           />
                         </div>
                       </div>
@@ -354,13 +538,19 @@ const SupplierModal = () => {
                               type="checkbox"
                               id="users6"
                               className="check"
-                              defaultChecked
+                              checked={editActive}
+                              onChange={(e) => setEditActive(e.target.checked)}
                             />
                             <label htmlFor="users6" className="checktoggle mb-0" />
                           </div>
                         </div>
                       </div>
                     </div>
+                    {editError && (
+                      <div className="mt-3 alert alert-danger" role="alert">
+                        {editError}
+                      </div>
+                    )}
                   </div>
                   <div className="modal-footer">
                     <button
@@ -370,12 +560,14 @@ const SupplierModal = () => {
                     >
                       Cancel
                     </button>
-                    <Link
-                      href="#"
+                    <button
+                      type="submit"
                       className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                      disabled={isEditing}
+                      data-bs-dismiss={isEditing ? undefined : "modal"}
                     >
-                      Save Changes
-                    </Link>
+                      {isEditing ? "Saving..." : "Save Changes"}
+                    </button>
                   </div>
                 </form>
               </div>
@@ -395,8 +587,13 @@ const SupplierModal = () => {
                   Delete Supplier
                 </h4>
                 <p className="text-gray-6 mb-0 fs-16">
-                  Are you sure you want to delete supplier?
+                  Are you sure you want to delete {deletingSupplier?.supplierName || "this supplier"}?
                 </p>
+                {deleteError && (
+                  <div className="mt-3 alert alert-danger" role="alert">
+                    {deleteError}
+                  </div>
+                )}
                 <div className="d-flex justify-content-center mt-3">
                   <Link
                   href="#"
@@ -405,13 +602,14 @@ const SupplierModal = () => {
                   >
                     Cancel
                   </Link>
-                  <Link
-                    href="#"
+                  <button
+                    type="button"
                     className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                    onClick={handleDeleteClick}
                     data-bs-dismiss="modal"
                   >
                     Yes Delete
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

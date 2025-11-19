@@ -1,18 +1,68 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
+import React, { useState, MouseEvent } from "react";
 import Table from "@/core/common/pagination/datatable";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
-import { productlistdata } from "@/core/json/productlistdata";
+import { useProducts } from '@/hooks/useProducts'
 import Brand from "@/core/modals/inventory/brand";
 import { all_routes } from "@/data/all_routes";
 import { Download, Edit, Eye, Trash2 } from "react-feather";
 import Link from "next/link";
+import { productService } from "@/services/api";
 
 export default function ProductListComponent() {
-  const dataSource = productlistdata;
+  const { products, loading, error, refetch } = useProducts();
+
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [deleteProductName, setDeleteProductName] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const route = all_routes;
+  
+  // Transform API data to match the expected format for the table
+  const dataSource = products?.data?.map(product => ({
+    id: product.id,
+    product: product.name,
+    productImage: product.image || "assets/img/products/stock-img-01.png",
+    sku: product.sku,
+    category: product.category?.name || "N/A",
+    brand: product.brand?.name || "N/A",
+    price: `$${product.sellingPrice.toFixed(2)}`,
+    unit: "Pc", // Default unit, could be enhanced with unit data
+    qty: "0", // Stock quantity would need to be fetched from stock API
+    createdby: "Admin", // This would come from user data
+    img: "assets/img/users/user-30.jpg",
+  })) || [];
+
+  const handleOpenDelete = (record: any) => {
+    setDeleteProductId(record.id);
+    setDeleteProductName(record.product);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (!deleteProductId) return;
+
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+
+      await productService.deleteProduct(deleteProductId);
+      await refetch();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete product"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const columns = [
     {
       title: "SKU",
@@ -76,13 +126,13 @@ export default function ProductListComponent() {
     {
       title: "Action",
       dataIndex: "action",
-      render: () => (
+      render: (_: unknown, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             <Link className="me-2 p-2" href={route.productdetails}>
               <Eye className="feather-view" />
             </Link>
-            <Link className="me-2 p-2" href={route.editproduct}>
+            <Link className="me-2 p-2" href={`${route.editproduct}/${record.id}`}>
               <Edit className="feather-edit" />
             </Link>
             <Link
@@ -90,6 +140,7 @@ export default function ProductListComponent() {
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#delete-modal"
+              onClick={() => handleOpenDelete(record)}
             >
               <Trash2 className="feather-trash-2" />
             </Link>
@@ -99,6 +150,36 @@ export default function ProductListComponent() {
       sorter: (a: any, b: any) => a.createdby.length - b.createdby.length,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+            <div className="text-center">
+              <h5 className="text-danger">Error loading products</h5>
+              <p className="text-muted">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="page-wrapper">
@@ -450,7 +531,7 @@ export default function ProductListComponent() {
                     Delete Product
                   </h4>
                   <p className="text-gray-6 mb-0 fs-16">
-                    Are you sure you want to delete product?
+                    Are you sure you want to delete {deleteProductName || "this product"}?
                   </p>
                   <div className="modal-footer-btn mt-3 d-flex justify-content-center">
                     <button
@@ -464,8 +545,10 @@ export default function ProductListComponent() {
                       type="button"
                       className="btn btn-primary fs-13 fw-medium p-2 px-3"
                       data-bs-dismiss="modal"
+                      onClick={handleConfirmDelete}
+                      disabled={isDeleting}
                     >
-                      Yes Delete
+                      {isDeleting ? "Deleting..." : "Yes Delete"}
                     </button>
                   </div>
                 </div>

@@ -4,7 +4,6 @@
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
-import { ManageStocksdata } from "@/core/json/managestocks_data";
 import {
   Edit,
   FileText,
@@ -14,35 +13,100 @@ import {
   Trash2,
 } from "react-feather";
 import Link from "next/link";
-import { useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Table from "@/core/common/pagination/datatable";
 import CommonFooter from "@/core/common/footer/commonFooter";
 import Select from "react-select";
-import {
-  Addition,
-  ResponsiblePerson,
-  Store,
-  WareHouse,
-} from "@/core/common/selectOption/selectOption";
+import { useStockAdjustments } from "@/hooks/useStockAdjustments";
+import { useStores } from "@/hooks/useStores";
+import CommonDeleteModal from "@/core/common/modal/commonDeleteModal";
+import { stockAdjustmentService } from "@/services/api";
+
+type MovementTypeOption = "ADJUSTMENT_IN" | "ADJUSTMENT_OUT";
+
+interface StockAdjustmentRow {
+  id: string;
+  Warehouse: string;
+  Shop: string;
+  Product: {
+    Name: string;
+    Image: string;
+    SKU: string;
+  };
+  Date: string;
+  Quantity: number;
+  MovementType: string;
+  Reference: string;
+  Notes: string;
+}
 
 export default function StockAdjustmentComponent() {
-  const data = ManageStocksdata;
+  const [filterStoreId, setFilterStoreId] = useState<string>("");
+  const [filterSearch, setFilterSearch] = useState<string>("");
+
+  const { adjustments, loading, error, refetch } = useStockAdjustments({
+    page: 1,
+    limit: 50,
+    storeId: filterStoreId || undefined,
+    search: filterSearch || undefined,
+  });
+
+  const { stores } = useStores({ page: 1, limit: 100, isActive: true });
+
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+  const [selectedProductSearch, setSelectedProductSearch] = useState<string>("");
+  const [movementType, setMovementType] = useState<MovementTypeOption>("ADJUSTMENT_IN");
+  const [quantity, setQuantity] = useState<number>(1);
+  const [reference, setReference] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [viewNotes, setViewNotes] = useState<string | null>(null);
+  const [editAdjustmentId, setEditAdjustmentId] = useState<string | null>(null);
+  const [editReference, setEditReference] = useState<string>("");
+  const [editNotes, setEditNotes] = useState<string>("");
+  const [deleteAdjustmentId, setDeleteAdjustmentId] = useState<string | null>(null);
+
+  const data: StockAdjustmentRow[] = useMemo(
+    () =>
+      adjustments?.data?.map((adj) => ({
+        id: adj.id,
+        Warehouse: "N/A", // warehouse is not yet wired on movements
+        Shop: adj.store
+          ? `${adj.store.name}${adj.store.code ? ` (${adj.store.code})` : ""}`
+          : "N/A",
+        Product: {
+          Name: adj.product?.name || "N/A",
+          Image: "/assets/img/products/product-1.jpg",
+          SKU: adj.product?.sku || "N/A",
+        },
+        Date: new Date(adj.createdAt).toLocaleDateString(),
+        Quantity: adj.quantity,
+        MovementType: adj.movementType,
+        Reference: adj.reference || "",
+        Notes: adj.description || "",
+      })) || [],
+    [adjustments],
+  );
 
   const columns = [
     {
       title: "Warehouse",
       dataIndex: "Warehouse",
-      sorter: (a: any, b: any) => a.Warehouse.length - b.Warehouse.length,
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.Warehouse || "").localeCompare(b.Warehouse || ""),
     },
     {
       title: "Shop",
       dataIndex: "Shop",
-      sorter: (a: any, b: any) => a.Shop.length - b.Shop.length,
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.Shop || "").localeCompare(b.Shop || ""),
     },
     {
       title: "Product",
       dataIndex: "Product",
-      render: (text: any, record: any) => (
+      render: (_text: unknown, record: StockAdjustmentRow) => (
         <span className="userimgname">
           <Link href="#" className="product-img">
             <img alt="img" src={record.Product.Image} />
@@ -50,39 +114,35 @@ export default function StockAdjustmentComponent() {
           <Link href="#">{record.Product.Name}</Link>
         </span>
       ),
-      sorter: (a: any, b: any) => a.Product.Name.length - b.Product.Name.length,
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.Product?.Name || "").localeCompare(b.Product?.Name || ""),
     },
 
     {
       title: "Date",
       dataIndex: "Date",
-      sorter: (a: any, b: any) => a.Email.length - b.Email.length,
-    },
-
-    {
-      title: "Person",
-      dataIndex: "Person",
-      render: (text: any, record: any) => (
-        <span className="userimgname">
-          <Link href="#" className="product-img">
-            <img alt="img" src={record.Person.Image} />
-          </Link>
-          <Link href="#">{record.Person.Name}</Link>
-        </span>
-      ),
-      sorter: (a: any, b: any) => a.Person.Name.length - b.Person.Name.length,
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        new Date(a.Date).getTime() - new Date(b.Date).getTime(),
     },
 
     {
       title: "Qty",
       dataIndex: "Quantity",
-      sorter: (a: any, b: any) => a.Quantity.length - b.Quantity.length,
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        a.Quantity - b.Quantity,
+    },
+
+    {
+      title: "Type",
+      dataIndex: "MovementType",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.MovementType || "").localeCompare(b.MovementType || ""),
     },
 
     {
       title: "",
       dataIndex: "action",
-      render: () => (
+      render: (_: unknown, record: StockAdjustmentRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
@@ -92,6 +152,7 @@ export default function StockAdjustmentComponent() {
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#view-notes"
+              onClick={() => setViewNotes(record.Notes || "")}
             >
               <FileText className="feather-file-text" />
             </Link>
@@ -100,6 +161,11 @@ export default function StockAdjustmentComponent() {
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#edit-units"
+              onClick={() => {
+                setEditAdjustmentId(record.id);
+                setEditReference(record.Reference || "");
+                setEditNotes(record.Notes || "");
+              }}
             >
               <Edit className="feather-edit" />
             </Link>
@@ -109,27 +175,135 @@ export default function StockAdjustmentComponent() {
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#delete-modal"
+              onClick={() => setDeleteAdjustmentId(record.id)}
             >
               <Trash2 className="feather-trash-2" />
             </Link>
           </div>
         </div>
       ),
-      sorter: (a: any, b: any) => a.createdby.length - b.createdby.length,
+      sorter: () => 0,
     },
   ];
 
-  const [quantity, setQuantity] = useState(4);
+  const storeOptions = [
+    { value: "", label: "Choose" },
+    ...(stores?.data?.map((storeItem) => ({
+      value: storeItem.id,
+      label: storeItem.name,
+    })) || []),
+  ];
 
-  const handleDecrement = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
+  const movementTypeOptions = [
+    { value: "ADJUSTMENT_IN", label: "Adjustment In" },
+    { value: "ADJUSTMENT_OUT", label: "Adjustment Out" },
+  ];
+
+  const handleCreateAdjustment = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!selectedStoreId || !selectedProductSearch || !quantity) {
+      setSubmitError("Please fill in Store, Product and Quantity.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+
+      await stockAdjustmentService.createStockAdjustment({
+        productId: selectedProductSearch,
+        storeId: selectedStoreId,
+        quantity,
+        movementType,
+        reference: reference || null,
+        description: notes || null,
+      });
+
+      await refetch();
+
+      setSelectedStoreId("");
+      setSelectedProductSearch("");
+      setQuantity(1);
+      setMovementType("ADJUSTMENT_IN");
+      setReference("");
+      setNotes("");
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to create adjustment",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleIncrement = () => {
-    setQuantity(quantity + 1);
+  const handleUpdateAdjustment = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!editAdjustmentId) return;
+
+    try {
+      await stockAdjustmentService.updateStockAdjustment(editAdjustmentId, {
+        reference: editReference || null,
+        description: editNotes || null,
+      });
+
+      await refetch();
+    } catch (err) {
+      console.error("Failed to update adjustment", err);
+    }
   };
+
+  const handleConfirmDeleteAdjustment = async () => {
+    if (!deleteAdjustmentId) return;
+
+    try {
+      await stockAdjustmentService.deleteStockAdjustment(deleteAdjustmentId);
+
+      setDeleteAdjustmentId(null);
+      await refetch();
+    } catch (err) {
+      console.error("Failed to delete adjustment", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ height: "400px" }}
+          >
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ height: "400px" }}
+          >
+            <div className="text-center">
+              <h5 className="text-danger">Error loading stock adjustments</h5>
+              <p className="text-muted">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -170,67 +344,48 @@ export default function StockAdjustmentComponent() {
                     className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
                     data-bs-toggle="dropdown"
                   >
-                    Warehouse
+                    Store
                   </Link>
                   <ul className="dropdown-menu  dropdown-menu-end p-3">
                     <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Lavish Warehouse
+                      <Link
+                        href="#"
+                        className="dropdown-item rounded-1"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFilterStoreId("");
+                        }}
+                      >
+                        All Stores
                       </Link>
                     </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Quaint Warehouse{" "}
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Traditional Warehouse
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Cool Warehouse
-                      </Link>
-                    </li>
+                    {stores?.data?.map((store) => (
+                      <li key={store.id}>
+                        <Link
+                          href="#"
+                          className="dropdown-item rounded-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setFilterStoreId(store.id);
+                          }}
+                        >
+                          {store.name}
+                        </Link>
+                      </li>
+                    ))}
                   </ul>
                 </div>
-
-                <div className="dropdown">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Sort By : Last 7 Days
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Recently Added
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Ascending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Desending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Last Month
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Last 7 Days
-                      </Link>
-                    </li>
-                  </ul>
+                <div className="search-set">
+                  <div className="search-input">
+                    <input
+                      type="text"
+                      placeholder="Search by product name or SKU"
+                      className="form-control"
+                      value={filterSearch}
+                      onChange={(e) => setFilterSearch(e.target.value)}
+                    />
+                    <Search className="feather-search" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -244,344 +399,271 @@ export default function StockAdjustmentComponent() {
         </div>
         <CommonFooter />
       </div>
-      <>
-        {/* Add Adjustment */}
-        <div className="modal fade" id="add-units">
-          <div className="modal-dialog modal-dialog-centered stock-adjust-modal">
-            <div className="modal-content">
-              <div className="modal-header">
-                <div className="page-title">
-                  <h4>Add Adjustment</h4>
-                </div>
-                <button
-                  type="button"
-                  className="close"
-                  data-bs-dismiss="modal"
-                  aria-label="Close"
-                >
-                  <span aria-hidden="true">×</span>
-                </button>
+
+      <CommonDeleteModal onConfirm={handleConfirmDeleteAdjustment} />
+
+      {/* Add Adjustment */}
+      <div className="modal fade" id="add-units">
+        <div className="modal-dialog modal-dialog-centered stock-adjust-modal">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4>Add Adjustment</h4>
               </div>
-              <form>
-                <div className="modal-body">
-                  <div className="search-form mb-3">
-                    <label className="form-label">
-                      Product<span className="text-danger ms-1">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Search Product"
-                    />
-                    <Search className="feather-search" />
+              <button
+                type="button"
+                className="close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <form onSubmit={handleCreateAdjustment}>
+              <div className="modal-body">
+                <div className="search-form mb-3">
+                  <label className="form-label">
+                    Product ID<span className="text-danger ms-1">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Enter Product ID for now"
+                    value={selectedProductSearch}
+                    onChange={(e) => setSelectedProductSearch(e.target.value)}
+                  />
+                  <Search className="feather-search" />
+                </div>
+                <div className="row">
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Store<span className="text-danger ms-1">*</span>
+                      </label>
+                      <Select
+                        classNamePrefix="react-select"
+                        options={storeOptions}
+                        placeholder="Choose"
+                        value={
+                          storeOptions.find(
+                            (option) => option.value === selectedStoreId,
+                          ) || storeOptions[0]
+                        }
+                        onChange={(option) =>
+                          setSelectedStoreId(
+                            (
+                              option as
+                                | { value: string; label: string }
+                                | null
+                            )?.value || "",
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Warehouse<span className="text-danger ms-1">*</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={WareHouse}
-                          placeholder="Choose"
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Movement Type
+                        <span className="text-danger ms-1">*</span>
+                      </label>
+                      <Select
+                        classNamePrefix="react-select"
+                        options={movementTypeOptions}
+                        placeholder="Choose"
+                        value={movementTypeOptions.find(
+                          (option) => option.value === movementType,
+                        )}
+                        onChange={(option) =>
+                          setMovementType(
+                            (
+                              option as
+                                | { value: MovementTypeOption; label: string }
+                                | null
+                            )?.value || "ADJUSTMENT_IN",
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Quantity<span className="text-danger ms-1">*</span>
+                      </label>
+                      <div className="product-quantity border-0 bg-gray-transparent">
+                        <span
+                          className="quantity-btn"
+                          onClick={() => {
+                            if (quantity > 1) {
+                              setQuantity(quantity - 1);
+                            }
+                          }}
+                        >
+                          <MinusCircle />
+                        </span>
+                        <input
+                          type="number"
+                          className="quntity-input bg-transparent"
+                          value={quantity}
+                          onChange={(e) =>
+                            setQuantity(Number(e.target.value) || 1)
+                          }
                         />
+                        <span
+                          className="quantity-btn"
+                          onClick={() => setQuantity(quantity + 1)}
+                        >
+                          +
+                          <PlusCircle className="plus-circle" />
+                        </span>
                       </div>
                     </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Reference Number
-                          <span className="text-danger ms-1">*</span>
-                        </label>
-                        <input type="text" className="form-control" />
-                      </div>
-                    </div>
-                    <div className="col-lg-12">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Store<span className="text-danger ms-1">*</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={Store}
-                          placeholder="Choose"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-12">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Responsible Person
-                          <span className="text-danger ms-1">*</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={ResponsiblePerson}
-                          placeholder="Choose"
-                        />
-                      </div>
+                  </div>
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Reference Number
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={reference}
+                        onChange={(e) => setReference(e.target.value)}
+                      />
                     </div>
                   </div>
                   <div className="col-lg-12">
                     <div className="summer-description-box">
-                      <label className="form-label">
-                        Notes<span className="text-danger ms-1">*</span>
-                      </label>
-                      <textarea className="form-control" defaultValue={""} />
+                      <label className="form-label">Notes</label>
+                      <textarea
+                        className="form-control"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                      />
                     </div>
                   </div>
+                  {submitError && (
+                    <div className="col-lg-12">
+                      <div className="mt-2 alert alert-danger" role="alert">
+                        {submitError}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary me-2"
-                    data-bs-dismiss="modal"
-                  >
-                    Cancel
-                  </button>
-                  <Link
-                    href="#"
-                    className="btn btn-primary"
-                    data-bs-dismiss="modal"
-                  >
-                    Create Adjustment
-                  </Link>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-        {/* /Add Adjustment */}
-        {/* Edit Adjustment */}
-        <div className="modal fade" id="edit-units">
-          <div className="modal-dialog modal-dialog-centered stock-adjust-modal">
-            <div className="modal-content">
-              <div className="modal-header">
-                <div className="page-title">
-                  <h4>Edit Adjustment</h4>
-                </div>
+              </div>
+              <div className="modal-footer">
                 <button
                   type="button"
-                  className="close"
+                  className="btn btn-secondary me-2"
                   data-bs-dismiss="modal"
-                  aria-label="Close"
                 >
-                  <span aria-hidden="true">×</span>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                  data-bs-dismiss={isSubmitting ? undefined : "modal"}
+                >
+                  {isSubmitting ? "Saving..." : "Create Adjustment"}
                 </button>
               </div>
-              <form>
-                <div className="modal-body">
-                  <div className="mb-3 search-form">
-                    <label className="form-label">
-                      Product<span className="text-danger ms-1">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      defaultValue="Nike Jordan"
-                    />
-                    <i data-feather="search" className="feather-search" />
-                  </div>
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Warehouse<span className="text-danger ms-1">*</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={WareHouse}
-                          placeholder="Choose"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Reference Number
-                          <span className="text-danger ms-1">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="PT002"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-12">
-                      <div className="modal-body-table">
-                        <div className="table-responsive">
-                          <table className="table  datanew">
-                            <thead>
-                              <tr>
-                                <th>Product</th>
-                                <th>SKU</th>
-                                <th>Category</th>
-                                <th>Qty</th>
-                                <th>Type</th>
-                                <th />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td>
-                                  <div className="d-flex align-items-center">
-                                    <Link
-                                      href="#"
-                                      className="avatar avatar-md me-2"
-                                    >
-                                      <img
-                                        src="assets/img/products/stock-img-02.png"
-                                        alt="product"
-                                      />
-                                    </Link>
-                                    <Link href="#">Nike Jordan</Link>
-                                  </div>
-                                </td>
-                                <td>PT002</td>
-                                <td>Nike</td>
-                                <td>
-                                  <div className="product-quantity border-0 bg-gray-transparent">
-                                    <span
-                                      className="quantity-btn"
-                                      onClick={handleDecrement}
-                                    >
-                                      <MinusCircle />
-                                    </span>
-                                    <input
-                                      type="text"
-                                      className="quntity-input bg-transparent"
-                                      defaultValue={2}
-                                    />
-                                    <span
-                                      className="quantity-btn"
-                                      onClick={handleIncrement}
-                                    >
-                                      +
-                                      <PlusCircle className="plus-circle" />
-                                    </span>
-                                  </div>
-                                </td>
-                                <td>
-                                  <Select
-                                    classNamePrefix="react-select"
-                                    options={Addition}
-                                    placeholder="Choose"
-                                  />
-                                </td>
-                                <td>
-                                  <div className="edit-delete-action d-flex align-items-center">
-                                    <Link
-                                      className="p-2 border rounded d-flex align-items-center"
-                                      href="#"
-                                      data-bs-toggle="modal"
-                                      data-bs-target="#delete"
-                                    >
-                                      <i
-                                        data-feather="trash-2"
-                                        className="feather-trash-2"
-                                      />
-                                    </Link>
-                                  </div>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-lg-12">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Store<span className="text-danger ms-1">*</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={Store}
-                          placeholder="Choose"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-12">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Responsible Person
-                          <span className="text-danger ms-1">*</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={ResponsiblePerson}
-                          placeholder="Choose"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-12">
-                      <div className="mb-3 summer-description-box">
-                        <label className="form-label">
-                          Notes<span className="text-danger ms-1">*</span>
-                        </label>
-                        <textarea
-                          className="form-control"
-                          defaultValue={
-                            "The Jordan brand is owned by Nike (owned by the Knight family), as, at the time, the company was building its strategy to work with athletes to launch shows that could inspire consumers.Although Jordan preferred Converse and Adidas, they simply could not match the offer Nike made. "
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary me-2"
-                    data-bs-dismiss="modal"
-                  >
-                    Cancel
-                  </button>
-                  <Link href="#" className="btn btn-primary">
-                    Save Changes
-                  </Link>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
-        {/* /Edit Adjustment */}
-        {/* View Notes */}
-        <div className="modal fade" id="view-notes">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <div className="page-title">
-                  <h4>Notes</h4>
-                </div>
-                <button
-                  type="button"
-                  className="close"
-                  data-bs-dismiss="modal"
-                  aria-label="Close"
-                >
-                  <span aria-hidden="true">×</span>
-                </button>
+      </div>
+      {/* /Add Adjustment */}
+
+      {/* Edit Adjustment (reference & notes only) */}
+      <div className="modal fade" id="edit-units">
+        <div className="modal-dialog modal-dialog-centered stock-adjust-modal">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4>Edit Adjustment</h4>
               </div>
+              <button
+                type="button"
+                className="close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <form onSubmit={handleUpdateAdjustment}>
               <div className="modal-body">
-                <p>
-                  The Jordan brand is owned by Nike (owned by the Knight
-                  family), as, at the time, the company was building its
-                  strategy to work with athletes to launch shows that could
-                  inspire consumers.Although Jordan preferred Converse and
-                  Adidas, they simply could not match the offer Nike made.
-                  Jordan also signed with Nike because he loved the way they
-                  wanted to market him with the banned colored shoes. Nike
-                  promised to cover the fine Jordan would receive from the NBA.
-                </p>
+                <div className="row">
+                  <div className="col-lg-12">
+                    <div className="mb-3">
+                      <label className="form-label">Reference Number</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editReference}
+                        onChange={(e) => setEditReference(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-lg-12">
+                    <div className="mb-3 summer-description-box">
+                      <label className="form-label">Notes</label>
+                      <textarea
+                        className="form-control"
+                        value={editNotes}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary me-2"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  data-bs-dismiss="modal"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {/* /Edit Adjustment */}
+
+      {/* View Notes */}
+      <div className="modal fade" id="view-notes">
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4>Notes</h4>
+              </div>
+              <button
+                type="button"
+                className="close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>{viewNotes || "No notes available for this adjustment."}</p>
             </div>
           </div>
         </div>
-        {/* /View Notes */}
-      </>
+      </div>
+      {/* /View Notes */}
     </>
   );
 }

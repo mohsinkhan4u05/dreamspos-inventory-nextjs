@@ -2,14 +2,52 @@
 {/* eslint-disable-next-line @next/next/no-img-element */}
 import Link from "next/link";
 import { useState } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { all_routes } from "../../../data/all_routes";
 
 export default function Login() {
   const route = all_routes;
   const [isPasswordVisible, setPasswordVisible] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  // Redirect if already authenticated
+  if (session) {
+    router.push(route.dashboard);
+    return null;
+  }
 
   const togglePasswordVisibility = () => {
     setPasswordVisible((prevState) => !prevState);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Invalid email or password");
+      } else if (result?.ok) {
+        router.push(route.dashboard);
+      }
+    } catch (error) {
+      setError("An error occurred during sign in");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -19,7 +57,12 @@ export default function Login() {
         <div className="account-content">
           <div className="login-wrapper bg-img">
             <div className="login-content authent-content">
-              <form>
+              <form onSubmit={handleSubmit}>
+                {error && (
+                  <div className="alert alert-danger" role="alert">
+                    {error}
+                  </div>
+                )}
                 <div className="login-userset">
                   <div className="login-logo logo-normal">
                     <img src="assets/img/logo.png" alt="img" />
@@ -42,9 +85,12 @@ export default function Login() {
                     </label>
                     <div className="input-group">
                       <input
-                        type="text"
-                        defaultValue=""
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="form-control border-end-0"
+                        placeholder="Enter your email"
+                        required
                       />
                       <span className="input-group-text border-start-0">
                         <i className="ti ti-mail" />
@@ -58,7 +104,11 @@ export default function Login() {
                     <div className="pass-group">
                       <input
                         type={isPasswordVisible ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         className="pass-input form-control"
+                        placeholder="Enter your password"
+                        required
                       />
                       <span
                         className={`text-gray-9 ti toggle-password ${
@@ -90,12 +140,13 @@ export default function Login() {
                     </div>
                   </div>
                   <div className="form-login">
-                    <Link
-                      href={route.newdashboard}
+                    <button
+                      type="submit"
                       className="btn btn-primary w-100"
+                      disabled={isLoading}
                     >
-                      Sign In
-                    </Link>
+                      {isLoading ? "Signing In..." : "Sign In"}
+                    </button>
                   </div>
                   <div className="signinform">
                     <h4>

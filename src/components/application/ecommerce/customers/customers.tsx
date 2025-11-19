@@ -1,61 +1,220 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React from "react";
+import React, { useState, MouseEvent, FormEvent } from "react";
 import Select from "react-select";
-import { useSelector } from "react-redux";
 import { Edit, Eye, Trash2 } from "react-feather";
 import Link from "next/link";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
-import  Table  from "@/core/common/pagination/datatable";
+import Table from "@/core/common/pagination/datatable";
 import CommonFooter from "@/core/common/footer/commonFooter";
 import { city, countries, state } from "@/core/common/selectOption/selectOption";
-import { CustomerData } from "@/core/json/customerData";
+import { useCustomers } from "@/hooks/useCustomers";
+import { customerService } from "@/services/api";
 
-export default function CustomersComponent () {
-  const data = CustomerData;
+interface CustomerRow {
+  id: string;
+  CustomerName: string;
+  Code: string;
+  Customer: string;
+  Email: string;
+  Phone: string;
+  Country: string;
+}
+
+export default function CustomersComponent() {
+  const { customers, loading, error, refetch } = useCustomers();
+
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newAddress, setNewAddress] = useState("");
+  const [newActive, setNewActive] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const [editCustomerId, setEditCustomerId] = useState<string | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
+  const [deleteCustomerName, setDeleteCustomerName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const data: CustomerRow[] =
+    customers?.data?.map((customer, index) => {
+      const name = customer.name;
+      return {
+        id: customer.id,
+        CustomerName: name,
+        Code: `CU${(index + 1).toString().padStart(3, "0")}`,
+        Customer: name,
+        Email: customer.email ?? "",
+        Phone: customer.phone ?? "",
+        Country: "N/A",
+      };
+    }) || [];
+
+  const handleCreateCustomer = async (event: MouseEvent<HTMLButtonElement> | FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!newFirstName.trim() || !newEmail.trim() || !newPhone.trim()) {
+      setCreateError("First name, email, and phone are required");
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError(null);
+
+    try {
+      const name = `${newFirstName} ${newLastName}`.trim();
+
+      await customerService.createCustomer({
+        name,
+        email: newEmail.trim(),
+        phone: newPhone.trim(),
+        address: newAddress.trim() || null,
+        isActive: newActive,
+      });
+
+      await refetch();
+
+      setNewFirstName("");
+      setNewLastName("");
+      setNewEmail("");
+      setNewPhone("");
+      setNewAddress("");
+      setNewActive(true);
+    } catch (err) {
+      setCreateError(
+        err instanceof Error ? err.message : "Failed to add customer"
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const openEditCustomer = (record: CustomerRow) => {
+    setEditCustomerId(record.id);
+    const parts = record.Customer.split(" ");
+    setEditFirstName(parts[0] || "");
+    setEditLastName(parts.slice(1).join(" ") || "");
+    setEditEmail(record.Email);
+    setEditPhone(record.Phone);
+    setEditAddress("");
+    setEditActive(true);
+    setUpdateError(null);
+  };
+
+  const handleUpdateCustomer = async (event: MouseEvent<HTMLButtonElement> | FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!editCustomerId) return;
+
+    if (!editFirstName.trim() || !editEmail.trim() || !editPhone.trim()) {
+      setUpdateError("First name, email, and phone are required");
+      return;
+    }
+
+    setIsUpdating(true);
+    setUpdateError(null);
+
+    try {
+      const name = `${editFirstName} ${editLastName}`.trim();
+
+      await customerService.updateCustomer(editCustomerId, {
+        name,
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        address: editAddress.trim() || null,
+        isActive: editActive,
+      });
+
+      await refetch();
+    } catch (err) {
+      setUpdateError(
+        err instanceof Error ? err.message : "Failed to update customer"
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const openDeleteCustomer = (record: CustomerRow) => {
+    setDeleteCustomerId(record.id);
+    setDeleteCustomerName(record.Customer);
+    setDeleteError(null);
+  };
+
+  const handleDeleteCustomer = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (!deleteCustomerId) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await customerService.deleteCustomer(deleteCustomerId);
+      await refetch();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete customer"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const columns = [
     {
       title: "Customer Name",
       dataIndex: "Customer",
-      sorter: (a:any, b:any) => a.Customer.length - b.Customer.length,
+      sorter: (a: CustomerRow, b: CustomerRow) => a.Customer.length - b.Customer.length,
     },
     {
       title: "Code",
       dataIndex: "Code",
-      sorter: (a:any, b:any) => a.Code.length - b.Code.length,
+      sorter: (a: CustomerRow, b: CustomerRow) => a.Code.length - b.Code.length,
     },
     {
       title: "Customer",
       dataIndex: "Customer",
-      sorter: (a:any, b:any) => a.Customer.length - b.Customer.length,
+      sorter: (a: CustomerRow, b: CustomerRow) => a.Customer.length - b.Customer.length,
     },
 
     {
       title: "Email",
       dataIndex: "Email",
-      sorter: (a:any, b:any) => a.Email.length - b.Email.length,
+      sorter: (a: CustomerRow, b: CustomerRow) => a.Email.length - b.Email.length,
     },
 
     {
       title: "Phone",
       dataIndex: "Phone",
-      sorter: (a:any, b:any) => a.Phone.length - b.Phone.length,
+      sorter: (a: CustomerRow, b: CustomerRow) => a.Phone.length - b.Phone.length,
     },
 
     {
       title: "Country",
       dataIndex: "Country",
-      sorter: (a:any, b:any) => a.Country.length - b.Country.length,
+      sorter: (a: CustomerRow, b: CustomerRow) => a.Country.length - b.Country.length,
     },
 
     {
       title: "Action",
       dataIndex: "action",
-      render: () => (
+      render: (_: unknown, record: CustomerRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
@@ -69,6 +228,7 @@ export default function CustomersComponent () {
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#edit-units"
+              onClick={() => openEditCustomer(record)}
             >
               <Edit className="feather-edit" />
             </Link>
@@ -76,16 +236,47 @@ export default function CustomersComponent () {
             <Link
               className="confirm-text p-2"
               href="#"
-              data-bs-toggle="modal" data-bs-target="#delete-modal"
+              data-bs-toggle="modal"
+              data-bs-target="#delete-modal"
+              onClick={() => openDeleteCustomer(record)}
             >
               <Trash2 className="feather-trash-2" />
             </Link>
           </div>
         </div>
       ),
-      sorter: (a:any, b:any) => a.createdby.length - b.createdby.length,
+      sorter: () => 0,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
+            <div className="text-center">
+              <h5 className="text-danger">Error loading customers</h5>
+              <p className="text-muted">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -118,8 +309,7 @@ export default function CustomersComponent () {
           {/* /product list */}
           <div className="card table-list-card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-              <div className="search-set">
-              </div>
+              <div className="search-set"></div>
               <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                 <div className="dropdown me-2">
                   <Link
@@ -148,7 +338,6 @@ export default function CustomersComponent () {
                     </li>
                   </ul>
                 </div>
-                
               </div>
             </div>
             <div className="card-body">
@@ -183,7 +372,7 @@ export default function CustomersComponent () {
                     </button>
                   </div>
                   <div className="modal-body">
-                    <form>
+                    <form onSubmit={handleCreateCustomer}>
                       <div className="new-employee-field">
                         <div className="profile-pic-upload">
                           <div className="profile-pic">
@@ -211,31 +400,56 @@ export default function CustomersComponent () {
                           <label className="form-label">
                             First Name<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control" />
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={newFirstName}
+                            onChange={(e) => setNewFirstName(e.target.value)}
+                          />
                         </div>
                         <div className="col-lg-6 mb-3">
                           <label className="form-label">
                             Last Name<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control" />
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={newLastName}
+                            onChange={(e) => setNewLastName(e.target.value)}
+                          />
                         </div>
                         <div className="col-lg-12 mb-3">
                           <label className="form-label">
                             Email<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="email" className="form-control" />
+                          <input
+                            type="email"
+                            className="form-control"
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                          />
                         </div>
                         <div className="col-lg-12 mb-3">
                           <label className="form-label">
                             Phone<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="tel" className="form-control" />
+                          <input
+                            type="tel"
+                            className="form-control"
+                            value={newPhone}
+                            onChange={(e) => setNewPhone(e.target.value)}
+                          />
                         </div>
                         <div className="col-lg-12 mb-3">
                           <label className="form-label">
                             Address<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control" />
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={newAddress}
+                            onChange={(e) => setNewAddress(e.target.value)}
+                          />
                         </div>
                         <div className="col-lg-6 mb-3">
                           <label className="form-label">
@@ -280,7 +494,8 @@ export default function CustomersComponent () {
                               type="checkbox"
                               id="user1"
                               className="check"
-                              defaultChecked
+                              checked={newActive}
+                              onChange={(e) => setNewActive(e.target.checked)}
                             />
                             <label htmlFor="user1" className="checktoggle">
                               {" "}
@@ -288,6 +503,11 @@ export default function CustomersComponent () {
                           </div>
                         </div>
                       </div>
+                      {createError && (
+                        <div className="mt-3 alert alert-danger" role="alert">
+                          {createError}
+                        </div>
+                      )}
                     </form>
                   </div>
                   <div className="modal-footer">
@@ -298,12 +518,15 @@ export default function CustomersComponent () {
                     >
                       Cancel
                     </button>
-                    <Link
-                      href="#"
-                      className="btn btn-primary fs-13 fw-medium p-2 px-3" data-bs-dismiss="modal"
+                    <button
+                      type="submit"
+                      className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                      onClick={handleCreateCustomer}
+                      disabled={isCreating}
+                      data-bs-dismiss={isCreating ? undefined : "modal"}
                     >
-                      Add Customer
-                    </Link>
+                      {isCreating ? "Saving..." : "Add Customer"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -363,7 +586,8 @@ export default function CustomersComponent () {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue="Carl"
+                            value={editFirstName}
+                            onChange={(e) => setEditFirstName(e.target.value)}
                           />
                         </div>
                         <div className="col-lg-6 mb-3">
@@ -373,7 +597,8 @@ export default function CustomersComponent () {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue="Evans"
+                            value={editLastName}
+                            onChange={(e) => setEditLastName(e.target.value)}
                           />
                         </div>
                         <div className="col-lg-12 mb-3">
@@ -383,7 +608,8 @@ export default function CustomersComponent () {
                           <input
                             type="email"
                             className="form-control"
-                            defaultValue="carlevans@example.com"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
                           />
                         </div>
                         <div className="col-lg-12 mb-3">
@@ -393,7 +619,8 @@ export default function CustomersComponent () {
                           <input
                             type="tel"
                             className="form-control"
-                            defaultValue={+12163547758}
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
                           />
                         </div>
                         <div className="col-lg-12 mb-3">
@@ -403,7 +630,8 @@ export default function CustomersComponent () {
                           <input
                             type="text"
                             className="form-control"
-                            defaultValue="87 Griffin Street"
+                            value={editAddress}
+                            onChange={(e) => setEditAddress(e.target.value)}
                           />
                         </div>
                         <div className="col-lg-6 mb-3">
@@ -453,7 +681,8 @@ export default function CustomersComponent () {
                               type="checkbox"
                               id="user2"
                               className="check"
-                              defaultChecked
+                              checked={editActive}
+                              onChange={(e) => setEditActive(e.target.checked)}
                             />
                             <label htmlFor="user2" className="checktoggle">
                               {" "}
@@ -471,12 +700,15 @@ export default function CustomersComponent () {
                     >
                       Cancel
                     </button>
-                    <Link
-                      href="submit"
-                      className="btn btn-primary fs-13 fw-medium p-2 px-3" data-bs-dismiss="modal"
+                    <button
+                      type="submit"
+                      className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                      onClick={handleUpdateCustomer}
+                      disabled={isUpdating}
+                      data-bs-dismiss={isUpdating ? undefined : "modal"}
                     >
-                      Save Changes
-                    </Link>
+                      {isUpdating ? "Saving..." : "Save Changes"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -495,8 +727,13 @@ export default function CustomersComponent () {
                   </span>
                   <h4 className="fs-20 fw-bold mb-2 mt-1">Delete Customer</h4>
                   <p className="mb-0 fs-16">
-                    Are you sure you want to delete customer?
+                    Are you sure you want to delete {deleteCustomerName || "this customer"}?
                   </p>
+                  {deleteError && (
+                    <div className="mt-3 alert alert-danger" role="alert">
+                      {deleteError}
+                    </div>
+                  )}
                   <div className="modal-footer-btn mt-3 d-flex justify-content-center">
                     <button
                       type="button"
@@ -505,12 +742,15 @@ export default function CustomersComponent () {
                     >
                       Cancel
                     </button>
-                    <Link
-                      href="#"
-                      className="btn btn-primary fs-13 fw-medium p-2 px-3" data-bs-dismiss="modal"
+                    <button
+                      type="button"
+                      className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                      onClick={handleDeleteCustomer}
+                      disabled={isDeleting}
+                      data-bs-dismiss={isDeleting ? undefined : "modal"}
                     >
-                      Yes Delete
-                    </Link>
+                      {isDeleting ? "Deleting..." : "Yes Delete"}
+                    </button>
                   </div>
                 </div>
               </div>

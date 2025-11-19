@@ -1,0 +1,624 @@
+// DreamsPOS Database Schema
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  phone     String?
+  role      UserRole @default(STAFF)
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  posSessions POSSession[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  STAFF
+  CASHIER
+}
+
+// Store Management
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products         Product[]
+  stocks           Stock[]
+  stockMovements   StockMovement[]
+  posSessions      POSSession[]
+  sales            Sale[]
+  purchases        Purchase[]
+
+  @@map("stores")
+}
+
+// Warehouse Management
+model Warehouse {
+  id           String   @id @default(cuid())
+  name         String
+  contactPerson String?
+  phone        String?
+  workPhone    String?
+  email        String?
+  address1     String?
+  address2     String?
+  country      String?
+  state        String?
+  city         String?
+  zipcode      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  stocks       Stock[]
+
+  @@map("warehouses")
+}
+
+// Category Management
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  parent     Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children   Category[] @relation("CategoryHierarchy")
+  products   Product[]
+
+  @@map("categories")
+}
+
+// Brand Management
+model Brand {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products Product[]
+
+  @@map("brands")
+}
+
+// Unit Management
+model Unit {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products    ProductUnit[]
+  stockMovements StockMovement[]
+  stocks      Stock[]
+
+  @@map("units")
+}
+
+// Product Management
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sku         String   @unique
+  barcode     String?  @unique
+  categoryId  String
+  brandId     String?
+  storeId     String
+  image       String?
+  costPrice   Float
+  sellingPrice Float
+  minPrice    Float?
+  maxPrice    Float?
+  reorderLevel Float    @default(0)
+  reorderQty  Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  category       Category       @relation(fields: [categoryId], references: [id])
+  brand          Brand?         @relation(fields: [brandId], references: [id])
+  store          Store          @relation(fields: [storeId], references: [id])
+  variants       ProductVariant[]
+  units          ProductUnit[]
+  stocks         Stock[]
+  stockMovements StockMovement[]
+  gstRates       ProductGST[]
+  saleItems      SaleItem[]
+  purchaseItems  PurchaseItem[]
+  returnItems    ReturnItem[]
+
+  @@map("products")
+}
+
+// Product Variants
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  sku         String?  @unique
+  barcode     String?  @unique
+  costPrice   Float?
+  sellingPrice Float?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stocks         Stock[]
+  stockMovements StockMovement[]
+  saleItems      SaleItem[]
+  returnItems    ReturnItem[]
+
+  @@unique([productId, name])
+  @@map("product_variants")
+}
+
+// Product Units
+model ProductUnit {
+  id        String   @id @default(cuid())
+  productId String
+  unitId    String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  unit    Unit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, unitId])
+  @@map("product_units")
+}
+
+// Stock Management
+model Stock {
+  id          String   @id @default(cuid())
+  productId   String
+  variantId   String?
+  storeId     String
+  warehouseId String?
+  unitId      String?
+  quantity    Float    @default(0)
+  minStock    Float    @default(0)
+  maxStock    Float?
+  batchNumber String?
+  expiryDate  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  store   Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  warehouse Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  unit    Unit?           @relation(fields: [unitId], references: [id])
+  movements StockMovement[]
+
+  @@unique([productId, variantId, storeId, warehouseId])
+  @@map("stocks")
+}
+
+// Stock Movement
+model StockMovement {
+  id            String       @id @default(cuid())
+  productId     String
+  variantId     String?
+  storeId       String
+  unitId        String?
+  stockId       String?
+  movementType  MovementType
+  quantity      Float
+  reference     String?
+  description   String?
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  store   Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  unit    Unit?           @relation(fields: [unitId], references: [id])
+  stock   Stock?          @relation(fields: [stockId], references: [id])
+
+  @@map("stock_movements")
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RETURN_IN
+  RETURN_OUT
+  DAMAGE
+  EXPIRED
+}
+
+// GST Configuration
+model GSTRate {
+  id        String   @id @default(cuid())
+  name      String
+  rate      Float
+  type      GSTType
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products ProductGST[]
+
+  @@map("gst_rates")
+}
+
+model ProductGST {
+  id        String @id @default(cuid())
+  productId String
+  gstId     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  gstRate GSTRate @relation(fields: [gstId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, gstId])
+  @@map("product_gst")
+}
+
+enum GSTType {
+  CGST
+  SGST
+  IGST
+  CESS
+}
+
+// POS Session Management
+model POSSession {
+  id          String    @id @default(cuid())
+  userId      String
+  storeId     String
+  openingDate DateTime  @default(now())
+  closingDate DateTime?
+  openingCash Float     @default(0)
+  closingCash Float?
+  isActive    Boolean   @default(true)
+  notes       String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  user     User  @relation(fields: [userId], references: [id])
+  store    Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sales    Sale[]
+  payments Payment[]
+
+  @@map("pos_sessions")
+}
+
+// Sales Management
+model Sale {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  customerId    String?
+  sessionId     String
+  storeId       String
+  subtotal      Float
+  discount      Float     @default(0)
+  taxAmount     Float     @default(0)
+  totalAmount   Float
+  paidAmount    Float
+  dueAmount     Float     @default(0)
+  paymentStatus PaymentStatus @default(PENDING)
+  status        SaleStatus @default(PENDING)
+  notes         String?
+  saleDate      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  store    Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  session  POSSession @relation(fields: [sessionId], references: [id])
+  customer Customer?  @relation("customerSales", fields: [customerId], references: [id])
+  items    SaleItem[]
+  payments Payment[]
+  returns  SalesReturn[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id         String  @id @default(cuid())
+  saleId     String
+  productId  String
+  variantId  String?
+  quantity   Float
+  unitPrice  Float
+  totalPrice Float
+  discount   Float   @default(0)
+  taxRate    Float   @default(0)
+  taxAmount  Float   @default(0)
+
+  // Relations
+  sale    Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("sale_items")
+}
+
+// Payment Management
+model Payment {
+  id            String      @id @default(cuid())
+  saleId        String?
+  purchaseId    String?
+  sessionId     String?
+  amount        Float
+  paymentMethod PaymentMethod
+  reference     String?
+  status        PaymentStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  sale     Sale?        @relation(fields: [saleId], references: [id])
+  purchase Purchase?    @relation(fields: [purchaseId], references: [id])
+  session  POSSession?  @relation(fields: [sessionId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  WALLET
+  CREDIT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  FAILED
+  REFUNDED
+}
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  RETURNED
+}
+
+// Purchase Management
+model Purchase {
+  id              String          @id @default(cuid())
+  orderNumber     String          @unique
+  supplierId      String?
+  storeId         String
+  subtotal        Float
+  discount        Float           @default(0)
+  taxAmount       Float           @default(0)
+  totalAmount     Float
+  paidAmount      Float
+  dueAmount       Float           @default(0)
+  paymentStatus   PaymentStatus   @default(PENDING)
+  status          PurchaseStatus  @default(PENDING)
+  expectedDate    DateTime?
+  receivedDate    DateTime?
+  notes           String?
+  purchaseDate    DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  store    Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier Supplier?     @relation("supplierPurchases", fields: [supplierId], references: [id])
+  items    PurchaseItem[]
+  payments Payment[]
+  returns  PurchaseReturn[]
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id         String  @id @default(cuid())
+  purchaseId String
+  productId  String
+  quantity   Float
+  unitPrice  Float
+  totalPrice Float
+  discount   Float   @default(0)
+  taxRate    Float   @default(0)
+  taxAmount  Float   @default(0)
+
+  // Relations
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+enum PurchaseStatus {
+  PENDING
+  ORDERED
+  RECEIVED
+  CANCELLED
+  RETURNED
+}
+
+// Customer Management
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  gstNumber String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sales Sale[] @relation("customerSales")
+
+  @@map("customers")
+}
+
+// Supplier Management
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  gstNumber String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  purchases Purchase[] @relation("supplierPurchases")
+
+  @@map("suppliers")
+}
+
+model Biller {
+  id         String   @id @default(cuid())
+  name       String
+  company    String?
+  email      String?  @unique
+  phone      String?
+  address    String?
+  country    String?
+  state      String?
+  city       String?
+  postalCode String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("billers")
+}
+
+// Returns Management
+model SalesReturn {
+  id            String       @id @default(cuid())
+  saleId        String
+  returnNumber  String       @unique
+  reason        String?
+  subtotal      Float
+  discount      Float        @default(0)
+  taxAmount     Float        @default(0)
+  totalAmount   Float
+  status        ReturnStatus @default(PENDING)
+  notes         String?
+  returnDate    DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  sale   Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  items  ReturnItem[]
+
+  @@map("sales_returns")
+}
+
+model PurchaseReturn {
+  id              String       @id @default(cuid())
+  purchaseId      String
+  returnNumber    String       @unique
+  reason          String?
+  subtotal        Float
+  discount        Float        @default(0)
+  taxAmount       Float        @default(0)
+  totalAmount     Float
+  status          ReturnStatus @default(PENDING)
+  notes           String?
+  returnDate      DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  purchase Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  items    ReturnItem[]
+
+  @@map("purchase_returns")
+}
+
+model ReturnItem {
+  id             String  @id @default(cuid())
+  salesReturnId  String?
+  purchaseReturnId String?
+  productId      String
+  variantId      String?
+  quantity       Float
+  unitPrice      Float
+  totalPrice     Float
+
+  // Relations
+  salesReturn   SalesReturn?   @relation(fields: [salesReturnId], references: [id])
+  purchaseReturn PurchaseReturn? @relation(fields: [purchaseReturnId], references: [id])
+  product       Product        @relation(fields: [productId], references: [id])
+  variant       ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("return_items")
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}

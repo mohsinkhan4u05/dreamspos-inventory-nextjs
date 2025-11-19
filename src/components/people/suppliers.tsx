@@ -1,30 +1,65 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React from "react";
-import { SupplierData } from "@/core/json/supplier_data";
-import  Table  from "@/core/common/pagination/datatable";
+import React, { useState } from "react";
+import Table from "@/core/common/pagination/datatable";
 import Link from "next/link";
 import { Edit, Eye, Trash2 } from "react-feather";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import SupplierModal from "@/core/modals/peoples/supplierModal";
+import { useSuppliers } from "@/hooks/useSuppliers";
 
-export default function SuppliersComponent  ()  {
-  const data = SupplierData;
+interface SupplierRow {
+  id: string;
+  code: string;
+  supplierName: string;
+  email: string;
+  phone: string;
+  country: string;
+  image: string;
+  status: string;
+}
 
+export default function SuppliersComponent() {
+  const { suppliers, loading, error, refetch } = useSuppliers();
+
+  const [editingSupplier, setEditingSupplier] = useState<{
+    id: string;
+    supplierName: string;
+    email: string;
+    phone: string;
+  } | null>(null);
+
+  const [deletingSupplier, setDeletingSupplier] = useState<{
+    id: string;
+    supplierName: string;
+  } | null>(null);
+
+  const data: SupplierRow[] =
+    suppliers?.data?.map((supplier, index) => ({
+      id: supplier.id,
+      // Generate a display code similar to the mock data range (201, 202, ...)
+      code: (201 + index).toString(),
+      supplierName: supplier.name,
+      email: supplier.email ?? "",
+      phone: supplier.phone ?? "",
+      country: "N/A",
+      image: "assets/img/supplier/supplier-01.png",
+      status: supplier.isActive ? "Active" : "Inactive",
+    })) || [];
 
   const columns = [
     {
       title: "Code",
       dataIndex: "code",
-      sorter: (a:any, b:any) => a.code.length - b.code.length,
+      sorter: (a: SupplierRow, b: SupplierRow) => a.code.length - b.code.length,
     },
     {
       title: "Supplier Name",
       dataIndex: "supplierName",
-      render: (text:any, record:any) => (
+      render: (text: string, record: SupplierRow) => (
         <span className="productimgname">
           <Link href="#" className="avatar avatar-md me-2">
             <img alt="" src={record.image} className="img-fluid rounded-2" />
@@ -32,31 +67,31 @@ export default function SuppliersComponent  ()  {
           <Link href="#">{text}</Link>
         </span>
       ),
-      sorter: (a:any, b:any) => a.supplierName.length - b.supplierName.length,
+      sorter: (a: SupplierRow, b: SupplierRow) => a.supplierName.length - b.supplierName.length,
     },
 
 
     {
       title: "Email",
       dataIndex: "email",
-      sorter: (a:any, b:any) => a.email.length - b.email.length,
+      sorter: (a: SupplierRow, b: SupplierRow) => a.email.length - b.email.length,
     },
 
     {
       title: "Phone",
       dataIndex: "phone",
-      sorter: (a:any, b:any) => a.phone.length - b.phone.length,
+      sorter: (a: SupplierRow, b: SupplierRow) => a.phone.length - b.phone.length,
     },
 
     {
       title: "Country",
       dataIndex: "country",
-      sorter: (a:any, b:any) => a.country.length - b.country.length,
+      sorter: (a: SupplierRow, b: SupplierRow) => a.country.length - b.country.length,
     },
     {
       title: "Status",
       dataIndex: "status",
-      render: (text:any) => (
+      render: (text: string) => (
         <>
           <span className={`badge  d-inline-flex align-items-center badge-xs ${text === 'Active' ? 'badge-success' : 'badge-danger'}`}>
             <i className="ti ti-point-filled me-1" />
@@ -64,13 +99,13 @@ export default function SuppliersComponent  ()  {
           </span>
         </>
       ),
-      sorter: (a:any, b:any) => a.status.length - b.status.length,
+      sorter: (a: SupplierRow, b: SupplierRow) => a.status.length - b.status.length,
     },
 
     {
       title: "",
       dataIndex: "action",
-      render: () => (
+      render: (_: unknown, record: SupplierRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
@@ -82,23 +117,69 @@ export default function SuppliersComponent  ()  {
             <Link
               className="me-2 p-2"
               href="#"
-              data-bs-toggle="modal" data-bs-target="#edit-supplier"
+              data-bs-toggle="modal"
+              data-bs-target="#edit-supplier"
+              onClick={() =>
+                setEditingSupplier({
+                  id: record.id,
+                  supplierName: record.supplierName,
+                  email: record.email,
+                  phone: record.phone,
+                })
+              }
             >
               <Edit className="feather-edit" />
             </Link>
 
             <Link
               className="confirm-text p-2"
-              href="#" data-bs-toggle="modal" data-bs-target="#delete-modal"
+              href="#"
+              data-bs-toggle="modal"
+              data-bs-target="#delete-modal"
+              onClick={() =>
+                setDeletingSupplier({
+                  id: record.id,
+                  supplierName: record.supplierName,
+                })
+              }
             >
               <Trash2 className="feather-trash-2" />
             </Link>
           </div>
         </div>
       ),
-      sorter: (a:any, b:any) => a.createdby.length - b.createdby.length,
+      sorter: () => 0,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
+            <div className="text-center">
+              <h5 className="text-danger">Error loading suppliers</h5>
+              <p className="text-muted">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -170,7 +251,7 @@ export default function SuppliersComponent  ()  {
                   className="table datanew"
                   columns={columns}
                   dataSource={data}
-                  rowKey={(record:any) => record.id}
+                  rowKey={(record: SupplierRow) => record.id}
                 />
               </div>
             </div>
@@ -178,9 +259,12 @@ export default function SuppliersComponent  ()  {
           {/* /product list */}
         </div>d
       </div>
-      <SupplierModal />
+      <SupplierModal
+        editingSupplier={editingSupplier}
+        deletingSupplier={deletingSupplier}
+        onRefetch={refetch}
+      />
     </>
-
   );
 };
 

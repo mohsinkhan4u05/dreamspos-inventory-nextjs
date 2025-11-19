@@ -3,8 +3,6 @@
 
 import CounterThree from "@/core/common/counter/counterThree";
 import CommonFooter from "@/core/common/footer/commonFooter";
-import { category } from "@/core/common/selectOption/selectOption";
-
 import TextEditor from "@/core/common/texteditor/texteditor";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
@@ -27,12 +25,19 @@ import {
   Image,
 } from "react-feather";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import Select from "react-select";
 import TagInput from "@/core/common/Taginput";
+import { useRouter } from "next/navigation";
+import { productService } from "@/services/api";
+import { useStores } from "@/hooks/useStores";
+import { useWarehouses } from "@/hooks/useWarehouses";
+import { useCategories } from "@/hooks/useCategories";
+import { useBrands } from "@/hooks/useBrands";
 
 export default function AddProductComponent() {
   const route = all_routes;
+  const router = useRouter();
   const [tags, setTags] = useState(["Red", "Black"]);
   const handleTagsChange = (newTags: string[]) => {
     setTags(newTags);
@@ -40,23 +45,82 @@ export default function AddProductComponent() {
 
   const [product, setProduct] = useState(false);
   const [product2, setProduct2] = useState(true);
+  const [storeId, setStoreId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [brandId, setBrandId] = useState<string>("");
+  const [productName, setProductName] = useState<string>("");
+  const [sku, setSku] = useState<string>("");
+  const [price, setPrice] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const { stores } = useStores({ page: 1, limit: 100, isActive: true });
+  const { warehouses } = useWarehouses({ page: 1, limit: 100, isActive: true });
+  const { categories } = useCategories({ page: 1, limit: 100, isActive: true });
+  const { brands } = useBrands({ page: 1, limit: 100, isActive: true });
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!storeId || !categoryId || !productName || !sku || !price) {
+      setSubmitError("Please fill in all required fields.");
+      return;
+    }
+
+    const numericPrice = parseFloat(price);
+
+    if (Number.isNaN(numericPrice)) {
+      setSubmitError("Price must be a valid number.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+
+      await productService.createProduct({
+        name: productName,
+        sku,
+        storeId,
+        categoryId,
+        brandId: brandId || undefined,
+        costPrice: numericPrice,
+        sellingPrice: numericPrice,
+        isActive: true,
+      });
+
+      router.push(route.productlist);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to create product"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const store = [
-    { value: "choose", label: "Choose" },
-    { value: "thomas", label: "Thomas" },
-    { value: "rasmussen", label: "Rasmussen" },
-    { value: "fredJohn", label: "Fred John" },
+    { value: "", label: "Choose" },
+    ...(stores?.data?.map((storeItem) => ({
+      value: storeItem.id,
+      label: storeItem.name,
+    })) || []),
   ];
+
   const warehouse = [
-    { value: "choose", label: "Choose" },
-    { value: "legendary", label: "Legendary" },
-    { value: "determined", label: "Determined" },
-    { value: "sincere", label: "Sincere" },
+    { value: "", label: "Choose" },
+    ...(warehouses?.data?.map((warehouseItem) => ({
+      value: warehouseItem.id,
+      label: warehouseItem.name,
+    })) || []),
   ];
+
   const category = [
-    { value: "choose", label: "Choose" },
-    { value: "lenovo", label: "Lenovo" },
-    { value: "electronics", label: "Electronics" },
+    { value: "", label: "Choose" },
+    ...(categories?.data?.map((categoryItem) => ({
+      value: categoryItem.id,
+      label: categoryItem.name,
+    })) || []),
   ];
   const subcategory = [
     { value: "choose", label: "Choose" },
@@ -65,9 +129,11 @@ export default function AddProductComponent() {
   ];
 
   const brand = [
-    { value: "choose", label: "Choose" },
-    { value: "nike", label: "Nike" },
-    { value: "bolt", label: "Bolt" },
+    { value: "", label: "Choose" },
+    ...(brands?.data?.map((brandItem) => ({
+      value: brandItem.id,
+      label: brandItem.name,
+    })) || []),
   ];
   const unit = [
     { value: "choose", label: "Choose" },
@@ -139,7 +205,7 @@ export default function AddProductComponent() {
             </ul>
           </div>
           {/* /add */}
-          <form className="add-product-form">
+          <form className="add-product-form" onSubmit={handleSubmit}>
             <div className="add-product">
               <div
                 className="accordions-items-seperate"
@@ -178,6 +244,13 @@ export default function AddProductComponent() {
                               className="react-select"
                               options={store}
                               placeholder="Choose"
+                              value={
+                                store.find((option) => option.value === storeId) ||
+                                store[0]
+                              }
+                              onChange={(option) =>
+                                setStoreId((option as { value: string; label: string } | null)?.value || "")
+                              }
                             />
                           </div>
                         </div>
@@ -202,7 +275,12 @@ export default function AddProductComponent() {
                               Product Name
                               <span className="text-danger ms-1">*</span>
                             </label>
-                            <input type="text" className="form-control" />
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={productName}
+                              onChange={(e) => setProductName(e.target.value)}
+                            />
                           </div>
                         </div>
                         <div className="col-sm-6 col-12">
@@ -220,7 +298,12 @@ export default function AddProductComponent() {
                             <label className="form-label">
                               SKU<span className="text-danger ms-1">*</span>
                             </label>
-                            <input type="text" className="form-control list" />
+                            <input
+                              type="text"
+                              className="form-control list"
+                              value={sku}
+                              onChange={(e) => setSku(e.target.value)}
+                            />
                             <button
                               type="button"
                               className="btn btn-primaryadd"
@@ -268,6 +351,17 @@ export default function AddProductComponent() {
                                 className="react-select"
                                 options={category}
                                 placeholder="Choose"
+                                value={
+                                  category.find(
+                                    (option) => option.value === categoryId
+                                  ) || category[0]
+                                }
+                                onChange={(option) =>
+                                  setCategoryId(
+                                    (option as { value: string; label: string } | null)?.value ||
+                                      ""
+                                  )
+                                }
                               />
                             </div>
                           </div>
@@ -300,6 +394,16 @@ export default function AddProductComponent() {
                                 className="react-select"
                                 options={brand}
                                 placeholder="Choose"
+                                value={
+                                  brand.find(
+                                    (option) => option.value === brandId
+                                  ) || brand[0]
+                                }
+                                onChange={(option) =>
+                                  setBrandId(
+                                    (option as { value: string; label: string } | null)?.value || ""
+                                  )
+                                }
                               />
                             </div>
                           </div>
@@ -462,7 +566,12 @@ export default function AddProductComponent() {
                                     Price
                                     <span className="text-danger ms-1">*</span>
                                   </label>
-                                  <input type="text" className="form-control" />
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={price}
+                                    onChange={(e) => setPrice(e.target.value)}
+                                  />
                                 </div>
                               </div>
                               <div className="col-lg-4 col-sm-6 col-12">
@@ -979,12 +1088,21 @@ export default function AddProductComponent() {
               </div>
             </div>
             <div className="col-lg-12">
+              {submitError && (
+                <div className="alert alert-danger mb-3" role="alert">
+                  {submitError}
+                </div>
+              )}
               <div className="d-flex align-items-center justify-content-end mb-4">
                 <button type="button" className="btn btn-secondary me-2">
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Add Product
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Add Product"}
                 </button>
               </div>
             </div>

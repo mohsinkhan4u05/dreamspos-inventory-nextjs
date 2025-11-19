@@ -5,14 +5,65 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
-import { categorylist } from "@/core/json/categorylistdata";
+import { useCategories } from '@/hooks/useCategories'
 import Link from "next/link";
 import Table from "@/core/common/pagination/datatable";
 import EditCategoryList from "@/core/modals/inventory/editcategorylist";
 import CommonDeleteModal from "@/core/common/modal/commonDeleteModal";
+import { useState, MouseEvent } from "react";
+import { categoryService } from "@/services/api";
 
 export default function CategoryListComponent() {
-  const data = categorylist;
+  const { categories, loading, error, refetch } = useCategories();
+
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategorySlug, setNewCategorySlug] = useState("");
+  const [newCategoryActive, setNewCategoryActive] = useState(true);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [saveCategoryError, setSaveCategoryError] = useState<string | null>(null);
+
+  const handleCreateCategory = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (!newCategoryName.trim()) {
+      setSaveCategoryError("Category name is required");
+      return;
+    }
+
+    setIsSavingCategory(true);
+    setSaveCategoryError(null);
+
+    try {
+      await categoryService.createCategory({
+        name: newCategoryName.trim(),
+        description: null,
+        parentId: null,
+        image: null,
+        isActive: newCategoryActive,
+      });
+
+      await refetch();
+
+      setNewCategoryName("");
+      setNewCategorySlug("");
+      setNewCategoryActive(true);
+    } catch (err) {
+      setSaveCategoryError(
+        err instanceof Error ? err.message : "Failed to create category"
+      );
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+  
+  // Transform API data to match the expected format for the table
+  const data = categories?.data?.map(category => ({
+    id: category.id,
+    category: category.name,
+    categoryslug: category.slug || category.name.toLowerCase().replace(/\s+/g, '-'),
+    createdon: new Date(category.createdAt).toLocaleDateString(),
+    status: category.isActive ? "Active" : "Inactive",
+  })) || [];
   const columns = [
     {
       title: "Category",
@@ -65,6 +116,39 @@ export default function CategoryListComponent() {
       ),
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+            <div className="text-center">
+              <h5 className="text-danger">Error loading categories</h5>
+              <p className="text-muted">{error}</p>
+              <button className="btn btn-primary mt-2" onClick={() => window.location.reload()}>
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="page-wrapper">
@@ -193,13 +277,23 @@ export default function CategoryListComponent() {
                       <label className="form-label">
                         Category<span className="text-danger ms-1">*</span>
                       </label>
-                      <input type="text" className="form-control" />
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                      />
                     </div>
                     <div className="mb-3">
                       <label className="form-label">
                         Category Slug<span className="text-danger ms-1">*</span>
                       </label>
-                      <input type="text" className="form-control" />
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={newCategorySlug}
+                        onChange={(e) => setNewCategorySlug(e.target.value)}
+                      />
                     </div>
                     <div className="mb-0">
                       <div className="status-toggle modal-status d-flex justify-content-between align-items-center">
@@ -210,11 +304,17 @@ export default function CategoryListComponent() {
                           type="checkbox"
                           id="user2"
                           className="check"
-                          defaultChecked
+                          checked={newCategoryActive}
+                          onChange={(e) => setNewCategoryActive(e.target.checked)}
                         />
                         <label htmlFor="user2" className="checktoggle" />
                       </div>
                     </div>
+                    {saveCategoryError && (
+                      <div className="mt-3 alert alert-danger" role="alert">
+                        {saveCategoryError}
+                      </div>
+                    )}
                   </form>
                 </div>
                 <div className="modal-footer">
@@ -225,13 +325,15 @@ export default function CategoryListComponent() {
                   >
                     Cancel
                   </button>
-                  <Link
-                    href="#"
-                    data-bs-dismiss="modal"
+                  <button
+                    type="button"
                     className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                    onClick={handleCreateCategory}
+                    disabled={isSavingCategory}
+                    data-bs-dismiss={isSavingCategory ? undefined : "modal"}
                   >
-                    Add Category
-                  </Link>
+                    {isSavingCategory ? "Saving..." : "Add Category"}
+                  </button>
                 </div>
               </div>
             </div>

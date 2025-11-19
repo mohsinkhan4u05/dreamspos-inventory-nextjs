@@ -6,6 +6,7 @@ import { ChevronsLeft, Search } from "react-feather";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 
 export default function Header() {
   const route = all_routes;
@@ -14,8 +15,11 @@ export default function Header() {
   const pathname = usePathname(); // Use Next.js hook for current route
   const [expandMenus, setExpandMenus] = useState(false); // Local state for expandMenus
   const [dataLayout, setDataLayout] = useState("default"); // Local state for dataLayout
+  const { data: session } = useSession();
 
-
+  const handleLogout = async () => {
+    await signOut({ redirect: true, callbackUrl: "/auth/signin" });
+  };
 
   const handlesidebar = (): void => {
     document.body.classList.toggle("mini-sidebar");
@@ -559,7 +563,7 @@ export default function Header() {
                   Settings
                 </Link>
                 <hr className="my-2" />
-                <Link className="dropdown-item logout pb-0" href={route.signin}>
+                <Link className="dropdown-item logout pb-0" href="#" onClick={handleLogout}>
                   <i className="ti ti-logout me-2" />
                   Logout
                 </Link>
@@ -584,7 +588,7 @@ export default function Header() {
               <Link className="dropdown-item" href="generalsettings">
                 Settings
               </Link>
-              <Link className="dropdown-item" href="signin">
+              <Link className="dropdown-item" href="#" onClick={handleLogout}>
                 Logout
               </Link>
             </div>

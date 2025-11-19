@@ -7,14 +7,16 @@ import "../style/icons/fontawesome/css/fontawesome.min.css";
 import "../style/icons/fontawesome/css/all.min.css";
 import "../style/fonts/feather/css/iconfont.css";
 import BootstrapJs from "../components/bootstrap-js/bootstrapjs";
+import { Providers } from "../components/providers";
+import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Dreams POS - Inventory Management & Admin Dashboard Template",
   description:
     "Dreams POS is a powerful Bootstrap-based Inventory Management Admin Template designed for businesses, offering seamless invoicing, project tracking, and estimates.",
   keywords:
     "inventory management, admin dashboard, bootstrap template, invoicing, estimates, business management, responsive admin, POS system",
-  author: "Dreams Technologies",
+  authors: [{ name: "Dreams Technologies" }],
   icons: {
     icon: "favicon.png",
     shortcut: "favicon.png", // Add shortcut icon for better support
@@ -30,10 +32,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <>
+        <Providers>
           <>{children}</>
           <BootstrapJs />
-        </>
+        </Providers>
       </body>
     </html>
   );

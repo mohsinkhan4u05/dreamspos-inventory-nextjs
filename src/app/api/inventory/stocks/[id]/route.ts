@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     const stock = await prisma.stock.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         product: {
           select: {
@@ -25,9 +27,9 @@ export async function GET(
             sku: true,
             barcode: true,
             sellingPrice: true,
-            category: {
-              select: { id: true, name: true },
-            },
+            // category: {
+            //   select: { id: true, name: true },
+            // },
           },
         },
         variant: {
@@ -76,7 +78,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -144,8 +146,10 @@ export async function PUT(
       updateData.expiryDate = expiryDate ? new Date(expiryDate) : null
     }
 
+    const { id } = await context.params
+
     const stock = await prisma.stock.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         product: {
@@ -155,9 +159,6 @@ export async function PUT(
             sku: true,
             barcode: true,
             sellingPrice: true,
-            category: {
-              select: { id: true, name: true },
-            },
           },
         },
         variant: {
@@ -202,7 +203,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -211,8 +212,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     await prisma.stock.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ message: "Stock deleted successfully" })

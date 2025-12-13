@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
+import { PaymentMethod } from "@prisma/client"
+import { InsufficientStockError, applySale } from "@/lib/stockEngine"
 
 export const dynamic = "force-dynamic"
 
@@ -392,8 +394,11 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
+    const saleId = searchParams.get("saleId")
+    const customerId = searchParams.get("customerId")
+    const paymentStatus = searchParams.get("paymentStatus")
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, any> = {}
     
     if (search) {
       where.OR = [
@@ -403,6 +408,14 @@ export async function GET(request: NextRequest) {
       ]
     }
     
+    if (saleId) {
+      where.id = saleId
+    }
+
+    if (customerId) {
+      where.customerId = customerId
+    }
+
     if (storeId) {
       where.storeId = storeId
     }
@@ -410,14 +423,19 @@ export async function GET(request: NextRequest) {
     if (status) {
       where.status = status
     }
-    
+
+    if (paymentStatus) {
+      where.paymentStatus = paymentStatus
+    }
+
+    // Use saleDate as the primary date for filtering invoices
     if (startDate || endDate) {
-      where.createdAt = {}
+      where.saleDate = {}
       if (startDate) {
-        where.createdAt.gte = new Date(startDate)
+        where.saleDate.gte = new Date(startDate)
       }
       if (endDate) {
-        where.createdAt.lte = new Date(endDate)
+        where.saleDate.lte = new Date(endDate)
       }
     }
 
@@ -429,16 +447,28 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              code: true
-            }
+              code: true,
+            },
           },
-          user: {
+          customer: {
             select: {
               id: true,
-              username: true,
-              firstName: true,
-              lastName: true
-            }
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          session: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
           },
           items: {
             include: {
@@ -446,21 +476,21 @@ export async function GET(request: NextRequest) {
                 select: {
                   id: true,
                   name: true,
-                  sku: true
-                }
+                  sku: true,
+                },
               },
               variant: {
                 select: {
                   id: true,
                   name: true,
-                  sku: true
-                }
-              }
-            }
+                  sku: true,
+                },
+              },
+            },
           },
           _count: {
-            select: { items: true }
-          }
+            select: { items: true },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -495,114 +525,66 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { storeId, customerName, customerEmail, customerPhone, items, paymentMethod, paymentStatus } = body
+    const {
+      storeId,
+      items,
+      customerId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      discount,
+      tax,
+      paidAmount,
+      paymentMethod,
+      paymentStatus,
+      notes,
+    } = body
 
     if (!storeId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { error: "Store ID and items are required" },
-        { status: 400 }
+        { error: "storeId and items are required" },
+        { status: 400 },
       )
     }
 
-    // Generate invoice number
-    const invoiceNumber = `INV-${Date.now()}`
-
-    // Calculate totals
-    const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0)
-    const discount = body.discount || 0
-    const tax = body.tax || 0
-    const totalAmount = subtotal - discount + tax
-
-    const result = await prisma.$transaction(async (tx) => {
-      // Create sale
-      const sale = await tx.sale.create({
-        data: {
-          invoiceNumber,
-          storeId,
-          userId: token.sub as string,
-          customerName: customerName || null,
-          customerEmail: customerEmail || null,
-          customerPhone: customerPhone || null,
-          subtotal,
-          discount,
-          tax,
-          totalAmount,
-          paymentMethod: paymentMethod || "CASH",
-          paymentStatus: paymentStatus || "PAID",
-          status: "COMPLETED",
-          items: {
-            create: items.map((item: any) => ({
-              productId: item.productId,
-              variantId: item.variantId || null,
-              quantity: parseFloat(item.quantity),
-              unitPrice: parseFloat(item.unitPrice),
-              totalPrice: parseFloat(item.quantity) * parseFloat(item.unitPrice),
-              discount: item.discount || 0,
-            }))
-          }
-        },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true
-                }
-              },
-              variant: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true
-                }
-              }
-            }
-          }
-        }
-      })
-
-      // Update stock
-      for (const item of items) {
-        await tx.stock.updateMany({
-          where: {
-            productId: item.productId,
-            variantId: item.variantId || null,
-            storeId,
-          },
-          data: {
-            quantity: {
-              decrement: parseFloat(item.quantity)
-            }
-          }
-        })
-
-        // Create stock movement
-        await tx.stockMovement.create({
-          data: {
-            productId: item.productId,
-            variantId: item.variantId || null,
-            storeId,
-            unitId: item.unitId || null,
-            movementType: "OUT",
-            quantity: parseFloat(item.quantity),
-            referenceType: "SALE",
-            referenceId: sale.id,
-            reason: "Sale transaction",
-          }
-        })
-      }
-
-      return sale
+    const result = await applySale({
+      storeId,
+      userId: token.sub as string,
+      customerId: customerId ?? null,
+      customerName: customerName ?? null,
+      customerEmail: customerEmail ?? null,
+      customerPhone: customerPhone ?? null,
+      discount,
+      taxAmount: tax,
+      paidAmount,
+      notes: notes ?? null,
+      paymentMethod: paymentMethod ?? PaymentMethod.CASH,
+      paymentStatus: paymentStatus ?? null,
+      items: items.map((item: any) => ({
+        productId: item.productId,
+        variantId: item.variantId ?? null,
+        quantity: parseFloat(item.quantity),
+        unitPrice: parseFloat(item.unitPrice),
+        discount: item.discount,
+        taxRate: item.taxRate,
+        taxAmount: item.taxAmount,
+        unitId: item.unitId ?? null,
+      })),
     })
 
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
+    if (error instanceof InsufficientStockError) {
+      return NextResponse.json(
+        { error: "Insufficient stock for sale" },
+        { status: 400 },
+      )
+    }
+
     console.error("Error creating sale:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

@@ -1,0 +1,22 @@
+Create Purchase Order should have two action buttons Save & Send and Save as Draft
+Save & Send will take you to Email Screen (public/screens/purchase-order-send-email.png) , Purchase Order Status will be DRAFT
+Email screen should have tow action buttons - Send / Cancel. Send will sent an email and mark the status of purchase order as ISSUED. Cancel button will keep the status of purchase order as DRAFT.
+In case of DRAFT status , Purchase Order Detail screen will have tow buttons , Send Purchase order (for sending an email) and Mark is Issued 
+Mark as Issue will update the Purchse Order Status as ISSUED.
+Now Purchase Order Detail Screen will have tow buttons , Convert To Bill and Receive.
+Convert To Bill click will take you to Bill Creation screen similar to public/screens/purchase-order-bill-create.png. This creen will have tow action buttons , Save as Draft and Save as Open.
+Till this step , status will - Order : ISSUED , Receive : Yet to be Received , Bill : Yet To Be Billed.
+Save as Open click on Bill creation screen will take you to Bill Detail Screen (public/screens/purchase-order-bill-detail.png). Till this stage status is  Order : CLOSED , Receive : Yet to be Received , Bill : Billed.
+Bill Detail screen have action button - Record Payment, Record Payment button click will take you to payment collection screen (public/screens/purchase-order-payment-collect.png) having two action buttons : Save as Paid and Save as Draft.
+Saveas Paid will take you to bill detail screen similar to public/screens/ purchase-order-bill-detail-paid.png. 
+Purchase order status now will be  -  Order : CLOSED , Receive : Yet to be Received , Bill : Billed.
+Purchase Order Detail screen will have Receive button , clicking on it will open the New Purchase Receive screen (public/screens/purchase-recieves-new.png)
+This screen will have Save as Draft and Save Received button. Clicking on Save as Received will marke the Receive status as Received and take you to Purchase Receive Detail screen (public/screens/purchase-order-receive-detail.png)
+This final step complete the Purchase Order Workflow with below status
+Order : CLOSED , Receive : Received , Bill : Billed.
+During this workflow keep updating the status of Accounting Stock , Physical Stock , To be Received and To be Billed quantity properly similar to saler order workflow.
+
+
+Implement Helper info like ZOHO for every next event on Purchase Order Lifecycle
+WHAT'S NEXT?
+Convert it to a bill or create a receive to complete your purchase.

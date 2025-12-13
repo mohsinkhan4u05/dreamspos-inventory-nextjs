@@ -9,16 +9,32 @@ import { Chips } from "primereact/chips";
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import CommonFooter from "@/core/common/footer/commonFooter";
+import { emailService } from "@/services/api";
 
 
 export default function EmailComponent(){
     const routes = all_routes;
-  const [value, setValue] = useState(['Angela Thomas']);
+  const [value, setValue] = useState<string[]>(['Angela Thomas']);
   const [show, setShow] = useState(false);
 
   const [showMenu, setShowMenu] = useState(false)
   const [showMenu2, setShowMenu2] = useState(false)
   const [showMenu3, setShowMenu3] = useState(false)
+
+  interface ComposeAttachment {
+    file: File;
+    base64: string;
+  }
+
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [composeCc, setComposeCc] = useState("");
+  const [composeBcc, setComposeBcc] = useState("");
+  const [composeAttachments, setComposeAttachments] = useState<ComposeAttachment[]>([]);
+  const [composeSending, setComposeSending] = useState(false);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const customChip = (item:any) => {
     return (
       <div>
@@ -26,6 +42,101 @@ export default function EmailComponent(){
       </div>
     );
   };
+  const handleComposeFilesChange: React.ChangeEventHandler<HTMLInputElement> = async (
+    event,
+  ) => {
+    const files = event.target.files;
+    if (!files || !files.length) {
+      setComposeAttachments([]);
+      return;
+    }
+
+    const fileArray = Array.from(files);
+    const results: ComposeAttachment[] = await Promise.all(
+      fileArray.map((file) => {
+        return new Promise<ComposeAttachment>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const data = reader.result;
+            if (typeof data === "string") {
+              resolve({
+                file,
+                base64: data.split(",")[1] ?? "",
+              });
+            } else {
+              reject(new Error("Failed to read base64"));
+            }
+          };
+          reader.onerror = () => reject(new Error("File read error"));
+          reader.readAsDataURL(file);
+        });
+      }),
+    );
+
+    setComposeAttachments(results);
+  };
+
+  const handleComposeSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    if (!value || value.length === 0) {
+      setComposeError("Please add at least one recipient.");
+      return;
+    }
+
+    const to = value.join(",");
+    const cc = composeCc.trim();
+    const bcc = composeBcc.trim();
+    const subject = composeSubject.trim();
+    const message = composeBody.trim();
+
+    if (!subject) {
+      setComposeError("Subject is required.");
+      return;
+    }
+    if (!message) {
+      setComposeError("Message body is required.");
+      return;
+    }
+
+    setComposeSending(true);
+    setComposeError(null);
+
+    try {
+      const payload: Record<string, any> = {
+        type: "GENERIC",
+        to,
+        cc: cc || undefined,
+        bcc: bcc || undefined,
+        subject,
+        message,
+        attachments:
+          composeAttachments.length > 0
+            ? composeAttachments.map((a) => ({
+                filename: a.file.name,
+                content: a.base64,
+                contentType: a.file.type || "application/octet-stream",
+                size: a.file.size,
+              }))
+            : undefined,
+      };
+
+      await emailService.sendEmail(payload);
+
+      setComposeSubject("");
+      setComposeBody("");
+      setComposeCc("");
+      setComposeBcc("");
+      setComposeAttachments([]);
+      setShow(false);
+    } catch (err) {
+      setComposeError(
+        err instanceof Error ? err.message : "Failed to send email",
+      );
+    } finally {
+      setComposeSending(false);
+    }
+  };
+
     return(
         <>
       {/* Page Wrapper */}
@@ -1647,7 +1758,7 @@ export default function EmailComponent(){
               </button>
             </div>
           </div>
-          <form >
+          <form onSubmit={handleComposeSubmit}>
             <div className="p-3 position-relative pb-2 border-bottom chip-with-image">
               <div className="tag-with-img d-flex align-items-center">
                 <label className="form-label me-2">To</label>
@@ -1662,35 +1773,88 @@ export default function EmailComponent(){
                 <Chips value={value} className="input-tags form-control border-0 h-100 w-100" onChange={(e:any) => setValue(e.value)} itemTemplate={customChip} />
               </div>
               <div className="d-flex align-items-center email-cc">
-                <Link href="#" className="d-inline-flex me-2">
+                <Link
+                  href="#"
+                  className="d-inline-flex me-2"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowCc(!showCc);
+                  }}
+                >
                   Cc
                 </Link>
-                <Link href="#" className="d-inline-flex">
+                <Link
+                  href="#"
+                  className="d-inline-flex"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowBcc(!showBcc);
+                  }}
+                >
                   Bcc
                 </Link>
               </div>
+              {showCc && (
+                <div className="mt-2">
+                  <label className="form-label me-2">Cc</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={composeCc}
+                    onChange={(e) => setComposeCc(e.target.value)}
+                    placeholder="cc@example.com"
+                  />
+                </div>
+              )}
+              {showBcc && (
+                <div className="mt-2">
+                  <label className="form-label me-2">Bcc</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={composeBcc}
+                    onChange={(e) => setComposeBcc(e.target.value)}
+                    placeholder="bcc@example.com"
+                  />
+                </div>
+              )}
             </div>
             <div className="p-3 border-bottom">
               <div className="mb-3">
-                <input type="text" className="form-control" placeholder="Subject" />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Subject"
+                  value={composeSubject}
+                  onChange={(e) => setComposeSubject(e.target.value)}
+                />
               </div>
               <div className="mb-0">
                 <textarea
                   rows={7}
                   className="form-control"
                   placeholder="Compose Email"
-                  defaultValue={""}
+                  value={composeBody}
+                  onChange={(e) => setComposeBody(e.target.value)}
                 />
               </div>
             </div>
             <div className="p-3 d-flex align-items-center justify-content-between">
               <div className="d-flex align-items-center">
-                <Link
-                  href="#"
-                  className="btn btn-icon btn-sm rounded-circle"
+                <label
+                  htmlFor="compose-attachments"
+                  className="btn btn-icon btn-sm rounded-circle mb-0"
+                  style={{ cursor: "pointer" }}
                 >
                   <i className="ti ti-paperclip" />
-                </Link>
+                </label>
+                <input
+                  id="compose-attachments"
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={handleComposeFilesChange}
+                />
                 <Link
                   href="#"
                   className="btn btn-icon btn-sm rounded-circle"
@@ -1717,6 +1881,9 @@ export default function EmailComponent(){
                 </Link>
               </div>
               <div className="d-flex align-items-center compose-footer">
+                {composeError && (
+                  <span className="text-danger me-2 small">{composeError}</span>
+                )}
                 <Link
                   href="#"
                   className="btn btn-icon btn-sm rounded-circle"
@@ -1730,10 +1897,12 @@ export default function EmailComponent(){
                   <i className="ti ti-trash" />
                 </Link>
                 <button
-                  type="button"
+                  type="submit"
                   className="btn btn-primary d-inline-flex align-items-center ms-2"
+                  disabled={composeSending}
                 >
-                  Send <i className="ti ti-arrow-right ms-2" />
+                  {composeSending ? "Sending..." : "Send"}
+                  <i className="ti ti-arrow-right ms-2" />
                 </button>
               </div>
             </div>

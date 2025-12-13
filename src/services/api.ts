@@ -2,6 +2,19 @@ import { Product } from '@/types/api'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
+type ErrorResponse = {
+  error: string
+}
+
+function hasErrorMessage(data: unknown): data is ErrorResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'error' in data &&
+    typeof (data as { error: unknown }).error === 'string'
+  )
+}
+
 // Generic API fetch function
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}/api${endpoint}`
@@ -17,11 +30,18 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     ...options,
   })
 
+  const contentType = response.headers.get('content-type')
+  const isJson = contentType && contentType.includes('application/json')
+  const data = isJson ? await response.json() : await response.text()
+
   if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`)
+    const messageFromJson = hasErrorMessage(data) ? data.error : undefined
+
+    const message = messageFromJson || `API Error: ${response.status} ${response.statusText}`
+    throw new Error(message)
   }
 
-  return response.json()
+  return data
 }
 
 // Product API services
@@ -222,6 +242,17 @@ export const supplierService = {
       method: 'DELETE',
     })
   },
+
+  async getSupplier(id: string) {
+    return fetchAPI(`/suppliers/${id}`)
+  },
+
+  async getSupplierActivities(id: string, params?: { limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return fetchAPI(`/suppliers/${id}/activities${query ? `?${query}` : ''}`)
+  },
 }
 
 // Customer API services
@@ -261,6 +292,17 @@ export const customerService = {
     return fetchAPI(`/customers/${id}`, {
       method: 'DELETE',
     })
+  },
+
+  async getCustomer(id: string) {
+    return fetchAPI(`/customers/${id}`)
+  },
+
+  async getCustomerActivities(id: string, params?: { limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return fetchAPI(`/customers/${id}/activities${query ? `?${query}` : ''}`)
   },
 }
 
@@ -355,19 +397,27 @@ export const salesService = {
   async getSales(params?: {
     page?: number
     limit?: number
+    search?: string
+    saleId?: string
     storeId?: string
     startDate?: string
     endDate?: string
     status?: string
+    paymentStatus?: string
+    customerId?: string
   }) {
     const searchParams = new URLSearchParams()
     
     if (params?.page) searchParams.set('page', params.page.toString())
     if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.saleId) searchParams.set('saleId', params.saleId)
+    if (params?.customerId) searchParams.set('customerId', params.customerId)
     if (params?.storeId) searchParams.set('storeId', params.storeId)
     if (params?.startDate) searchParams.set('startDate', params.startDate)
     if (params?.endDate) searchParams.set('endDate', params.endDate)
     if (params?.status) searchParams.set('status', params.status)
+    if (params?.paymentStatus) searchParams.set('paymentStatus', params.paymentStatus)
     
     const query = searchParams.toString()
     return fetchAPI(`/sales${query ? `?${query}` : ''}`)
@@ -377,6 +427,181 @@ export const salesService = {
     return fetchAPI('/sales', {
       method: 'POST',
       body: JSON.stringify(saleData),
+    })
+  },
+
+  async getSaleDetail(id: string) {
+    return fetchAPI(`/sales/${id}`)
+  },
+
+  async recordPayment(saleId: string, data: Record<string, unknown>) {
+    return fetchAPI(`/sales/${saleId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+}
+
+// Sales Order API services
+export const salesOrderService = {
+  async getSalesOrders(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    storeId?: string
+    status?: string
+    customerId?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.storeId) searchParams.set('storeId', params.storeId)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.customerId) searchParams.set('customerId', params.customerId)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/sales-orders${query ? `?${query}` : ''}`)
+  },
+  async getSalesOrder(id: string) {
+    return fetchAPI(`/sales-orders/${id}`)
+  },
+  async createSalesOrder(orderData: Record<string, unknown>) {
+    return fetchAPI('/sales-orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    })
+  },
+  async getSalesOrderPackages(id: string) {
+    return fetchAPI(`/sales-orders/${id}/packages`)
+  },
+  async createPackage(orderId: string, data: Record<string, unknown>) {
+    return fetchAPI(`/sales-orders/${orderId}/packages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+}
+
+// Package API services
+export const packageService = {
+  async getPackage(id: string) {
+    return fetchAPI(`/packages/${id}`)
+  },
+  async createShipment(packageId: string, data: Record<string, unknown>) {
+    return fetchAPI(`/packages/${packageId}/shipments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+}
+
+// Shipment API services
+export const shipmentService = {
+  async getShipment(id: string) {
+    return fetchAPI(`/shipments/${id}`)
+  },
+}
+
+// Sales Return API services
+export const salesReturnService = {
+  async getSalesReturns(params?: {
+    page?: number
+    limit?: number
+    saleId?: string
+    storeId?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.saleId) searchParams.set('saleId', params.saleId)
+    if (params?.storeId) searchParams.set('storeId', params.storeId)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/sales-returns${query ? `?${query}` : ''}`)
+  },
+
+  async createSalesReturn(returnData: Record<string, unknown>) {
+    return fetchAPI('/sales-returns', {
+      method: 'POST',
+      body: JSON.stringify(returnData),
+    })
+  },
+}
+
+// Payment API services
+export const paymentService = {
+  async getPayments(params?: {
+    page?: number
+    limit?: number
+    status?: string
+    customerId?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.customerId) searchParams.set('customerId', params.customerId)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/payments${query ? `?${query}` : ''}`)
+  },
+
+  async getPaymentDetail(id: string) {
+    return fetchAPI(`/payments/${id}`)
+  },
+}
+
+// Purchase Payment API services
+export const purchasePaymentService = {
+  async getPurchasePayments(params?: {
+    page?: number
+    limit?: number
+    status?: string
+    supplierId?: string
+    storeId?: string
+    startDate?: string
+    endDate?: string
+    purchaseId?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.supplierId) searchParams.set('supplierId', params.supplierId)
+    if (params?.storeId) searchParams.set('storeId', params.storeId)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+    if (params?.purchaseId) searchParams.set('purchaseId', params.purchaseId)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/purchase-payments${query ? `?${query}` : ''}`)
+  },
+
+  async getPurchasePaymentDetail(id: string) {
+    return fetchAPI(`/purchase-payments/${id}`)
+  },
+
+  async getPaymentsForPurchase(purchaseId: string) {
+    return fetchAPI(`/purchases/${purchaseId}/payments`)
+  },
+
+  async recordPayment(purchaseId: string, data: Record<string, unknown>) {
+    return fetchAPI(`/purchases/${purchaseId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
   },
 }
@@ -398,6 +623,10 @@ export const stockAdjustmentService = {
 
     const query = searchParams.toString()
     return fetchAPI(`/inventory/stock-adjustments${query ? `?${query}` : ''}`)
+  },
+
+  async getStockAdjustmentDetail(id: string) {
+    return fetchAPI(`/inventory/stock-adjustments/${id}`)
   },
 
   async createStockAdjustment(adjustmentData: Record<string, unknown>) {
@@ -448,6 +677,144 @@ export const purchaseService = {
     return fetchAPI('/purchases', {
       method: 'POST',
       body: JSON.stringify(purchaseData),
+    })
+  },
+}
+
+// Bill (Purchase) API helpers
+export const billService = {
+  async getBills(params?: {
+    page?: number
+    limit?: number
+    storeId?: string
+    startDate?: string
+    endDate?: string
+    status?: string
+    purchaseOrderId?: string
+    supplierId?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.storeId) searchParams.set('storeId', params.storeId)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.purchaseOrderId)
+      searchParams.set('purchaseOrderId', params.purchaseOrderId)
+    if (params?.supplierId) searchParams.set('supplierId', params.supplierId)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/purchases${query ? `?${query}` : ''}`)
+  },
+
+  async createBill(billData: Record<string, unknown>) {
+    return fetchAPI('/purchases', {
+      method: 'POST',
+      body: JSON.stringify(billData),
+    })
+  },
+
+  async createBillFromPurchaseOrder(data: Record<string, unknown>) {
+    return fetchAPI('/bills/create-from-purchase-order', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async getBillDetail(id: string) {
+    return fetchAPI(`/purchases/${id}`)
+  },
+
+  async getBillPayments(id: string) {
+    return fetchAPI(`/purchases/${id}/payments`)
+  },
+}
+
+// Purchase Order API services
+export const purchaseOrderService = {
+  async getPurchaseOrders(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    storeId?: string
+    status?: string
+    supplierId?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.storeId) searchParams.set('storeId', params.storeId)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.supplierId) searchParams.set('supplierId', params.supplierId)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/purchase-orders${query ? `?${query}` : ''}`)
+  },
+
+  async getPurchaseOrder(id: string) {
+    return fetchAPI(`/purchase-orders/${id}`)
+  },
+
+  async createPurchaseOrder(orderData: Record<string, unknown>) {
+    return fetchAPI('/purchase-orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    })
+  },
+}
+
+// Purchase Receive (GRN) API services
+export const purchaseReceiveService = {
+  async getPurchaseReceives(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    storeId?: string
+    supplierId?: string
+    purchaseOrderId?: string
+    status?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.storeId) searchParams.set('storeId', params.storeId)
+    if (params?.supplierId) searchParams.set('supplierId', params.supplierId)
+    if (params?.purchaseOrderId)
+      searchParams.set('purchaseOrderId', params.purchaseOrderId)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/purchase-receives${query ? `?${query}` : ''}`)
+  },
+
+  async getPurchaseReceive(id: string) {
+    return fetchAPI(`/purchase-receives/${id}`)
+  },
+
+  async createPurchaseReceive(data: Record<string, unknown>) {
+    return fetchAPI('/purchase-receives', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async postPurchaseReceive(id: string) {
+    return fetchAPI(`/purchase-receives/${id}/post`, {
+      method: 'POST',
     })
   },
 }
@@ -528,6 +895,16 @@ export const warehouseService = {
   async deleteWarehouse(id: string) {
     return fetchAPI(`/warehouses/${id}`, {
       method: 'DELETE',
+    })
+  },
+}
+
+// Email API services
+export const emailService = {
+  async sendEmail(data: Record<string, unknown>) {
+    return fetchAPI('/email/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
   },
 }

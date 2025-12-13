@@ -3,6 +3,7 @@ import HorizontalSidebar from "@/core/common/sidebar/horizontalSidebar";
 import Sidebar from "@/core/common/sidebar/sidebar";
 import ThemeSettings from "@/core/common/sidebar/themeSettings";
 import TwoColumnSidebar from "@/core/common/sidebar/two-column";
+import OrganizationGuard from "@/components/organization/OrganizationGuard";
 
 export default function PageLayout({
   children,
@@ -16,7 +17,7 @@ export default function PageLayout({
       <HorizontalSidebar />
       <TwoColumnSidebar />
       <ThemeSettings />
-      {children}
+      <OrganizationGuard>{children}</OrganizationGuard>
     </div>
   );
 }

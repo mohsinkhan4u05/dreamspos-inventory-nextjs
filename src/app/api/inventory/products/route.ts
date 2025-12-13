@@ -285,8 +285,6 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
-    const categoryId = searchParams.get("categoryId")
-    const storeId = searchParams.get("storeId")
 
     const where: Record<string, unknown> = {
       isActive: true,
@@ -296,18 +294,16 @@ export async function GET(request: NextRequest) {
           { sku: { contains: search, mode: "insensitive" as const } },
           { barcode: { contains: search, mode: "insensitive" as const } }
         ]
-      }),
-      ...(categoryId && { categoryId }),
-      ...(storeId && { storeId })
+      })
     }
 
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
         include: {
-          category: true,
           brand: true,
-          store: true,
+          unit: true,
+          preferredVendor: true,
           variants: true,
           units: {
             include: {
@@ -316,7 +312,6 @@ export async function GET(request: NextRequest) {
           },
           stocks: {
             include: {
-              store: true,
               unit: true
             }
           }
@@ -363,9 +358,9 @@ export async function POST(request: NextRequest) {
         ...body,
       },
       include: {
-        category: true,
         brand: true,
-        store: true,
+        unit: true,
+        preferredVendor: true,
         variants: true,
         units: {
           include: {

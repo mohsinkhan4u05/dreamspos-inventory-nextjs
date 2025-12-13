@@ -367,7 +367,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -376,34 +376,35 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        category: true,
         brand: true,
-        store: true,
+        unit: true,
+        preferredVendor: true,
         variants: {
           include: {
-            stocks: true
-          }
+            stocks: true,
+          },
         },
         units: {
           include: {
-            unit: true
-          }
+            unit: true,
+          },
         },
         stocks: {
           include: {
-            store: true,
-            unit: true
-          }
+            unit: true,
+          },
         },
         gstRates: {
           include: {
-            gstRate: true
-          }
-        }
-      }
+            gstRate: true,
+          },
+        },
+      },
     })
 
     if (!product) {
@@ -422,7 +423,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -432,21 +433,22 @@ export async function PUT(
     }
 
     const body = await request.json()
-    
+    const { id } = await context.params
+
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: body,
       include: {
-        category: true,
         brand: true,
-        store: true,
+        unit: true,
+        preferredVendor: true,
         variants: true,
         units: {
           include: {
-            unit: true
-          }
-        }
-      }
+            unit: true,
+          },
+        },
+      },
     })
 
     return NextResponse.json(product)
@@ -461,7 +463,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -470,8 +472,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false }
     })
 

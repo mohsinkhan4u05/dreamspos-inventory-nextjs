@@ -9,9 +9,19 @@ import CustomerChart from "../charts/customerchart";
 import SalesStatisticsChart from "../charts/salesstatisticschart";
 import TopCategoryChart from "../charts/topcategory";
 import HeatmapChart from "../charts/heartchat";
+import { useOrgFormatting } from "@/hooks/useOrgFormatting";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
 export default function NewDashboard() {
-    const route = all_routes
+  const route = all_routes
+  const { formatCurrency } = useOrgFormatting();
+  const { summary } = useDashboardSummary();
+  const {
+    totalSalesAmount,
+    totalSalesDue,
+    totalPurchaseAmount,
+    totalPurchaseDue,
+  } = summary;
   return (
     <div className="page-wrapper">
       <div className="content">
@@ -70,7 +80,7 @@ export default function NewDashboard() {
                 <div className="ms-2">
                   <p className="text-white mb-1">Total Sales</p>
                   <div className="d-inline-flex align-items-center flex-wrap gap-2">
-                    <h4 className="text-white custome-heading">$48,988,078</h4>
+                    <h4 className="text-white custome-heading">{formatCurrency(totalSalesAmount)}</h4>
                     <span className="badge badge-soft-primary">
                       <i className="ti ti-arrow-up me-1" />
                       +22%
@@ -89,7 +99,7 @@ export default function NewDashboard() {
                 <div className="ms-2">
                   <p className="text-white mb-1">Total Sales Return</p>
                   <div className="d-inline-flex align-items-center flex-wrap gap-2">
-                    <h4 className="text-white custome-heading">$16,478,145</h4>
+                    <h4 className="text-white custome-heading">{formatCurrency(16478145)}</h4>
                     <span className="badge badge-soft-danger">
                       <i className="ti ti-arrow-down me-1" />
                       -22%
@@ -108,7 +118,7 @@ export default function NewDashboard() {
                 <div className="ms-2">
                   <p className="text-white mb-1">Total Purchase</p>
                   <div className="d-inline-flex align-items-center flex-wrap gap-2">
-                    <h4 className="text-white custome-heading">$24,145,789</h4>
+                    <h4 className="text-white custome-heading">{formatCurrency(totalPurchaseAmount)}</h4>
                     <span className="badge badge-soft-success">
                       <i className="ti ti-arrow-up me-1" />
                       +22%
@@ -127,7 +137,7 @@ export default function NewDashboard() {
                 <div className="ms-2">
                   <p className="text-white mb-1">Total Purchase Return</p>
                   <div className="d-inline-flex align-items-center flex-wrap gap-2">
-                    <h4 className="text-white custome-heading">$18,458,747</h4>
+                    <h4 className="text-white custome-heading">{formatCurrency(totalPurchaseDue)}</h4>
                     <span className="badge badge-soft-success">
                       <i className="ti ti-arrow-up me-1" />
                       +22%
@@ -145,7 +155,7 @@ export default function NewDashboard() {
               <div className="card-body">
                 <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
                   <div>
-                    <h4 className="mb-1 custome-heading">$8,458,798</h4>
+                    <h4 className="mb-1 custome-heading">{formatCurrency(8458798)}</h4>
                     <p>Profit</p>
                   </div>
                   <span className="revenue-icon bg-cyan-transparent text-cyan">
@@ -174,7 +184,7 @@ export default function NewDashboard() {
               <div className="card-body">
                 <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
                   <div>
-                    <h4 className="mb-1 custome-heading">$48,988,78</h4>
+                    <h4 className="mb-1 custome-heading">{formatCurrency(totalSalesDue)}</h4>
                     <p>Invoice Due</p>
                   </div>
                   <span className="revenue-icon bg-teal-transparent text-teal">
@@ -203,7 +213,7 @@ export default function NewDashboard() {
               <div className="card-body">
                 <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
                   <div>
-                    <h4 className="mb-1 custome-heading">$8,980,097</h4>
+                    <h4 className="mb-1 custome-heading">{formatCurrency(8980097)}</h4>
                     <p>Total Expenses</p>
                   </div>
                   <span className="revenue-icon bg-orange-transparent text-orange">
@@ -232,7 +242,7 @@ export default function NewDashboard() {
               <div className="card-body">
                 <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
                   <div>
-                    <h4 className="mb-1 custome-heading">$78,458,798</h4>
+                    <h4 className="mb-1 custome-heading">{formatCurrency(78458798)}</h4>
                     <p>Total Payment Returns</p>
                   </div>
                   <span className="revenue-icon bg-indigo-transparent text-indigo">
@@ -257,174 +267,63 @@ export default function NewDashboard() {
           {/* /Returns */}
         </div>
         <div className="row">
-          <>
-            {/* Sales & Purchase */}
-            <div className="col-xxl-8 col-xl-7 col-sm-12 col-12 d-flex">
-              <div className="card flex-fill">
-                <div className="card-header d-flex justify-content-between align-items-center">
-                  <div className="d-inline-flex align-items-center">
-                    <span className="title-icon bg-soft-primary fs-16 me-2">
-                      <i className="ti ti-shopping-cart" />
-                    </span>
-                    <h5 className="card-title mb-0">Sales &amp; Purchase</h5>
-                  </div>
-                  <ul className="nav btn-group custom-btn-group">
-                    <Link className="btn btn-outline-light" href="#">
-                      1D
-                    </Link>
-                    <Link className="btn btn-outline-light" href="#">
-                      1W
-                    </Link>
-                    <Link className="btn btn-outline-light" href="#">
-                      1M
-                    </Link>
-                    <Link className="btn btn-outline-light" href="#">
-                      3M
-                    </Link>
-                    <Link className="btn btn-outline-light" href="#">
-                      6M
-                    </Link>
-                    <Link className="btn btn-outline-light active" href="#">
-                      1Y
-                    </Link>
-                  </ul>
-                </div>
-                <div className="card-body pb-0">
-                  <div>
-                    <div className="d-flex align-items-center gap-2">
-                      <div className="border p-2 br-8">
-                        <p className="d-inline-flex align-items-center mb-1">
-                          <i className="ti ti-circle-filled fs-8 text-primary-300 me-1" />
-                          Total Purchase
-                        </p>
-                        <h4>3K</h4>
-                      </div>
-                      <div className="border p-2 br-8">
-                        <p className="d-inline-flex align-items-center mb-1">
-                          <i className="ti ti-circle-filled fs-8 text-primary me-1" />
-                          Total Sales
-                        </p>
-                        <h4>1K</h4>
-                      </div>
-                    </div>
-                    <div id="sales-daychart">
-                     <SalesDayChart />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* /Sales & Purchase */}
-          </>
-
-          {/* Top Selling Products */}
-          <div className="col-xxl-4 col-xl-5 d-flex">
+          {/* Sales & Purchase */}
+          <div className="col-xxl-8 col-xl-7 col-sm-12 col-12 d-flex">
             <div className="card flex-fill">
-              <div className="card-header">
+              <div className="card-header d-flex justify-content-between align-items-center">
                 <div className="d-inline-flex align-items-center">
-                  <span className="title-icon bg-soft-info fs-16 me-2">
-                    <i className="ti ti-info-circle" />
+                  <span className="title-icon bg-soft-primary fs-16 me-2">
+                    <i className="ti ti-shopping-cart" />
                   </span>
-                  <h5 className="card-title mb-0">Overall Information</h5>
+                  <h5 className="card-title mb-0">Sales &amp; Purchase</h5>
                 </div>
+                <ul className="nav btn-group custom-btn-group">
+                  <Link className="btn btn-outline-light" href="#">
+                    1D
+                  </Link>
+                  <Link className="btn btn-outline-light" href="#">
+                    1W
+                  </Link>
+                  <Link className="btn btn-outline-light" href="#">
+                    1M
+                  </Link>
+                  <Link className="btn btn-outline-light" href="#">
+                    3M
+                  </Link>
+                  <Link className="btn btn-outline-light" href="#">
+                    6M
+                  </Link>
+                  <Link className="btn btn-outline-light active" href="#">
+                    1Y
+                  </Link>
+                </ul>
               </div>
-              <div className="card-body">
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <div className="info-item border bg-light p-3 text-center">
-                      <div className="mb-3 text-info fs-24">
-                        <i className="ti ti-user-check" />
-                      </div>
-                      <p className="mb-1">Suppliers</p>
-                      <h5>6987</h5>
+              <div className="card-body pb-0">
+                <div>
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="border p-2 br-8">
+                      <p className="d-inline-flex align-items-center mb-1">
+                        <i className="ti ti-circle-filled fs-8 text-primary-300 me-1" />
+                        Total Purchase
+                      </p>
+                      <h4>3K</h4>
+                    </div>
+                    <div className="border p-2 br-8">
+                      <p className="d-inline-flex align-items-center mb-1">
+                        <i className="ti ti-circle-filled fs-8 text-primary me-1" />
+                        Total Sales
+                      </p>
+                      <h4>1K</h4>
                     </div>
                   </div>
-                  <div className="col-md-4">
-                    <div className="info-item border bg-light p-3 text-center">
-                      <div className="mb-3 text-orange fs-24">
-                        <i className="ti ti-users" />
-                      </div>
-                      <p className="mb-1">Customer</p>
-                      <h5>4896</h5>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="info-item border bg-light p-3 text-center">
-                      <div className="mb-3 text-teal fs-24">
-                        <i className="ti ti-shopping-cart" />
-                      </div>
-                      <p className="mb-1">Orders</p>
-                      <h5>487</h5>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="card-footer pb-sm-0">
-                <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                  <h6>Customers Overview</h6>
-                  <div className="dropdown dropdown-wraper">
-                    <Link
-                      href="#"
-                      className="dropdown-toggle btn btn-sm"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      <i className="ti ti-calendar me-1" />
-                      Today
-                    </Link>
-                    <ul className="dropdown-menu p-3">
-                      <li>
-                        <Link href="#" className="dropdown-item">
-                          Today
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href="#" className="dropdown-item">
-                          Weekly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href="#" className="dropdown-item">
-                          Monthly
-                        </Link>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <div className="row align-items-center">
-                  <div className="col-sm-5">
-                    <div id="customer-chart">
-                      <CustomerChart />
-                    </div>
-                  </div>
-                  <div className="col-sm-7">
-                    <div className="row gx-0">
-                      <div className="col-sm-6">
-                        <div className="text-center border-end">
-                          <h2 className="mb-1">5.5K</h2>
-                          <p className="text-orange mb-2">First Time</p>
-                          <span className="badge badge-success badge-xs d-inline-flex align-items-center">
-                            <i className="ti ti-arrow-up-left me-1" />
-                            25%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-sm-6">
-                        <div className="text-center">
-                          <h2 className="mb-1">3.5K</h2>
-                          <p className="text-teal mb-2">Return</p>
-                          <span className="badge badge-success badge-xs d-inline-flex align-items-center">
-                            <i className="ti ti-arrow-up-left me-1" />
-                            21%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <div id="sales-daychart">
+                    <SalesDayChart />
                   </div>
                 </div>
               </div>
             </div>
           </div>
+          {/* /Sales & Purchase */}
         </div>
         <div className="row">
           {/* Top Selling Products */}
@@ -477,7 +376,7 @@ export default function NewDashboard() {
                         <Link href="#">Charger Cable - Lighting</Link>
                       </h6>
                       <div className="d-flex align-items-center item-list">
-                        <p>$187</p>
+                        <p>{formatCurrency(187)}</p>
                         <p>247+ Sales</p>
                       </div>
                     </div>
@@ -497,7 +396,7 @@ export default function NewDashboard() {
                         <Link href="#">Yves Saint Eau De Parfum</Link>
                       </h6>
                       <div className="d-flex align-items-center item-list">
-                        <p>$145</p>
+                        <p>{formatCurrency(145)}</p>
                         <p>289+ Sales</p>
                       </div>
                     </div>
@@ -517,7 +416,7 @@ export default function NewDashboard() {
                         <Link href="#">Apple Airpods 2</Link>
                       </h6>
                       <div className="d-flex align-items-center item-list">
-                        <p>$458</p>
+                        <p>{formatCurrency(458)}</p>
                         <p>300+ Sales</p>
                       </div>
                     </div>
@@ -537,7 +436,7 @@ export default function NewDashboard() {
                         <Link href="#">Vacuum Cleaner</Link>
                       </h6>
                       <div className="d-flex align-items-center item-list">
-                        <p>$139</p>
+                        <p>{formatCurrency(139)}</p>
                         <p>225+ Sales</p>
                       </div>
                     </div>
@@ -557,7 +456,7 @@ export default function NewDashboard() {
                         <Link href="#">Samsung Galaxy S21 Fe 5g</Link>
                       </h6>
                       <div className="d-flex align-items-center item-list">
-                        <p>$898</p>
+                        <p>{formatCurrency(898)}</p>
                         <p>365+ Sales</p>
                       </div>
                     </div>
@@ -729,7 +628,7 @@ export default function NewDashboard() {
                       </h6>
                       <div className="d-flex align-items-center item-list">
                         <p>Electronics</p>
-                        <p className="text-gray-9">$640</p>
+                        <p className="text-gray-9">{formatCurrency(640)}</p>
                       </div>
                     </div>
                   </div>
@@ -752,7 +651,7 @@ export default function NewDashboard() {
                       </h6>
                       <div className="d-flex align-items-center item-list">
                         <p>Fashion</p>
-                        <p className="text-gray-9">$126</p>
+                        <p className="text-gray-9">{formatCurrency(126)}</p>
                       </div>
                     </div>
                   </div>
@@ -775,7 +674,7 @@ export default function NewDashboard() {
                       </h6>
                       <div className="d-flex align-items-center item-list">
                         <p>Health</p>
-                        <p className="text-gray-9">$69</p>
+                        <p className="text-gray-9">{formatCurrency(69)}</p>
                       </div>
                     </div>
                   </div>
@@ -798,7 +697,7 @@ export default function NewDashboard() {
                       </h6>
                       <div className="d-flex align-items-center item-list">
                         <p>Sports</p>
-                        <p className="text-gray-9">$65</p>
+                        <p className="text-gray-9">{formatCurrency(65)}</p>
                       </div>
                     </div>
                   </div>
@@ -821,7 +720,7 @@ export default function NewDashboard() {
                       </h6>
                       <div className="d-flex align-items-center item-list">
                         <p>Lifestyles</p>
-                        <p className="text-gray-9">$87.56</p>
+                        <p className="text-gray-9">{formatCurrency(87.56)}</p>
                       </div>
                     </div>
                   </div>
@@ -882,7 +781,7 @@ export default function NewDashboard() {
                 <div className="d-flex align-items-center flex-wrap gap-2">
                   <div className="border p-2 br-8">
                     <h5 className="d-inline-flex align-items-center text-teal">
-                      $12,189
+                      {formatCurrency(12189)}
                       <span className="badge badge-success badge-xs d-inline-flex align-items-center ms-2">
                         <i className="ti ti-arrow-up-left me-1" />
                         25%
@@ -892,7 +791,7 @@ export default function NewDashboard() {
                   </div>
                   <div className="border p-2 br-8">
                     <h5 className="d-inline-flex align-items-center text-orange">
-                      $48,988,078
+                      {formatCurrency(48988078)}
                       <span className="badge badge-danger badge-xs d-inline-flex align-items-center ms-2">
                         <i className="ti ti-arrow-down-right me-1" />
                         25%
@@ -902,7 +801,24 @@ export default function NewDashboard() {
                   </div>
                 </div>
                 <div id="sales-statistics">
-                  <SalesStatisticsChart />
+                  <SalesStatisticsChart
+                    categories={[
+                      "Jan",
+                      "Feb",
+                      "Mar",
+                      "Apr",
+                      "May",
+                      "Jun",
+                      "Jul",
+                      "Aug",
+                      "Sep",
+                      "Oct",
+                      "Nov",
+                      "Dec",
+                    ]}
+                    salesSeries={[9, 25, 25, 20, 20, 18, 25, 15, 20, 12, 8, 20]}
+                    purchaseSeries={[10, 18, 9, 20, 20, 10, 20, 20, 8, 15, 18, 20]}
+                  />
                 </div>
               </div>
             </div>

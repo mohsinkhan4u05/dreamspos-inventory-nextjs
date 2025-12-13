@@ -5,12 +5,13 @@ import Table from "@/core/common/pagination/datatable";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
-import { useProducts } from '@/hooks/useProducts'
+import { useProducts } from "@/hooks/useProducts";
 import Brand from "@/core/modals/inventory/brand";
 import { all_routes } from "@/data/all_routes";
 import { Download, Edit, Eye, Trash2 } from "react-feather";
 import Link from "next/link";
 import { productService } from "@/services/api";
+import { formatCurrencyINR } from "@/lib/currency";
 
 export default function ProductListComponent() {
   const { products, loading, error, refetch } = useProducts();
@@ -23,19 +24,29 @@ export default function ProductListComponent() {
   const route = all_routes;
   
   // Transform API data to match the expected format for the table
-  const dataSource = products?.data?.map(product => ({
-    id: product.id,
-    product: product.name,
-    productImage: product.image || "assets/img/products/stock-img-01.png",
-    sku: product.sku,
-    category: product.category?.name || "N/A",
-    brand: product.brand?.name || "N/A",
-    price: `$${product.sellingPrice.toFixed(2)}`,
-    unit: "Pc", // Default unit, could be enhanced with unit data
-    qty: "0", // Stock quantity would need to be fetched from stock API
-    createdby: "Admin", // This would come from user data
-    img: "assets/img/users/user-30.jpg",
-  })) || [];
+  const dataSource = products?.data?.map((product: any) => {
+    const totalQuantity = Array.isArray(product.stocks)
+      ? product.stocks.reduce(
+          (sum: number, stock: any) =>
+            sum + (typeof stock.quantity === "number" ? stock.quantity : 0),
+          0,
+        )
+      : 0;
+
+    return {
+      id: product.id,
+      product: product.name,
+      productImage: product.image || "assets/img/products/stock-img-01.png",
+      sku: product.sku,
+      category: product.category?.name || "N/A",
+      brand: product.brand?.name || "N/A",
+      price: formatCurrencyINR(product.sellingPrice),
+      unit: "Pc", // Default unit, could be enhanced with unit data
+      qty: totalQuantity.toString(),
+      createdby: "Admin", // This would come from user data
+      img: "assets/img/users/user-30.jpg",
+    };
+  }) || [];
 
   const handleOpenDelete = (record: any) => {
     setDeleteProductId(record.id);
@@ -56,7 +67,7 @@ export default function ProductListComponent() {
       await refetch();
     } catch (err) {
       setDeleteError(
-        err instanceof Error ? err.message : "Failed to delete product"
+        err instanceof Error ? err.message : "Failed to delete Item"
       );
     } finally {
       setIsDeleting(false);
@@ -70,29 +81,17 @@ export default function ProductListComponent() {
       sorter: (a: any, b: any) => a.sku.length - b.sku.length,
     },
     {
-      title: "Product",
+      title: "Name",
       dataIndex: "product",
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
-          <Link href="#" className="avatar avatar-md me-2">
+          <Link href={`${route.productdetails}?id=${record.id}`} className="avatar avatar-md me-2">
             <img alt="" src={record.productImage} />
           </Link>
-          <Link href="#">{text}</Link>
+          <Link href={`${route.productdetails}?id=${record.id}`}>{text}</Link>
         </div>
       ),
       sorter: (a: any, b: any) => a.product.length - b.product.length,
-    },
-
-    {
-      title: "Category",
-      dataIndex: "category",
-      sorter: (a: any, b: any) => a.category.length - b.category.length,
-    },
-
-    {
-      title: "Brand",
-      dataIndex: "brand",
-      sorter: (a: any, b: any) => a.brand.length - b.brand.length,
     },
     {
       title: "Price",
@@ -100,12 +99,7 @@ export default function ProductListComponent() {
       sorter: (a: any, b: any) => a.price.length - b.price.length,
     },
     {
-      title: "Unit",
-      dataIndex: "unit",
-      sorter: (a: any, b: any) => a.unit.length - b.unit.length,
-    },
-    {
-      title: "Qty",
+      title: "Stock On Hand",
       dataIndex: "qty",
       sorter: (a: any, b: any) => a.qty.length - b.qty.length,
     },
@@ -129,7 +123,7 @@ export default function ProductListComponent() {
       render: (_: unknown, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link className="me-2 p-2" href={route.productdetails}>
+            <Link className="me-2 p-2" href={`/item/${record.id}`}>
               <Eye className="feather-view" />
             </Link>
             <Link className="me-2 p-2" href={`${route.editproduct}/${record.id}`}>
@@ -171,7 +165,7 @@ export default function ProductListComponent() {
         <div className="content">
           <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
             <div className="text-center">
-              <h5 className="text-danger">Error loading products</h5>
+              <h5 className="text-danger">Error loading items</h5>
               <p className="text-muted">{error}</p>
             </div>
           </div>
@@ -187,8 +181,8 @@ export default function ProductListComponent() {
           <div className="page-header">
             <div className="add-item d-flex">
               <div className="page-title">
-                <h4>Product List</h4>
-                <h6>Manage your products</h6>
+                <h4>Item List</h4>
+                <h6>Manage your items</h6>
               </div>
             </div>
             <ul className="table-top-head">
@@ -199,7 +193,7 @@ export default function ProductListComponent() {
             <div className="page-btn">
               <Link href={route.addproduct} className="btn btn-primary">
                 <i className="ti ti-circle-plus me-1"></i>
-                Add New Product
+                Add New Item
               </Link>
             </div>
             <div className="page-btn import">
@@ -210,7 +204,7 @@ export default function ProductListComponent() {
                 data-bs-target="#view-notes"
               >
                 <Download className="feather me-2" />
-                Import Product
+                Import Item
               </Link>
             </div>
           </div>
@@ -225,7 +219,7 @@ export default function ProductListComponent() {
                     className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
                     data-bs-toggle="dropdown"
                   >
-                    Product
+                    Item
                   </Link>
                   <ul className="dropdown-menu  dropdown-menu-end p-3">
                     <li>
@@ -528,10 +522,10 @@ export default function ProductListComponent() {
                     <i className="ti ti-trash fs-24 text-danger" />
                   </span>
                   <h4 className="fs-20 text-gray-9 fw-bold mb-2 mt-1">
-                    Delete Product
+                    Delete Item
                   </h4>
                   <p className="text-gray-6 mb-0 fs-16">
-                    Are you sure you want to delete {deleteProductName || "this product"}?
+                    Are you sure you want to delete {deleteProductName || "this Item"}?
                   </p>
                   <div className="modal-footer-btn mt-3 d-flex justify-content-center">
                     <button

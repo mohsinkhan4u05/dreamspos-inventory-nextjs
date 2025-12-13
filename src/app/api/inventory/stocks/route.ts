@@ -317,6 +317,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const storeId = searchParams.get("storeId")
     const warehouseId = searchParams.get("warehouseId")
+    const productId = searchParams.get("productId")
     const lowStock = searchParams.get("lowStock") === "true"
 
     const where: Record<string, unknown> = {}
@@ -333,6 +334,10 @@ export async function GET(request: NextRequest) {
     
     if (storeId) {
       where.storeId = storeId
+    }
+
+    if (productId) {
+      where.productId = productId
     }
 
     if (warehouseId) {
@@ -354,9 +359,6 @@ export async function GET(request: NextRequest) {
               sku: true,
               barcode: true,
               sellingPrice: true,
-              category: {
-                select: { id: true, name: true }
-              }
             }
           },
           variant: {

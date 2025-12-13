@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
 export const dynamic = "force-dynamic"
@@ -71,29 +72,127 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, phone, address, gstNumber, isActive } = body
 
-    if (!name) {
+    const rawDisplayName =
+      typeof body.displayName === "string" && body.displayName.trim().length > 0
+        ? body.displayName.trim()
+        : typeof body.name === "string"
+          ? body.name.trim()
+          : ""
+
+    if (!rawDisplayName) {
       return NextResponse.json(
         { error: "Supplier name is required" },
         { status: 400 },
       )
     }
 
+    const isActive = typeof body.isActive === "boolean" ? body.isActive : true
+
+    const addresses = Array.isArray(body.addresses)
+      ? body.addresses
+          .filter((addr: any) => addr && typeof addr === "object")
+          .map((addr: any) => ({
+            type: typeof addr.type === "string" && addr.type.trim().length > 0 ? addr.type.trim() : "",
+            attention: addr.attention ?? null,
+            address1: addr.address1 ?? null,
+            address2: addr.address2 ?? null,
+            city: addr.city ?? null,
+            state: addr.state ?? null,
+            zipcode: addr.zipcode ?? null,
+            country: addr.country ?? null,
+            phone: addr.phone ?? null,
+          }))
+          .filter((addr: { type: string }) => addr.type.length > 0)
+      : []
+
+    const contactPersons = Array.isArray(body.contactPersons)
+      ? body.contactPersons
+          .filter((cp: any) => cp && typeof cp.firstName === "string" && cp.firstName.trim().length > 0)
+          .map((cp: any, index: number) => ({
+            salutation: cp.salutation ?? null,
+            firstName: cp.firstName.trim(),
+            lastName: cp.lastName ?? null,
+            email: cp.email ?? null,
+            workPhone: cp.workPhone ?? null,
+            mobile: cp.mobile ?? null,
+            isPrimary: typeof cp.isPrimary === "boolean" ? cp.isPrimary : index === 0,
+          }))
+      : []
+
     const supplier = await prisma.supplier.create({
       data: {
-        name,
-        email: email || null,
-        phone: phone || null,
-        address: address || null,
-        gstNumber: gstNumber || null,
-        isActive: typeof isActive === "boolean" ? isActive : true,
+        name: rawDisplayName,
+        email: body.email ?? null,
+        phone: body.phone ?? null,
+        address: body.address ?? null,
+        gstNumber: body.gstNumber ?? null,
+        isActive,
+
+        type:
+          body.type === "BUSINESS" || body.type === "INDIVIDUAL"
+            ? body.type
+            : null,
+        salutation: body.salutation ?? null,
+        firstName: body.firstName ?? null,
+        lastName: body.lastName ?? null,
+        displayName: body.displayName ?? rawDisplayName,
+        companyName: body.companyName ?? null,
+        mobile: body.mobile ?? null,
+        language: body.language ?? null,
+        pan: body.pan ?? null,
+        currency: body.currency ?? null,
+        paymentTerms: body.paymentTerms ?? null,
+        remarks: body.remarks ?? null,
+
+        ...(addresses.length
+          ? {
+              addresses: {
+                create: addresses,
+              },
+            }
+          : {}),
+
+        ...(contactPersons.length
+          ? {
+              contactPersons: {
+                create: contactPersons,
+              },
+            }
+          : {}),
+      },
+      include: {
+        addresses: true,
+        contactPersons: true,
       },
     })
+
+    try {
+      await prisma.supplierActivityLog.create({
+        data: {
+          supplierId: supplier.id,
+          type: "SUPPLIER_CREATED",
+          title: "Supplier created",
+          description: `Supplier ${supplier.displayName || supplier.name} was created`,
+          entityType: "SUPPLIER",
+          entityId: supplier.id,
+        },
+      })
+    } catch (logError) {
+      console.error("Failed to write supplier activity log:", logError)
+    }
 
     return NextResponse.json(supplier, { status: 201 })
   } catch (error) {
     console.error("Error creating supplier:", error)
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "A supplier with this email already exists" },
+        { status: 409 },
+      )
+    }
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

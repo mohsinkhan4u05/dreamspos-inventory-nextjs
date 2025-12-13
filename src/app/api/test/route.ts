@@ -89,9 +89,8 @@ export async function GET() {
     const products = await prisma.product.findMany({
       take: 5,
       include: {
-        category: true,
         brand: true,
-      }
+      },
     })
     
     await prisma.$disconnect()

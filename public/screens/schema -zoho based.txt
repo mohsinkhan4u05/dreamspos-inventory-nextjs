@@ -1,0 +1,96 @@
+model Item {
+  id                     String    @id @default(uuid())
+  name                   String
+  sku                    String?   @unique
+  type                   ItemType  @default(GOODS) // GOODS | SERVICE
+  description            String?
+  unit                   String?   // ex: g, cm, pcs, box
+  isReturnable           Boolean   @default(false)
+  brand                  String?
+  manufacturer           String?
+
+  // Barcode Identifiers
+  upc                    String?
+  ean                    String?
+  mpn                    String?
+  isbn                   String?
+
+  // Pricing
+  sellingPrice           Decimal   @db.Decimal(10,2)
+  costPrice              Decimal   @db.Decimal(10,2)
+
+  // Inventory Settings
+  trackInventory         Boolean   @default(true)
+  valuationMethod        ValuationMethod @default(FIFO)
+  inventoryAccountId     String?
+  inventoryAccount       Account?  @relation("ItemInventoryAccount", fields: [inventoryAccountId], references:[id])
+  salesAccountId         String?
+  salesAccount           Account?  @relation("ItemSalesAccount", fields: [salesAccountId], references:[id])
+  purchaseAccountId      String?
+  purchaseAccount        Account?  @relation("ItemPurchaseAccount", fields: [purchaseAccountId], references:[id])
+  preferredVendorId      String?
+  preferredVendor        Supplier? @relation(fields: [preferredVendorId], references: [id])
+
+  // Stock
+  openingStock           Decimal   @default(0)
+  openingStockValue      Decimal   @default(0)
+  committedStock         Decimal   @default(0)
+  availableForSale       Decimal   @default(0)
+  physicalStock          Decimal   @default(0)
+
+  // Images
+  images                 ItemImage[]
+
+  // Tags
+  tags                   ItemTag[]
+
+  createdBy              String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model Supplier {
+  id            String   @id @default(uuid())
+  name          String
+  // ...
+  items         Item[]   @relation("SupplierItems")
+}
+
+model Account {
+  id      String   @id @default(uuid())
+  name    String
+  type    AccountType // Sales, COGS, Asset
+  itemsInventory Item[] @relation("ItemInventoryAccount")
+  itemsSales     Item[] @relation("ItemSalesAccount")
+  itemsPurchase  Item[] @relation("ItemPurchaseAccount")
+}
+
+model ItemImage {
+  id      String  @id @default(uuid())
+  item    Item    @relation(fields: [itemId], references: [id])
+  itemId  String
+  url     String
+}
+
+model ItemTag {
+  id    String @id @default(uuid())
+  name  String
+  items Item[]
+}
+
+enum ItemType {
+  GOODS
+  SERVICE
+}
+
+enum ValuationMethod {
+  FIFO
+  LIFO
+  AVCO // Average Cost
+}
+
+enum AccountType {
+  SALES
+  COGS
+  INVENTORY_ASSET
+}

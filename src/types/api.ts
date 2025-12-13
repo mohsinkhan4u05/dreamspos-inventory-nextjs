@@ -20,11 +20,9 @@ export interface Product {
   id: string
   name: string
   description?: string
-  sku: string
+  sku?: string
   barcode?: string
-  categoryId: string
   brandId?: string
-  storeId: string
   image?: string
   costPrice: number
   sellingPrice: number
@@ -33,17 +31,45 @@ export interface Product {
   reorderLevel?: number
   reorderQty?: number
   isActive: boolean
+  itemType?: "GOODS" | "SERVICE"
+  unitId?: string
+  returnable?: boolean
+  length?: number
+  width?: number
+  height?: number
+  dimensionUnit?: string
+  weight?: number
+  weightUnit?: string
+  manufacturer?: string
+  upc?: string
+  ean?: string
+  mpn?: string
+  isbn?: string
+  sellable?: boolean
+  purchasable?: boolean
+  salesDescription?: string
+  purchaseDescription?: string
+  preferredVendorId?: string
+  salesAccount?: string
+  purchaseAccount?: string
+  inventoryAccount?: string
+  inventoryValuation?: "FIFO"
+  trackInventory?: boolean
+  openingStock?: number
+  openingStockRate?: number
+  allowOpeningStockEdit?: boolean
   createdAt: Date
   updatedAt: Date
-  category?: {
-    id: string
-    name: string
-  }
   brand?: {
     id: string
     name: string
   }
-  store?: {
+  unit?: {
+    id: string
+    name: string
+    code: string
+  }
+  preferredVendor?: {
     id: string
     name: string
   }
@@ -52,11 +78,9 @@ export interface Product {
 export interface ProductCreateInput {
   name: string
   description?: string
-  sku: string
+  sku?: string
   barcode?: string
-  categoryId: string
   brandId?: string
-  storeId: string
   image?: string
   costPrice: number
   sellingPrice: number
@@ -65,6 +89,33 @@ export interface ProductCreateInput {
   reorderLevel?: number
   reorderQty?: number
   isActive?: boolean
+  itemType?: "GOODS" | "SERVICE"
+  unitId?: string
+  returnable?: boolean
+  length?: number
+  width?: number
+  height?: number
+  dimensionUnit?: string
+  weight?: number
+  weightUnit?: string
+  manufacturer?: string
+  upc?: string
+  ean?: string
+  mpn?: string
+  isbn?: string
+  sellable?: boolean
+  purchasable?: boolean
+  salesDescription?: string
+  purchaseDescription?: string
+  preferredVendorId?: string
+  salesAccount?: string
+  purchaseAccount?: string
+  inventoryAccount?: string
+  inventoryValuation?: "FIFO"
+  trackInventory?: boolean
+  openingStock?: number
+  openingStockRate?: number
+  allowOpeningStockEdit?: boolean
 }
 
 export interface ProductUpdateInput {
@@ -72,9 +123,7 @@ export interface ProductUpdateInput {
   description?: string
   sku?: string
   barcode?: string
-  categoryId?: string
   brandId?: string
-  storeId?: string
   image?: string
   costPrice?: number
   sellingPrice?: number
@@ -83,6 +132,33 @@ export interface ProductUpdateInput {
   reorderLevel?: number
   reorderQty?: number
   isActive?: boolean
+  itemType?: "GOODS" | "SERVICE"
+  unitId?: string
+  returnable?: boolean
+  length?: number
+  width?: number
+  height?: number
+  dimensionUnit?: string
+  weight?: number
+  weightUnit?: string
+  manufacturer?: string
+  upc?: string
+  ean?: string
+  mpn?: string
+  isbn?: string
+  sellable?: boolean
+  purchasable?: boolean
+  salesDescription?: string
+  purchaseDescription?: string
+  preferredVendorId?: string
+  salesAccount?: string
+  purchaseAccount?: string
+  inventoryAccount?: string
+  inventoryValuation?: "FIFO"
+  trackInventory?: boolean
+  openingStock?: number
+  openingStockRate?: number
+  allowOpeningStockEdit?: boolean
 }
 
 // Stock Types
@@ -144,4 +220,42 @@ export interface PurchaseItemCreateInput {
   discount?: number
   taxAmount?: number
   totalPrice: number
+}
+
+// Organization Types
+export interface OrganizationCustomField {
+  label: string
+  value: string
+}
+
+export interface OrganizationProfile {
+  id: string
+  name: string
+  industry?: string | null
+  location: string
+  addressLine1: string
+  addressLine2?: string | null
+  city: string
+  state: string
+  zipCode: string
+  websiteUrl?: string | null
+
+  primaryContactName: string
+  primaryContactEmail: string
+  primaryContactPhone?: string | null
+
+  baseCurrency: string
+  fiscalYear: string
+  language: string
+  communicationLang: string
+  timezone: string
+  dateFormat: string
+  companyId?: string | null
+
+  logoUrl?: string | null
+
+  customFields?: OrganizationCustomField[] | null
+
+  createdAt: Date
+  updatedAt: Date
 }

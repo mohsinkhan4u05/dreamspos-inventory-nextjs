@@ -13,6 +13,7 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 import { city, countries, state } from "@/core/common/selectOption/selectOption";
 import { useCustomers } from "@/hooks/useCustomers";
 import { customerService } from "@/services/api";
+import { all_routes } from "@/data/all_routes";
 
 interface CustomerRow {
   id: string;
@@ -26,6 +27,7 @@ interface CustomerRow {
 
 export default function CustomersComponent() {
   const { customers, loading, error, refetch } = useCustomers();
+  const route = all_routes;
 
   const [newFirstName, setNewFirstName] = useState("");
   const [newLastName, setNewLastName] = useState("");
@@ -219,7 +221,7 @@ export default function CustomersComponent() {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link className="me-2 p-2" href="#">
+            <Link className="me-2 p-2" href={`${route.customer}/${record.id}`}>
               <Eye className="feather-view" />
             </Link>
 
@@ -296,12 +298,10 @@ export default function CustomersComponent() {
             </ul>
             <div className="page-btn">
               <Link
-                href="#"
+                href={route.addcustomer}
                 className="btn btn-primary text-white"
-                data-bs-toggle="modal"
-                data-bs-target="#add-units"
               >
-              <i className='ti ti-circle-plus me-1'></i>
+                <i className="ti ti-circle-plus me-1" />
                 Add Customer
               </Link>
             </div>
@@ -352,188 +352,6 @@ export default function CustomersComponent() {
       </div>
 
       <>
-        {/* Add Customer */}
-        <div className="modal fade" id="add-units">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="page-wrapper-new p-0">
-                <div className="content">
-                  <div className="modal-header">
-                    <div className="page-title">
-                      <h4>Add Customer</h4>
-                    </div>
-                    <button
-                      type="button"
-                      className="close"
-                      data-bs-dismiss="modal"
-                      aria-label="Close"
-                    >
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  </div>
-                  <div className="modal-body">
-                    <form onSubmit={handleCreateCustomer}>
-                      <div className="new-employee-field">
-                        <div className="profile-pic-upload">
-                          <div className="profile-pic">
-                            <span>
-                              <i
-                                data-feather="plus-circle"
-                                className="plus-down-add"
-                              />{" "}
-                              Add Image
-                            </span>
-                          </div>
-                          <div className="mb-3">
-                            <div className="image-upload mb-0">
-                              <input type="file" />
-                              <div className="image-uploads">
-                                <h4>Upload Image</h4>
-                              </div>
-                            </div>
-                            <p className="mt-2">JPEG, PNG up to 2 MB</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="row">
-                        <div className="col-lg-6 mb-3">
-                          <label className="form-label">
-                            First Name<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={newFirstName}
-                            onChange={(e) => setNewFirstName(e.target.value)}
-                          />
-                        </div>
-                        <div className="col-lg-6 mb-3">
-                          <label className="form-label">
-                            Last Name<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={newLastName}
-                            onChange={(e) => setNewLastName(e.target.value)}
-                          />
-                        </div>
-                        <div className="col-lg-12 mb-3">
-                          <label className="form-label">
-                            Email<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input
-                            type="email"
-                            className="form-control"
-                            value={newEmail}
-                            onChange={(e) => setNewEmail(e.target.value)}
-                          />
-                        </div>
-                        <div className="col-lg-12 mb-3">
-                          <label className="form-label">
-                            Phone<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input
-                            type="tel"
-                            className="form-control"
-                            value={newPhone}
-                            onChange={(e) => setNewPhone(e.target.value)}
-                          />
-                        </div>
-                        <div className="col-lg-12 mb-3">
-                          <label className="form-label">
-                            Address<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={newAddress}
-                            onChange={(e) => setNewAddress(e.target.value)}
-                          />
-                        </div>
-                        <div className="col-lg-6 mb-3">
-                          <label className="form-label">
-                            City<span className="text-danger ms-1">*</span>
-                          </label>
-                          <Select
-                            classNamePrefix="react-select"
-                            options={city}
-                            placeholder="Choose"
-                          />
-                        </div>
-                        <div className="col-lg-6 mb-3">
-                          <label className="form-label">
-                            State<span className="text-danger ms-1">*</span>
-                          </label>
-                          <Select
-                            classNamePrefix="react-select"
-                            options={state}
-                            placeholder="Choose"
-                          />
-                        </div>
-                        <div className="col-lg-6 mb-3">
-                          <label className="form-label">
-                            Country<span className="text-danger ms-1">*</span>
-                          </label>
-                          <Select
-                            classNamePrefix="react-select"
-                            options={countries}
-                            placeholder="Choose"
-                          />
-                        </div>
-                        <div className="col-lg-6 mb-3">
-                          <label className="form-label">
-                            Postal Code<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input type="text" className="form-control" />
-                        </div>
-                        <div className="col-lg-12">
-                          <div className="status-toggle modal-status d-flex justify-content-between align-items-center">
-                            <span className="status-label">Status</span>
-                            <input
-                              type="checkbox"
-                              id="user1"
-                              className="check"
-                              checked={newActive}
-                              onChange={(e) => setNewActive(e.target.checked)}
-                            />
-                            <label htmlFor="user1" className="checktoggle">
-                              {" "}
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      {createError && (
-                        <div className="mt-3 alert alert-danger" role="alert">
-                          {createError}
-                        </div>
-                      )}
-                    </form>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      className="btn me-2 btn-secondary fs-13 fw-medium p-2 px-3 shadow-none"
-                      data-bs-dismiss="modal"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-primary fs-13 fw-medium p-2 px-3"
-                      onClick={handleCreateCustomer}
-                      disabled={isCreating}
-                      data-bs-dismiss={isCreating ? undefined : "modal"}
-                    >
-                      {isCreating ? "Saving..." : "Add Customer"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* /Add Customer */}
         {/* Edit Customer */}
         <div className="modal fade" id="edit-units">
           <div className="modal-dialog modal-dialog-centered">

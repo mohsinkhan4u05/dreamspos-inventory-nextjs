@@ -10,9 +10,11 @@ import Link from "next/link";
 import  Table  from "@/core/common/pagination/datatable";
 import AddPurchaseReturn from "@/core/modals/purchases/addpurchasereturn";
 import EditPurchaseReturns from "@/core/modals/purchases/editpurchasereturns";
+import { useOrgFormatting } from "@/hooks/useOrgFormatting";
 
 export default function PurchaseReturnComponent() {
   const dataSource = purchasesreturn;
+  const { formatCurrency } = useOrgFormatting();
 
   const columns = [
     {
@@ -62,17 +64,20 @@ export default function PurchaseReturnComponent() {
     {
       title: "Total",
       dataIndex: "grandTotal",
-      sorter: (a:any, b:any) => a.grandTotal.length - b.grandTotal.length,
+      render: (text: any) => formatCurrency(Number(text)),
+      sorter: (a:any, b:any) => Number(a.grandTotal) - Number(b.grandTotal),
     },
     {
       title: "Paid",
       dataIndex: "paid",
-      sorter: (a:any, b:any) => a.paid.length - b.paid.length,
+      render: (text: any) => formatCurrency(Number(text)),
+      sorter: (a:any, b:any) => Number(a.paid) - Number(b.paid),
     },
     {
       title: "Due",
       dataIndex: "due",
-      sorter: (a:any, b:any) => a.due.length - b.due.length,
+      render: (text: any) => formatCurrency(Number(text)),
+      sorter: (a:any, b:any) => Number(a.due) - Number(b.due),
     },
     {
       title: "Payment Status",

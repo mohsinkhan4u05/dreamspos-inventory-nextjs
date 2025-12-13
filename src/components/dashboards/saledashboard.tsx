@@ -8,9 +8,14 @@ import { all_routes } from "@/data/all_routes";
 import { Calendar, ChevronUp, Clock, RotateCcw } from "react-feather";
 import Link from "next/dist/client/link";
 import SalesAnalysisChart from "../charts/salesanalysis";
+import { useOrgFormatting } from "@/hooks/useOrgFormatting";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
 export default function Salesdashboard() {
   const route = all_routes;
+  const { formatCurrency } = useOrgFormatting();
+  const { summary } = useDashboardSummary();
+  const { totalSalesAmount, salesInvoiceCount, purchaseInvoiceCount } = summary;
   return (
     <div className="page-wrapper">
       <div className="content">
@@ -42,9 +47,8 @@ export default function Salesdashboard() {
               <div>
                 <h6>Weekly Earning</h6>
                 <h3>
-                  $
-                  <span className="counters" data-count="95000.45">
-                    95000.45
+                  <span className="counters" data-count={totalSalesAmount}>
+                    {formatCurrency(totalSalesAmount)}
                   </span>
                 </h3>
                 <p className="sales-range">
@@ -63,10 +67,10 @@ export default function Salesdashboard() {
               <div className="mb-2">
                 <img src="assets/img/icons/total-sales.svg" alt="img" />
               </div>
-              <h3 className="counters" data-count={10000.0}>
-                10,000+
+              <h3 className="counters" data-count={salesInvoiceCount}>
+                {salesInvoiceCount.toLocaleString()}
               </h3>
-              <p>No of Total Sales</p>
+              <p>No of Sales Invoices</p>
               {/* <i
                   data-feather="rotate-ccw"
                   className="feather-16"
@@ -82,10 +86,10 @@ export default function Salesdashboard() {
               <div className="mb-2">
                 <img src="assets/img/icons/purchased-earnings.svg" alt="img" />
               </div>
-              <h3 className="counters" data-count={800.0}>
-                800+
+              <h3 className="counters" data-count={purchaseInvoiceCount}>
+                {purchaseInvoiceCount.toLocaleString()}
               </h3>
-              <p>No of Total Sales</p>
+              <p>No of Purchase Invoices</p>
               {/* <i
                   data-feather="rotate-ccw"
                   className="feather-16"
@@ -131,7 +135,7 @@ export default function Salesdashboard() {
                                   Lenovo 3rd Generation
                                 </Link>
                               </h6>
-                              <p>$4420</p>
+                              <p>{formatCurrency(4420)}</p>
                             </div>
                           </div>
                         </td>
@@ -161,7 +165,7 @@ export default function Salesdashboard() {
                                   Bold V3.2
                                 </Link>
                               </h6>
-                              <p>$1474</p>
+                              <p>{formatCurrency(1474)}</p>
                             </div>
                           </div>
                         </td>
@@ -191,7 +195,7 @@ export default function Salesdashboard() {
                                   Nike Jordan
                                 </Link>
                               </h6>
-                              <p>$8784</p>
+                              <p>{formatCurrency(8784)}</p>
                             </div>
                           </div>
                         </td>
@@ -221,7 +225,7 @@ export default function Salesdashboard() {
                                   Apple Series 5 Watch
                                 </Link>
                               </h6>
-                              <p>$3240</p>
+                              <p>{formatCurrency(3240)}</p>
                             </div>
                           </div>
                         </td>
@@ -251,7 +255,7 @@ export default function Salesdashboard() {
                                   Amazon Echo Dot
                                 </Link>
                               </h6>
-                              <p>$597</p>
+                              <p>{formatCurrency(597)}</p>
                             </div>
                           </div>
                         </td>
@@ -329,7 +333,7 @@ export default function Salesdashboard() {
                             Success
                           </span>
                         </td>
-                        <td className="fs-16 fw-bold text-gray-9">$1,099.00</td>
+                        <td className="fs-16 fw-bold text-gray-9">{formatCurrency(1099)}</td>
                       </tr>
                       <tr>
                         <td>2</td>
@@ -370,7 +374,7 @@ export default function Salesdashboard() {
                             Cancelled
                           </span>
                         </td>
-                        <td className="fs-16 fw-bold text-gray-9">$600.55</td>
+                        <td className="fs-16 fw-bold text-gray-9">{formatCurrency(600.55)}</td>
                       </tr>
                       <tr>
                         <td>3</td>
@@ -452,7 +456,7 @@ export default function Salesdashboard() {
                             Success
                           </span>
                         </td>
-                        <td className="fs-16 fw-bold text-gray-9">$1,569.00</td>
+                        <td className="fs-16 fw-bold text-gray-9">{formatCurrency(1569)}</td>
                       </tr>
                       <tr>
                         <td>5</td>
@@ -493,7 +497,7 @@ export default function Salesdashboard() {
                             Success
                           </span>
                         </td>
-                        <td className="fs-16 fw-bold text-gray-9">$1,478.00</td>
+                        <td className="fs-16 fw-bold text-gray-9">{formatCurrency(1478)}</td>
                       </tr>
                     </tbody>
                   </table>

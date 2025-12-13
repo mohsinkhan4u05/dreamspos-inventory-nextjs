@@ -129,6 +129,13 @@ export const SidebarData1 = [
             ],
           },
           {
+            tittle: 'Customers',
+            hasSubRoute: false,
+            showSubRoute: false,
+            route: "/customers",
+            subRoutes: [],
+          },
+          {
             tittle: 'Calendar',
             route: "/calendar",
             hasSubRoute: false,
@@ -351,6 +358,13 @@ export const SidebarData1 = [
         subRoutes: [],
       },
       {
+        tittle: 'Stock Adjustment',
+        hasSubRoute: false,
+        showSubRoute: false,
+        route: "/stock-adjustment",
+        subRoutes: [],
+      },
+      {
         tittle: 'Category',
         hasSubRoute: false,
         showSubRoute: false,
@@ -475,6 +489,20 @@ export const SidebarData1 = [
             hasSubRoute: false,
             showSubRoute: false,
             route: "/invoice-settings",
+            subRoutes: [],
+          },
+          {
+            tittle: 'Create Sale',
+            hasSubRoute: false,
+            showSubRoute: false,
+            route: "/sales-orders",
+            subRoutes: [],
+          },
+          {
+            tittle: 'Sales Order',
+            hasSubRoute: false,
+            showSubRoute: false,
+            route: "/sales-orders",
             subRoutes: [],
           },
           {

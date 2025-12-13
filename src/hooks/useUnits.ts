@@ -45,7 +45,7 @@ export function useUnits(params?: {
     } finally {
       setLoading(false)
     }
-  }, [params])
+  }, [params?.page, params?.limit, params?.search, params?.isActive])
 
   useEffect(() => {
     fetchUnits()

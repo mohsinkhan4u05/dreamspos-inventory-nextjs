@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -15,8 +15,14 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+      where: { id },
+      include: {
+        addresses: true,
+        contactPersons: true,
+      },
     })
 
     if (!customer) {
@@ -35,7 +41,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -45,6 +51,7 @@ export async function PUT(
     }
 
     const body = await request.json()
+    const { id } = await context.params
     const { name, email, phone, address, gstNumber, isActive } = body
 
     if (!name) {
@@ -55,7 +62,7 @@ export async function PUT(
     }
 
     const customer = await prisma.customer.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         email: email ?? null,
@@ -78,7 +85,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -87,8 +94,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     await prisma.customer.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     })
 

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -16,28 +16,16 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const adjustment = await prisma.stockMovement.findUnique({
-      where: { id: params.id },
+    const { id } = await context.params
+
+    const movement = await prisma.stockMovement.findUnique({
+      where: { id },
       include: {
         product: {
           select: {
             id: true,
             name: true,
             sku: true,
-          },
-        },
-        variant: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-          },
-        },
-        store: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
           },
         },
         unit: {
@@ -47,14 +35,87 @@ export async function GET(
             code: true,
           },
         },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
       },
     })
 
-    if (!adjustment) {
+    if (!movement) {
       return NextResponse.json({ error: "Stock adjustment not found" }, { status: 404 })
     }
 
-    return NextResponse.json(adjustment)
+    let stockAdjustment:
+      | Prisma.StockAdjustmentGetPayload<{ include: { user: true } }>
+      | null = null
+
+    if (movement.sourceId) {
+      stockAdjustment = await prisma.stockAdjustment.findUnique({
+        where: { id: movement.sourceId },
+        include: {
+          user: true,
+        },
+      })
+    }
+
+    const movementItems = stockAdjustment
+      ? await prisma.stockMovement.findMany({
+          where: { sourceId: stockAdjustment.id },
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+              },
+            },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : [movement]
+
+    const items = movementItems.map((m) => ({
+      itemId: m.productId,
+      name: m.product?.name || "Unknown Item",
+      description: m.description || undefined,
+      quantityAdjusted:
+        m.movementType === MovementType.ADJUSTMENT_OUT ? -m.quantity : m.quantity,
+      costPrice: m.unitCost ?? 0,
+      unit: m.unit?.code || undefined,
+    }))
+
+    const createdByName = stockAdjustment?.user
+      ? [stockAdjustment.user.firstName, stockAdjustment.user.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        stockAdjustment.user.username ||
+        stockAdjustment.user.email ||
+        "System"
+      : "System"
+
+    const details = {
+      id: stockAdjustment?.id ?? movement.id,
+      date: (stockAdjustment?.adjustmentDate ?? movement.createdAt).toISOString(),
+      reason: stockAdjustment?.reason ?? movement.description ?? "",
+      account: stockAdjustment?.account ?? null,
+      adjustmentType:
+        stockAdjustment?.adjustmentType === "VALUE" ? "Value" : ("Quantity" as const),
+      createdBy: createdByName,
+      items,
+    }
+
+    return NextResponse.json(details)
   } catch (error) {
     console.error("Error fetching stock adjustment:", error)
     return NextResponse.json(
@@ -66,7 +127,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -74,6 +135,8 @@ export async function PUT(
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const { id } = await context.params
 
     const body = await request.json()
     const { quantity, movementType, reference, description } = body as {
@@ -110,7 +173,7 @@ export async function PUT(
     }
 
     const adjustment = await prisma.stockMovement.update({
-      where: { id: params.id },
+      where: { id },
       data,
       include: {
         product: {
@@ -156,7 +219,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -165,7 +228,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    await prisma.stockMovement.delete({ where: { id: params.id } })
+    const { id } = await context.params
+
+    await prisma.stockMovement.delete({ where: { id } })
 
     return NextResponse.json({ message: "Stock adjustment deleted successfully" })
   } catch (error) {

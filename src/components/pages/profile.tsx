@@ -1,16 +1,257 @@
 "use client";
 import CommonFooter from "@/core/common/footer/commonFooter";
-import Link from "next/link";
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 
 export default function ProfileComponent () {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [username, setUsername] = useState("");
+  const [role, setRole] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarDirty, setAvatarDirty] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  const [initialProfile, setInitialProfile] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    username: string;
+    role: string;
+    avatar: string | null;
+  } | null>(null);
 
   const togglePasswordVisibility = () => {
     setPasswordVisible((prevState) => !prevState);
+  };
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Avatar must be smaller than 2 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : null;
+      if (result) {
+        setAvatar(result);
+        setAvatarDirty(true);
+        setSuccess(null);
+      }
+    };
+    reader.onerror = () => {
+      setError("Failed to read selected image.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarClear = () => {
+    setAvatar(null);
+    setAvatarDirty(true);
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("Please fill in all password fields.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters long.");
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+
+      const res = await fetch("/api/profile/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to change password");
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordSuccess("Password updated successfully.");
+    } catch (err) {
+      setPasswordError(
+        err instanceof Error ? err.message : "Failed to change password",
+      );
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/profile");
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "Failed to load profile");
+        }
+
+        const data = await res.json();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const profileData = {
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          username: data.username || "",
+          role: data.role || "",
+          avatar: data.avatar || null,
+        };
+
+        setFirstName(profileData.firstName);
+        setLastName(profileData.lastName);
+        setEmail(profileData.email);
+        setPhone(profileData.phone);
+        setUsername(profileData.username);
+        setRole(profileData.role);
+        setAvatar(profileData.avatar);
+        setAvatarDirty(false);
+        setInitialProfile(profileData);
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        setError(
+          err instanceof Error ? err.message : "Failed to load profile",
+        );
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleCancel = () => {
+    if (!initialProfile) {
+      return;
+    }
+
+    setFirstName(initialProfile.firstName);
+    setLastName(initialProfile.lastName);
+    setEmail(initialProfile.email);
+    setPhone(initialProfile.phone);
+    setUsername(initialProfile.username);
+    setRole(initialProfile.role);
+    setAvatar(initialProfile.avatar);
+    setAvatarDirty(false);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          phone,
+          avatar: avatarDirty ? avatar : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to update profile");
+      }
+
+      const data = await res.json();
+
+      const updated = {
+        firstName: data.firstName || "",
+        lastName: data.lastName || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        username: data.username || "",
+        role: data.role || "",
+        avatar: data.avatar || null,
+      };
+
+      setFirstName(updated.firstName);
+      setLastName(updated.lastName);
+      setEmail(updated.email);
+      setPhone(updated.phone);
+      setUsername(updated.username);
+      setRole(updated.role);
+      setAvatar(updated.avatar);
+      setInitialProfile(updated);
+      setSuccess("Profile updated successfully.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update profile",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <div className="page-wrapper">
@@ -27,6 +268,8 @@ export default function ProfileComponent () {
             <h4>Profile</h4>
           </div>
           <div className="card-body profile-body">
+            {error && <p className="text-danger mb-2">{error}</p>}
+            {success && <p className="text-success mb-2">{success}</p>}
             <h5 className="mb-2">
               <i className="ti ti-user text-primary me-1" />
               Basic Information
@@ -34,17 +277,22 @@ export default function ProfileComponent () {
             <div className="profile-pic-upload image-field">
               <div className="profile-pic p-2">
                 <img
-                  src="./assets/img/users/user-49.png"
+                  src={avatar || "assets/img/profiles/avator1.jpg"}
                   className="object-fit-cover h-100 rounded-1"
                   alt="user"
                 />
-                <button type="button" className="close rounded-1">
+                <button
+                  type="button"
+                  className="close rounded-1"
+                  onClick={handleAvatarClear}
+                  disabled={loading || saving}
+                >
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
               <div className="mb-3">
                 <div className="image-upload mb-0 d-inline-flex">
-                  <input type="file" />
+                  <input type="file" onChange={handleAvatarFileChange} />
                   <div className="btn btn-primary fs-13">Change Image</div>
                 </div>
                 <p className="mt-2">
@@ -61,7 +309,9 @@ export default function ProfileComponent () {
                   <input
                     type="text"
                     className="form-control"
-                    defaultValue="Jeffry"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -73,7 +323,9 @@ export default function ProfileComponent () {
                   <input
                     type="text"
                     className="form-control"
-                    defaultValue="Jordan"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -85,7 +337,8 @@ export default function ProfileComponent () {
                   <input
                     type="email"
                     className="form-control"
-                    defaultValue="jeffry@example.com"
+                    value={email}
+                    disabled
                   />
                 </div>
               </div>
@@ -96,8 +349,10 @@ export default function ProfileComponent () {
                   </label>
                   <input
                     type="text"
-                    defaultValue={+17468314286}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     className="form-control"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -109,42 +364,114 @@ export default function ProfileComponent () {
                   <input
                     type="text"
                     className="form-control"
-                    defaultValue="Jeffry Jordan"
+                    value={username}
+                    disabled
                   />
                 </div>
               </div>
               <div className="col-lg-6 col-sm-12">
                 <div className="mb-3">
+                  <label className="form-label">Role</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={role}
+                    disabled
+                  />
+                </div>
+              </div>
+              <div className="col-lg-6 col-sm-12">
+                <div className="mb-3">
+                  <h5 className="mb-2 mt-2">
+                    <i className="ti ti-lock text-primary me-1" />
+                    Change Password
+                  </h5>
+                  {passwordError && (
+                    <p className="text-danger mb-2">{passwordError}</p>
+                  )}
+                  {passwordSuccess && (
+                    <p className="text-success mb-2">{passwordSuccess}</p>
+                  )}
+                </div>
+              </div>
+              <div className="col-lg-4 col-sm-12">
+                <div className="mb-3">
                   <label className="form-label">
-                    Password<span className="text-danger ms-1">*</span>
+                    Current Password<span className="text-danger ms-1">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    disabled={passwordSaving}
+                  />
+                </div>
+              </div>
+              <div className="col-lg-4 col-sm-12">
+                <div className="mb-3">
+                  <label className="form-label">
+                    New Password<span className="text-danger ms-1">*</span>
                   </label>
                   <div className="pass-group">
                     <input
                       type={isPasswordVisible ? "text" : "password"}
-                      className="pass-input form-control"
+                      className="form-control"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={passwordSaving}
                     />
                     <span
-                      className={`ti toggle-password ${isPasswordVisible ? "ti-eye" : "ti-eye-off"
-                        }`}
+                      className={`ti toggle-password ${
+                        isPasswordVisible ? "ti-eye" : "ti-eye-off"
+                      }`}
                       onClick={togglePasswordVisibility}
                     ></span>
                   </div>
-
                 </div>
               </div>
+              <div className="col-lg-4 col-sm-12">
+                <div className="mb-3">
+                  <label className="form-label">
+                    Confirm New Password
+                    <span className="text-danger ms-1">*</span>
+                  </label>
+                  <input
+                    type={isPasswordVisible ? "text" : "password"}
+                    className="form-control"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={passwordSaving}
+                  />
+                </div>
+              </div>
+              <div className="col-12 d-flex justify-content-end mb-3">
+                <button
+                  type="button"
+                  className="btn btn-primary shadow-none"
+                  onClick={handleChangePassword}
+                  disabled={passwordSaving}
+                >
+                  {passwordSaving ? "Updating Password..." : "Change Password"}
+                </button>
+              </div>
               <div className="col-12 d-flex justify-content-end">
-                <Link
-                  href="#"
+                <button
+                  type="button"
                   className="btn btn-secondary me-2 shadow-none"
+                  onClick={handleCancel}
+                  disabled={loading || saving || !initialProfile}
                 >
                   Cancel
-                </Link>
-                <Link
-                  href="#"
+                </button>
+                <button
+                  type="button"
                   className="btn btn-primary shadow-none"
+                  onClick={handleSave}
+                  disabled={loading || saving}
                 >
-                  Save Changes
-                </Link>
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
               </div>
             </div>
           </div>

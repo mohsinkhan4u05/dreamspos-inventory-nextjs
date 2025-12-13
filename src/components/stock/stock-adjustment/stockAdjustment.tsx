@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "react-feather";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import Table from "@/core/common/pagination/datatable";
 import CommonFooter from "@/core/common/footer/commonFooter";
@@ -26,21 +27,21 @@ type MovementTypeOption = "ADJUSTMENT_IN" | "ADJUSTMENT_OUT";
 
 interface StockAdjustmentRow {
   id: string;
-  Warehouse: string;
-  Shop: string;
-  Product: {
-    Name: string;
-    Image: string;
-    SKU: string;
-  };
+  ProductId: string | null;
   Date: string;
-  Quantity: number;
-  MovementType: string;
+  Reason: string;
+  Description: string;
+  Status: string;
   Reference: string;
-  Notes: string;
+  Type: string;
+  CreatedBy: string;
+  CreatedTime: string;
+  LastModifiedBy: string;
+  LastModifiedTime: string;
 }
 
 export default function StockAdjustmentComponent() {
+  const router = useRouter();
   const [filterStoreId, setFilterStoreId] = useState<string>("");
   const [filterSearch, setFilterSearch] = useState<string>("");
 
@@ -51,7 +52,7 @@ export default function StockAdjustmentComponent() {
     search: filterSearch || undefined,
   });
 
-  const { stores } = useStores({ page: 1, limit: 100, isActive: true });
+  const { stores } = useStores({ page: 1, limit: 100 });
 
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [selectedProductSearch, setSelectedProductSearch] = useState<string>("");
@@ -72,52 +73,27 @@ export default function StockAdjustmentComponent() {
     () =>
       adjustments?.data?.map((adj) => ({
         id: adj.id,
-        Warehouse: "N/A", // warehouse is not yet wired on movements
-        Shop: adj.store
-          ? `${adj.store.name}${adj.store.code ? ` (${adj.store.code})` : ""}`
-          : "N/A",
-        Product: {
-          Name: adj.product?.name || "N/A",
-          Image: "/assets/img/products/product-1.jpg",
-          SKU: adj.product?.sku || "N/A",
-        },
+        ProductId: adj.product?.id || null,
         Date: new Date(adj.createdAt).toLocaleDateString(),
-        Quantity: adj.quantity,
-        MovementType: adj.movementType,
+        Reason: adj.description || "",
+        Description: adj.description || "",
+        Status: "ADJUSTED",
         Reference: adj.reference || "",
-        Notes: adj.description || "",
+        Type:
+          adj.movementType === "ADJUSTMENT_IN"
+            ? "Quantity Increase"
+            : adj.movementType === "ADJUSTMENT_OUT"
+            ? "Quantity Decrease"
+            : adj.movementType,
+        CreatedBy: "System",
+        CreatedTime: new Date(adj.createdAt).toLocaleTimeString(),
+        LastModifiedBy: "System",
+        LastModifiedTime: new Date(adj.createdAt).toLocaleTimeString(),
       })) || [],
     [adjustments],
   );
 
   const columns = [
-    {
-      title: "Warehouse",
-      dataIndex: "Warehouse",
-      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
-        (a.Warehouse || "").localeCompare(b.Warehouse || ""),
-    },
-    {
-      title: "Shop",
-      dataIndex: "Shop",
-      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
-        (a.Shop || "").localeCompare(b.Shop || ""),
-    },
-    {
-      title: "Product",
-      dataIndex: "Product",
-      render: (_text: unknown, record: StockAdjustmentRow) => (
-        <span className="userimgname">
-          <Link href="#" className="product-img">
-            <img alt="img" src={record.Product.Image} />
-          </Link>
-          <Link href="#">{record.Product.Name}</Link>
-        </span>
-      ),
-      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
-        (a.Product?.Name || "").localeCompare(b.Product?.Name || ""),
-    },
-
     {
       title: "Date",
       dataIndex: "Date",
@@ -126,58 +102,80 @@ export default function StockAdjustmentComponent() {
     },
 
     {
-      title: "Qty",
-      dataIndex: "Quantity",
+      title: "Reason",
+      dataIndex: "Reason",
       sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
-        a.Quantity - b.Quantity,
+        (a.Reason || "").localeCompare(b.Reason || ""),
+    },
+
+    {
+      title: "Description",
+      dataIndex: "Description",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.Description || "").localeCompare(b.Description || ""),
+    },
+
+    {
+      title: "Status",
+      dataIndex: "Status",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.Status || "").localeCompare(b.Status || ""),
+    },
+
+    {
+      title: "Reference Number",
+      dataIndex: "Reference",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.Reference || "").localeCompare(b.Reference || ""),
     },
 
     {
       title: "Type",
-      dataIndex: "MovementType",
+      dataIndex: "Type",
       sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
-        (a.MovementType || "").localeCompare(b.MovementType || ""),
+        (a.Type || "").localeCompare(b.Type || ""),
     },
 
     {
-      title: "",
+      title: "Created By",
+      dataIndex: "CreatedBy",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.CreatedBy || "").localeCompare(b.CreatedBy || ""),
+    },
+
+    {
+      title: "Created Time",
+      dataIndex: "CreatedTime",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.CreatedTime || "").localeCompare(b.CreatedTime || ""),
+    },
+
+    {
+      title: "Last Modified By",
+      dataIndex: "LastModifiedBy",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.LastModifiedBy || "").localeCompare(b.LastModifiedBy || ""),
+    },
+
+    {
+      title: "Last Modified Time",
+      dataIndex: "LastModifiedTime",
+      sorter: (a: StockAdjustmentRow, b: StockAdjustmentRow) =>
+        (a.LastModifiedTime || "").localeCompare(b.LastModifiedTime || ""),
+    },
+
+    {
+      title: "Action",
       dataIndex: "action",
       render: (_: unknown, record: StockAdjustmentRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <div className="input-block add-lists"></div>
-
             <Link
               className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#view-notes"
-              onClick={() => setViewNotes(record.Notes || "")}
+              href={`/adjustment-details/${record.id}`}
+              onClick={(e) => e.stopPropagation()}
             >
               <FileText className="feather-file-text" />
-            </Link>
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
-              onClick={() => {
-                setEditAdjustmentId(record.id);
-                setEditReference(record.Reference || "");
-                setEditNotes(record.Notes || "");
-              }}
-            >
-              <Edit className="feather-edit" />
-            </Link>
-
-            <Link
-              className="confirm-text p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              onClick={() => setDeleteAdjustmentId(record.id)}
-            >
-              <Trash2 className="feather-trash-2" />
             </Link>
           </div>
         </div>
@@ -335,63 +333,20 @@ export default function StockAdjustmentComponent() {
           </div>
           {/* /product list */}
           <div className="card table-list-card manage-stock">
-            <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-              <div className="search-set"></div>
-              <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                <div className="dropdown me-2">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Store
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link
-                        href="#"
-                        className="dropdown-item rounded-1"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setFilterStoreId("");
-                        }}
-                      >
-                        All Stores
-                      </Link>
-                    </li>
-                    {stores?.data?.map((store) => (
-                      <li key={store.id}>
-                        <Link
-                          href="#"
-                          className="dropdown-item rounded-1"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setFilterStoreId(store.id);
-                          }}
-                        >
-                          {store.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="search-set">
-                  <div className="search-input">
-                    <input
-                      type="text"
-                      placeholder="Search by product name or SKU"
-                      className="form-control"
-                      value={filterSearch}
-                      onChange={(e) => setFilterSearch(e.target.value)}
-                    />
-                    <Search className="feather-search" />
-                  </div>
-                </div>
-              </div>
-            </div>
             <div className="card-body">
               <div className="custom-datatable-filter table-responsive">
-                <Table columns={columns} dataSource={data} />
+                <Table
+                  columns={columns}
+                  dataSource={data}
+                  disableSelection
+                  onRow={(record: StockAdjustmentRow) => ({
+                    onClick: () => {
+                      if (record.ProductId) {
+                        router.push(`/item/${record.ProductId}/adjust-stock`);
+                      }
+                    },
+                  })}
+                />
               </div>
             </div>
           </div>
@@ -664,6 +619,30 @@ export default function StockAdjustmentComponent() {
         </div>
       </div>
       {/* /View Notes */}
+      <style jsx global>{`
+        .manage-stock .table-search-set {
+          position: static !important;
+          display: flex;
+          justify-content: flex-start;
+          align-items: center;
+          margin-bottom: 12px;
+          margin-left : 5px;
+          padding: 0;
+        }
+
+        .manage-stock .table-search-set .btn-searchset {
+          display: none;
+        }
+
+        .manage-stock .table-search-set .search-input {
+          max-width: 260px;
+          width: 100%;
+        }
+
+        .manage-stock .custom-datatable-filter {
+          margin-top: 4px;
+        }
+      `}</style>
     </>
   );
 }

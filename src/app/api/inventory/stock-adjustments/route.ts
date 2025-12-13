@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
 import { MovementType, Prisma } from "@prisma/client"
+import { InsufficientStockError, createStockAdjustment } from "@/lib/stockEngine"
 
 export const dynamic = "force-dynamic"
 
@@ -145,105 +146,21 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const adjustment = await prisma.$transaction(async (tx) => {
-        // Locate or create the related Stock row
-        let stock = null as Awaited<ReturnType<typeof tx.stock.findUnique>> | null
-
-        if (stockId) {
-          stock = await tx.stock.findUnique({ where: { id: stockId } })
-        }
-
-        if (!stock) {
-          stock = await tx.stock.findFirst({
-            where: {
-              productId,
-              variantId: variantId || null,
-              storeId,
-            },
-          })
-        }
-
-        if (!stock) {
-          // Create a new stock record if none exists yet for this product/store
-          stock = await tx.stock.create({
-            data: {
-              productId,
-              variantId: variantId || null,
-              storeId,
-              warehouseId: null,
-              unitId: unitId || null,
-              quantity: 0,
-              minStock: 0,
-              maxStock: null,
-            },
-          })
-        }
-
-        const delta =
-          movementType === MovementType.ADJUSTMENT_IN
-            ? parsedQuantity
-            : -parsedQuantity
-
-        const newQuantity = stock.quantity + delta
-        if (newQuantity < 0) {
-          throw new Error("INSUFFICIENT_STOCK")
-        }
-
-        await tx.stock.update({
-          where: { id: stock.id },
-          data: { quantity: newQuantity },
-        })
-
-        const created = await tx.stockMovement.create({
-          data: {
-            productId,
-            variantId: variantId || null,
-            storeId,
-            unitId: unitId || null,
-            stockId: stock.id,
-            movementType,
-            quantity: parsedQuantity,
-            reference: reference || null,
-            description: description || null,
-          },
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-              },
-            },
-            variant: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-              },
-            },
-            store: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-              },
-            },
-            unit: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-              },
-            },
-          },
-        })
-
-        return created
+      const adjustment = await createStockAdjustment({
+        productId,
+        variantId: variantId ?? null,
+        storeId,
+        unitId: unitId ?? null,
+        stockId: stockId ?? null,
+        quantity: parsedQuantity,
+        movementType,
+        reference: reference ?? null,
+        description: description ?? null,
       })
 
       return NextResponse.json(adjustment, { status: 201 })
     } catch (error) {
-      if (error instanceof Error && error.message === "INSUFFICIENT_STOCK") {
+      if (error instanceof InsufficientStockError) {
         return NextResponse.json(
           { error: "Insufficient stock for adjustment" },
           { status: 400 },

@@ -1,13 +1,13 @@
 import EditProductComponent from "@/components/Inventory/edit-product/editproduct";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export default function EditProductPage({ params }: PageProps) {
-  const { id } = params;
+export default async function EditProductPage({ params }: PageProps) {
+  const { id } = await params;
 
   return <EditProductComponent productId={id} />;
 }

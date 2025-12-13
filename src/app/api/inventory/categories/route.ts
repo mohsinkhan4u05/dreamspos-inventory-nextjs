@@ -228,14 +228,14 @@ export async function GET(request: NextRequest) {
     }
 
     const [categories, total] = await Promise.all([
-      prisma.category.findMany({
+      prisma.category?.findMany({
         where,
         include: {
           parent: {
             select: { id: true, name: true }
           },
           _count: {
-            select: { products: true }
+            select: { children: true }
           }
         },
         orderBy: { name: "asc" },

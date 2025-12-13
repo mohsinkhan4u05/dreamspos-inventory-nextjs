@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     const brand = await prisma.brand.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: { products: true },
@@ -40,7 +42,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -50,6 +52,7 @@ export async function PUT(
     }
 
     const body = await request.json()
+    const { id } = await context.params
     const { name, description, image, isActive } = body
 
     if (!name) {
@@ -60,7 +63,7 @@ export async function PUT(
     }
 
     const brand = await prisma.brand.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         description: description ?? null,
@@ -86,7 +89,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
@@ -95,8 +98,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     await prisma.brand.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     })
 

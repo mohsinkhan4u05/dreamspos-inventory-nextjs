@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "purchase_items" ADD COLUMN     "billedQuantity" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "receivedQuantity" DOUBLE PRECISION NOT NULL DEFAULT 0;

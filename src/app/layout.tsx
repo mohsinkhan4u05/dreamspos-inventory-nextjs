@@ -1,4 +1,5 @@
 import "../../node_modules/bootstrap/dist/css/bootstrap.min.css";
+import "@uploadthing/react/styles.css";
 import "../customStyle.scss";
 import "../style/css/feather.css";
 import "../style/css/line-awesome.min.css";

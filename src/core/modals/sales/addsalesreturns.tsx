@@ -2,13 +2,19 @@
 /* eslint-disable @next/next/no-img-element */
 
 
-import React from "react";
+import React, { useState } from "react";
 import Select from "react-select";
 import { DatePicker } from "antd";
 import Link from "next/link";
 import { Calendar, PlusCircle } from "react-feather";
+import { salesReturnService, salesService } from "@/services/api";
+import type { Sale, SaleItem } from "@/hooks/useSales";
 
-const AddSalesReturns = () => {
+type AddSalesReturnsProps = {
+  onCreated?: () => void
+}
+
+const AddSalesReturns = ({ onCreated }: AddSalesReturnsProps) => {
   const customers = [
     { value: "Choose Customer", label: "Choose Customer" },
     { value: "Thomas", label: "Thomas" },
@@ -21,6 +27,167 @@ const AddSalesReturns = () => {
     { value: "Received", label: "Received" },
   ];
 
+  type ReturnRow = {
+    id: string
+    saleItemId: string
+    productId: string
+    productLabel: string
+    variantId?: string | null
+    soldQuantity: number
+    quantityToReturn: string
+    unitPrice: number
+    discount: number
+    taxRate: number
+  }
+
+  const [saleId, setSaleId] = useState("")
+  const [returnRows, setReturnRows] = useState<ReturnRow[]>([])
+  const [loadingSale, setLoadingSale] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleLoadSale = async () => {
+    if (!saleId) {
+      setError("Sale ID is required")
+      return
+    }
+
+    try {
+      setLoadingSale(true)
+      setError(null)
+
+      const response = await salesService.getSales({ saleId, limit: 1 })
+      const sale = response?.data?.[0] as Sale | undefined
+
+      if (!sale || !sale.items || sale.items.length === 0) {
+        setReturnRows([])
+        setError("Sale not found or has no items")
+        return
+      }
+
+      const rows: ReturnRow[] = sale.items.map((item: SaleItem, index: number) => ({
+        id: `row-${index + 1}`,
+        saleItemId: item.id,
+        productId: item.productId,
+        productLabel: item.product?.name
+          ? `${item.product.name} (${item.product.sku ?? ""})`
+          : item.productId,
+        variantId: item.variantId ?? null,
+        soldQuantity: item.quantity,
+        quantityToReturn: String(item.quantity),
+        unitPrice: item.unitPrice,
+        discount: item.discount ?? 0,
+        taxRate: item.taxRate ?? 0,
+      }))
+
+      setReturnRows(rows)
+    } catch (e) {
+      setReturnRows([])
+      setError(
+        e instanceof Error ? e.message : "Failed to load sale for return",
+      )
+    } finally {
+      setLoadingSale(false)
+    }
+  }
+
+  const handleRowChange = (
+    id: string,
+    field: keyof Pick<ReturnRow, "quantityToReturn">,
+    value: string,
+  ) => {
+    setReturnRows((prev) =>
+      prev.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const parsedRows = returnRows.map((row) => {
+    const quantityReturn = parseFloat(row.quantityToReturn || "0")
+    const baseSubtotal = quantityReturn * row.unitPrice
+    const perUnitDiscount = row.soldQuantity > 0
+      ? row.discount / row.soldQuantity
+      : 0
+    const discountAmount = perUnitDiscount * quantityReturn
+    const taxableBase = baseSubtotal - discountAmount
+    const taxAmount = taxableBase * (row.taxRate / 100)
+    const lineTotal = taxableBase + taxAmount
+
+    return {
+      ...row,
+      quantityReturn,
+      discountAmount,
+      taxAmount,
+      lineTotal,
+    }
+  })
+
+  const validRows = parsedRows.filter(
+    (row) =>
+      row.quantityReturn > 0 &&
+      row.quantityReturn <= row.soldQuantity &&
+      Number.isFinite(row.lineTotal),
+  )
+
+  const subtotal = parsedRows.reduce(
+    (sum, row) => sum + row.quantityReturn * row.unitPrice,
+    0,
+  )
+  const totalDiscount = parsedRows.reduce(
+    (sum, row) => sum + (row.discountAmount || 0),
+    0,
+  )
+  const totalTax = parsedRows.reduce(
+    (sum, row) => sum + (row.taxAmount || 0),
+    0,
+  )
+  const grandTotal = subtotal - totalDiscount + totalTax
+
+  const handleSubmit = async () => {
+    if (!saleId) {
+      setError("Sale ID is required")
+      return
+    }
+
+    if (validRows.length === 0) {
+      setError("Add at least one item with a valid return quantity")
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      await salesReturnService.createSalesReturn({
+        saleId,
+        items: validRows.map((row) => ({
+          productId: row.productId,
+          variantId: row.variantId ?? null,
+          quantity: row.quantityReturn,
+          unitPrice: row.unitPrice,
+          discount: row.discountAmount,
+          taxRate: row.taxRate,
+          taxAmount: row.taxAmount,
+        })),
+      })
+
+      if (onCreated) {
+        onCreated()
+      }
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Failed to create sales return",
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div>
@@ -89,9 +256,24 @@ const AddSalesReturns = () => {
                       <div className="col-lg-4 col-sm-6 col-12">
                         <div className="mb-3">
                           <label className="form-label">
-                            Reference<span className="text-danger ms-1">*</span>
+                            Sale ID<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control" />
+                          <div className="d-flex">
+                            <input
+                              type="text"
+                              className="form-control me-2"
+                              value={saleId}
+                              onChange={(e) => setSaleId(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary"
+                              onClick={handleLoadSale}
+                              disabled={loadingSale}
+                            >
+                              {loadingSale ? "Loading" : "Load"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="col-lg-12 col-sm-6 col-12">
@@ -117,24 +299,64 @@ const AddSalesReturns = () => {
                         <thead>
                           <tr>
                             <th>Product Name</th>
-                            <th>Net Unit Price($) </th>
-                            <th>Stock</th>
-                            <th>QTY </th>
-                            <th>Discount($) </th>
+                            <th>Net Unit Price($)</th>
+                            <th>Sold QTY</th>
+                            <th>Return QTY</th>
+                            <th>Discount($)</th>
                             <th>Tax %</th>
                             <th>Subtotal ($)</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td />
-                            <td />
-                            <td />
-                            <td />
-                            <td />
-                            <td />
-                            <td />
-                          </tr>
+                          {returnRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="text-center">
+                                {saleId
+                                  ? "Click Load to fetch sale items for return"
+                                  : "Enter a Sale ID and click Load to begin"}
+                              </td>
+                            </tr>
+                          ) : (
+                            parsedRows.map((row) => (
+                              <tr key={row.id}>
+                                <td style={{ minWidth: 220 }}>
+                                  <Select
+                                    classNamePrefix="react-select"
+                                    isDisabled
+                                    value={{
+                                      value: row.saleItemId,
+                                      label: row.productLabel,
+                                    }}
+                                    options={returnRows.map((r) => ({
+                                      value: r.saleItemId,
+                                      label: r.productLabel,
+                                    }))}
+                                  />
+                                </td>
+                                <td>{row.unitPrice.toFixed(2)}</td>
+                                <td>{row.soldQuantity}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    className="form-control"
+                                    min={0}
+                                    max={row.soldQuantity}
+                                    value={row.quantityToReturn}
+                                    onChange={(e) =>
+                                      handleRowChange(
+                                        row.id,
+                                        "quantityToReturn",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </td>
+                                <td>{row.discountAmount.toFixed(2)}</td>
+                                <td>{row.taxRate.toFixed(2)}</td>
+                                <td>{row.lineTotal.toFixed(2)}</td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -144,11 +366,11 @@ const AddSalesReturns = () => {
                           <ul className="rounded-1 border-1">
                             <li className="border-0 border-bottom">
                               <h4 className="border-end">Order Tax</h4>
-                              <h5>$ 0.00</h5>
+                              <h5>$ {totalTax.toFixed(2)}</h5>
                             </li>
                             <li className="border-0 border-bottom">
                               <h4 className="border-end">Discount</h4>
-                              <h5>$ 0.00</h5>
+                              <h5>$ {totalDiscount.toFixed(2)}</h5>
                             </li>
                             <li className="border-0 border-bottom">
                               <h4 className="border-end">Shipping</h4>
@@ -156,7 +378,7 @@ const AddSalesReturns = () => {
                             </li>
                             <li className="border-0 border-bottom">
                               <h4 className="border-end">Grand Total</h4>
-                              <h5>$ 0.00</h5>
+                              <h5>$ {grandTotal.toFixed(2)}</h5>
                             </li>
                           </ul>
                         </div>
@@ -171,7 +393,8 @@ const AddSalesReturns = () => {
                           <div className="input-groupicon select-code">
                             <input
                               type="text"
-                              defaultValue={0}
+                              value={totalTax.toFixed(2)}
+                              readOnly
                               className="form-control p-2"
                             />
                           </div>
@@ -228,9 +451,16 @@ const AddSalesReturns = () => {
                   >
                     Cancel
                   </button>
-                  <Link href="#" className="btn btn-primary add-sale" data-bs-dismiss="modal">
-                    Submit
-                  </Link>
+                  {error && <p className="text-danger me-3 mb-0">{error}</p>}
+                  <button
+                    type="button"
+                    className="btn btn-primary add-sale"
+                    data-bs-dismiss="modal"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Submitting..." : "Submit"}
+                  </button>
                 </div>
               </form>
             </div>

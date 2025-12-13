@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
+import { applyPurchase } from "@/lib/stockEngine"
 
 export const dynamic = "force-dynamic"
 
@@ -371,7 +372,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -381,9 +382,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50")
     const search = searchParams.get("search") || ""
     const storeId = searchParams.get("storeId")
+    const supplierId = searchParams.get("supplierId")
     const status = searchParams.get("status")
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
+    const purchaseOrderId = searchParams.get("purchaseOrderId")
 
     const where: Record<string, unknown> = {}
     
@@ -398,9 +401,25 @@ export async function GET(request: NextRequest) {
     if (storeId) {
       where.storeId = storeId
     }
+
+    if (supplierId) {
+      where.supplierId = supplierId
+    }
     
     if (status) {
-      where.status = status
+      const paymentStatusValues = [
+        "PAID",
+        "PENDING",
+        "PARTIAL",
+        "FAILED",
+        "REFUNDED",
+      ]
+
+      if (paymentStatusValues.includes(status)) {
+        ;(where as Record<string, unknown>).paymentStatus = status
+      } else {
+        where.status = status
+      }
     }
     
     if (startDate || endDate) {
@@ -414,10 +433,22 @@ export async function GET(request: NextRequest) {
       where.createdAt = dateFilter
     }
 
+    if (purchaseOrderId) {
+      ;(where as Record<string, unknown>).accountingEntries = {
+        some: { purchaseOrderId },
+      }
+    }
+
     const [purchases, total] = await Promise.all([
       prisma.purchase.findMany({
         where,
         include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           store: {
             select: {
               id: true,
@@ -467,13 +498,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
-    const { storeId, supplierName, supplierEmail, supplierPhone, referenceNumber, items, paymentMethod, paymentStatus } = body
+    const {
+      storeId,
+      items,
+      paymentStatus,
+    } = body
 
     if (!storeId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -482,62 +517,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate order number
-    const orderNumber = `PUR-${Date.now()}`
-
-    // Calculate totals
-    const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitCost), 0)
-    const discount = body.discount || 0
-    const taxAmount = body.tax || 0
-    const totalAmount = subtotal - discount + taxAmount
-    const paidAmount = body.paidAmount || 0
-    const dueAmount = totalAmount - paidAmount
-
-    const result = await prisma.$transaction(async (tx) => {
-      // Create purchase
-      const purchase = await tx.purchase.create({
-        data: {
-          orderNumber,
-          storeId,
-          supplierId: body.supplierId || null,
-          subtotal,
-          discount,
-          taxAmount,
-          totalAmount,
-          paidAmount,
-          dueAmount,
-          paymentStatus: paymentStatus || "PENDING",
-          status: "PENDING",
-          expectedDate: body.expectedDate ? new Date(body.expectedDate) : null,
-          notes: body.notes || null,
-          items: {
-            create: items.map((item: any) => ({
-              productId: item.productId,
-              quantity: parseFloat(item.quantity),
-              unitPrice: parseFloat(item.unitCost),
-              totalPrice: parseFloat(item.quantity) * parseFloat(item.unitCost),
-              discount: item.discount || 0,
-              taxRate: item.taxRate || 0,
-              taxAmount: item.taxAmount || 0,
-            }))
-          }
-        },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true
-                }
-              }
-            }
-          }
-        }
-      })
-
-      return purchase
+    const result = await applyPurchase({
+      storeId,
+      supplierId: body.supplierId ?? null,
+      discount: body.discount,
+      tax: body.tax,
+      paidAmount: body.paidAmount,
+      expectedDate: body.expectedDate ?? null,
+      notes: body.notes ?? null,
+      paymentStatus: paymentStatus ?? null,
+      items: items.map((item: {
+        productId: string
+        quantity: number | string
+        unitCost: number | string
+        discount?: number
+        taxRate?: number
+        taxAmount?: number
+      }) => ({
+        productId: item.productId,
+        quantity: typeof item.quantity === "number" ? item.quantity : parseFloat(String(item.quantity)),
+        unitCost: typeof item.unitCost === "number" ? item.unitCost : parseFloat(String(item.unitCost)),
+        discount: item.discount ?? 0,
+        taxRate: item.taxRate ?? 0,
+        taxAmount: item.taxAmount ?? 0,
+      })),
     })
 
     return NextResponse.json(result, { status: 201 })

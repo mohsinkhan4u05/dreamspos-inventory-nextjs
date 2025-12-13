@@ -1,1156 +1,527 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from "react";
 import Select from "react-select";
-import { CustomerName, OrderStatus, PaymentType, Supplier } from '../../../core/common/selectOption/selectOption';
-import { DatePicker } from "antd";
-import DefaultEditor from 'react-simple-wysiwyg';
-import Link from 'next/link';
-import { ArrowLeft, Calendar, DollarSign, Minus, PlusCircle } from "react-feather";
+import {
+  CustomerName,
+  OrderStatus,
+  PaymentType,
+  Supplier,
+} from "../../../core/common/selectOption/selectOption";
+import { DatePicker, notification } from "antd";
+import DefaultEditor from "react-simple-wysiwyg";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Calendar,
+  DollarSign,
+  Minus,
+  PlusCircle,
+} from "react-feather";
+import { salesService, stockService } from "@/services/api";
+import { useStores } from "@/hooks/useStores";
+import { useProducts } from "@/hooks/useProducts";
 
-const OnlineorderModal = () => {
-
-
-    const [quantity, setQuantity] = useState(4);
-
-    const handleDecrement = () => {
-        if (quantity > 1) {
-            setQuantity(quantity - 1);
-        }
-    };
-
-    const handleIncrement = () => {
-        setQuantity(quantity + 1);
-    };
-
-
-    const [values, setValue] = useState();
-      function onChange(e:any) {
-        setValue(e.target.value);
-      }
-
-    return (
-        <div>
-            <>
-                {/*add popup */}
-                <div className="modal fade" id="add-sales-new">
-                    <div className="modal-dialog add-centered">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <div className="page-title">
-                                    <h4> Add Sales</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                >
-                                    <span aria-hidden="true">×</span>
-                                </button>
-                            </div>
-                            <form>
-                                <div className="card border-0">
-                                    <div className="card-body pb-0">
-                                        <div className="table-responsive no-pagination mb-3">
-                                            <table className="table datanew">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Product</th>
-                                                        <th>Qty</th>
-                                                        <th>Purchase Price($)</th>
-                                                        <th>Discount($)</th>
-                                                        <th>Tax(%)</th>
-                                                        <th>Tax Amount($)</th>
-                                                        <th>Unit Cost($)</th>
-                                                        <th>Total Cost(%)</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td />
-                                                        <td />
-                                                        <td />
-                                                        <td />
-                                                        <td />
-                                                        <td />
-                                                        <td />
-                                                        <td />
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div className="row">
-                                            <div className="col-lg-4 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Customer Name<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <div className="row">
-                                                        <div className="col-lg-10 col-sm-10 col-10">
-                                                            <Select
-                                                                classNamePrefix="react-select"
-                                                                options={CustomerName}
-                                                                placeholder="Choose"
-                                                            />
-                                                        </div>
-                                                        <div className="col-lg-2 col-sm-2 col-2 ps-0">
-                                                            <div className="add-icon">
-                                                                <Link
-                                                                    href="#"
-                                                                    className="bg-dark text-white p-2 rounded"
-                                                                >
-                                                                    <PlusCircle />
-                                                                </Link>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-lg-4 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Date<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <div className="input-groupicon calender-input">
-
-                                                        <DatePicker
-                                                            className="form-control datetimepicker"
-                                                            placeholder="dd/mm/yyyy"
-                                                        />
-                                                        <Calendar className="info-img" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-lg-4 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Supplier<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <Select
-                                                        classNamePrefix="react-select"
-                                                        options={Supplier}
-                                                        placeholder="Choose"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="col-lg-12 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Product<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <div className="input-groupicon select-code">
-                                                        <input
-                                                            type="text"
-                                                            className="form-control"
-                                                            placeholder="Please type product code and select"
-                                                        />
-                                                        <div className="addonset">
-                                                            <img src="assets/img/icons/qrcode-scan.svg" alt="img" />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="row">
-                                            <div className="col-lg-6 ms-auto">
-                                                <div className="total-order w-100 max-widthauto m-auto mb-4">
-                                                    <ul className="border-1 rounded-2">
-                                                        <li className="border-bottom">
-                                                            <h4 className="border-end">Order Tax</h4>
-                                                            <h5>$ 0.00</h5>
-                                                        </li>
-                                                        <li className="border-bottom">
-                                                            <h4 className="border-end">Discount</h4>
-                                                            <h5>$ 0.00</h5>
-                                                        </li>
-                                                        <li className="border-bottom">
-                                                            <h4 className="border-end">Shipping</h4>
-                                                            <h5>$ 0.00</h5>
-                                                        </li>
-                                                        <li className="border-bottom">
-                                                            <h4 className="border-end">Grand Total</h4>
-                                                            <h5>$ 0.00</h5>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="row">
-                                            <div className="col-lg-3 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Order Tax<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <div className="input-groupicon select-code">
-                                                        <input
-                                                            type="text"
-                                                            defaultValue={0}
-                                                            className="form-control p-2"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-lg-3 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Discount<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <div className="input-groupicon select-code">
-                                                        <input
-                                                            type="text"
-                                                            defaultValue={0}
-                                                            className="form-control p-2"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-lg-3 col-sm-6 col-12">
-                                                <div className="mb-3">
-                                                    <label className="form-label">
-                                                        Shipping<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <div className="input-groupicon select-code">
-                                                        <input
-                                                            type="text"
-                                                            defaultValue={0}
-                                                            className="form-control p-2"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-lg-3 col-sm-6 col-12">
-                                                <div className="mb-3 mb-5">
-                                                    <label className="form-label">
-                                                        Status<span className="text-danger ms-1">*</span>
-                                                    </label>
-                                                    <Select
-                                                        classNamePrefix="react-select"
-                                                        options={OrderStatus}
-                                                        placeholder="Choose"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary add-cancel me-3"
-                                        data-bs-dismiss="modal"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <Link href="#" className="btn btn-primary add-sale" data-bs-dismiss="modal">
-                                        Submit
-                                    </Link>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                {/* /add popup */}
-                {/* details popup */}
-                <div className="modal fade" id="sales-details-new">
-                    <div className="modal-dialog sales-details-modal">
-                        <div className="modal-content">
-                            <div className="page-header p-4 border-bottom mb-0">
-                                <div className="add-item d-flex align-items-center">
-                                    <div className="page-title modal-datail">
-                                        <h4 className="mb-0 me-2">Sales Detail</h4>
-                                    </div>
-                                </div>
-                                <ul className="table-top-head">
-                                    <li>
-                                        <Link href="#" data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf">
-                                            <img src="assets/img/icons/pdf.svg" alt="img" />
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href="#" data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf">
-                                            <img src="assets/img/icons/printer.svg" alt="img" />
-                                        </Link>
-                                    </li>
-                                </ul>
-                                <div className="page-btn">
-                                    <Link href="#" className="btn btn-secondary" data-bs-dismiss='modal'>
-                                        <ArrowLeft className="me-2" /> Back to Sales
-                                    </Link>
-                                </div>
-                            </div>
-                            <form>
-                                <div className="card border-0">
-                                    <div className="card-body pb-0">
-                                        <div
-                                            className="invoice-box table-height"
-                                            style={{
-                                                maxWidth: 1600,
-                                                width: "100%",
-                                                padding: 0,
-                                                fontSize: 14,
-                                                color: "#555"
-                                            }}
-                                        >
-                                            <div className="row sales-details-items d-flex">
-                                                <div className="col-md-4 details-item">
-                                                    <h6>Customer Info</h6>
-                                                    <h4 className="mb-1">Carl Evans</h4>
-                                                    <p className="mb-0">3103 Trainer Avenue Peoria, IL 61602</p>
-                                                    <p className="mb-0">
-                                                        Email<span>carlevans241@example.com</span>
-                                                    </p>
-                                                    <p className="mb-0">
-                                                        Phone<span>+1 987 471 6589</span>
-                                                    </p>
-                                                </div>
-                                                <div className="col-md-4 details-item">
-                                                    <h6>Company Info</h6>
-                                                    <h4 className="mb-1">DGT</h4>
-                                                    <p className="mb-0">2077 Chicago Avenue Orosi, CA 93647</p>
-                                                    <p className="mb-0">
-                                                        Email<span>admin@example.com</span>
-                                                    </p>
-                                                    <p className="mb-0">
-                                                        Phone<span>+1 893 174 0385</span>
-                                                    </p>
-                                                </div>
-                                                <div className="col-md-4 details-item">
-                                                    <h6>Invoice Info</h6>
-                                                    <p className="mb-0">
-                                                        Reference:{" "}
-                                                        <span className="fs-16 text-primary ms-2">#SL0101</span>
-                                                    </p>
-                                                    <p className="mb-0">
-                                                        Reference:{" "}
-                                                        <span className="ms-2 text-gray-9">Dec 24, 2024</span>
-                                                    </p>
-                                                    <p className="mb-0">
-                                                        Status:{" "}
-                                                        <span className="badge badge-success ms-2">
-                                                            Completed
-                                                        </span>
-                                                    </p>
-                                                    <p className="mb-0">
-                                                        Payment Status:{" "}
-                                                        <span className="badge badge-soft-success shadow-none badge-xs d-inline-flex align-items-center ms-2">
-                                                            {" "}
-                                                            <i className="ti ti-point-filled" />
-                                                            Paid
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <h5 className="order-text">Order Summary</h5>
-                                            <div className="table-responsive no-pagination mb-3">
-                                                <table className="table  datanew">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Product</th>
-                                                            <th>Purchase Price($)</th>
-                                                            <th>Discount($)</th>
-                                                            <th>Tax(%)</th>
-                                                            <th>Tax Amount($)</th>
-                                                            <th>Unit Cost($)</th>
-                                                            <th>Total Cost(%)</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>
-                                                                <div className="d-flex align-items-center">
-                                                                    <Link
-                                                                        href="#"
-                                                                        className="avatar avatar-md me-2"
-                                                                    >
-                                                                        <img
-                                                                            src="assets/img/products/stock-img-02.png"
-                                                                            alt="product"
-                                                                        />
-                                                                    </Link>
-                                                                    <Link href="#">Nike Jordan</Link>
-                                                                </div>
-                                                            </td>
-                                                            <td>2000</td>
-                                                            <td>500</td>
-                                                            <td>0.00</td>
-                                                            <td>0.00</td>
-                                                            <td>0.00</td>
-                                                            <td>1500</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <div className="d-flex align-items-center">
-                                                                    <Link
-                                                                        href="#"
-                                                                        className="avatar avatar-md me-2"
-                                                                    >
-                                                                        <img
-                                                                            src="assets/img/products/stock-img-03.png"
-                                                                            alt="product"
-                                                                        />
-                                                                    </Link>
-                                                                    <Link href="#">
-                                                                        Apple Series 5 Watch
-                                                                    </Link>
-                                                                </div>
-                                                            </td>
-                                                            <td>3000</td>
-                                                            <td>400</td>
-                                                            <td>0.00</td>
-                                                            <td>0.00</td>
-                                                            <td>0.00</td>
-                                                            <td>1700</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <div className="d-flex align-items-center">
-                                                                    <Link
-                                                                        href="#"
-                                                                        className="avatar avatar-md me-2"
-                                                                    >
-                                                                        <img
-                                                                            src="assets/img/products/stock-img-05.png"
-                                                                            alt="product"
-                                                                        />
-                                                                    </Link>
-                                                                    <Link href="#">Lobar Handy</Link>
-                                                                </div>
-                                                            </td>
-                                                            <td>2500</td>
-                                                            <td>500</td>
-                                                            <td>0.00</td>
-                                                            <td>0.00</td>
-                                                            <td>0.00</td>
-                                                            <td>2000</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                        <div className="row">
-                                            <div className="row">
-                                                <div className="col-lg-6 ms-auto">
-                                                    <div className="total-order w-100 max-widthauto m-auto mb-4">
-                                                        <ul className="border-1 rounded-1">
-                                                            <li className="border-bottom">
-                                                                <h4 className="border-end">Order Tax</h4>
-                                                                <h5>$ 0.00</h5>
-                                                            </li>
-                                                            <li className="border-bottom">
-                                                                <h4 className="border-end">Discount</h4>
-                                                                <h5>$ 0.00</h5>
-                                                            </li>
-                                                            <li className="border-bottom">
-                                                                <h4 className="border-end">Grand Total</h4>
-                                                                <h5>$ 5200.00</h5>
-                                                            </li>
-                                                            <li className="border-bottom">
-                                                                <h4 className="border-end">Paid</h4>
-                                                                <h5>$ 5200.00</h5>
-                                                            </li>
-                                                            <li className="border-bottom">
-                                                                <h4 className="border-end">Due</h4>
-                                                                <h5>$ 0.00</h5>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary me-2"
-                                        data-bs-dismiss="modal"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button type="submit" className="btn btn-primary">
-                                        Submit
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                {/* /details popup */}
-                {/* edit popup */}
-                <div className="modal fade" id="edit-sales-new">
-                    <div className="modal-dialog edit-sales-modal">
-                        <div className="modal-content">
-                            <div className="page-wrapper p-0 m-0">
-                                <div className="content p-0">
-                                    <div className="page-header p-4 mb-0">
-                                        <div className="add-item new-sale-items d-flex">
-                                            <div className="page-title">
-                                                <h4>Edit Sales</h4>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className="close"
-                                                data-bs-dismiss="modal"
-                                                aria-label="Close"
-                                            >
-                                                <span aria-hidden="true">×</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <form>
-                                        <div className="card border-0">
-                                            <div className="card-body pb-0">
-                                                <div className="table-responsive no-pagination mb-3">
-                                                    <table className="table  datanew">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Product</th>
-                                                                <th>Qty</th>
-                                                                <th>Purchase Price($)</th>
-                                                                <th>Discount($)</th>
-                                                                <th>Tax(%)</th>
-                                                                <th>Tax Amount($)</th>
-                                                                <th>Unit Cost($)</th>
-                                                                <th>Total Cost(%)</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td>
-                                                                    <div className="d-flex align-items-center">
-                                                                        <Link
-                                                                            href="#"
-                                                                            className="avatar avatar-md me-2"
-                                                                        >
-                                                                            <img
-                                                                                src="assets/img/products/stock-img-02.png"
-                                                                                alt="product"
-                                                                            />
-                                                                        </Link>
-                                                                        <Link href="#">Nike Jordan</Link>
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <div className="product-quantity bg-gray-transparent border-0">
-                                                                        <span className="quantity-btn"  onClick={handleIncrement}>
-                                                                            +
-                                                                            <PlusCircle className="plus-circle" />
-                                                                           
-                                                                        </span>
-                                                                        <input
-                                                                            type="text"
-                                                                            className="quntity-input form-control bg-transparent"
-                                                                            defaultValue={2}
-                                                                        />
-                                                                        <span className="quantity-btn"  onClick={handleDecrement}>
-                                                                            <Minus className="feather-search" />
-                                                                           
-                                                                        </span>
-                                                                    </div>
-                                                                </td>
-                                                                <td>2000</td>
-                                                                <td>500</td>
-                                                                <td>0.00</td>
-                                                                <td>0.00</td>
-                                                                <td>0.00</td>
-                                                                <td>1500</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>
-                                                                    <div className="d-flex align-items-center">
-                                                                        <Link
-                                                                            href="#"
-                                                                            className="avatar avatar-md me-2"
-                                                                        >
-                                                                            <img
-                                                                                src="assets/img/products/stock-img-03.png"
-                                                                                alt="product"
-                                                                            />
-                                                                        </Link>
-                                                                        <Link href="#">
-                                                                            Apple Series 5 Watch
-                                                                        </Link>
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <div className="product-quantity bg-gray-transparent border-0">
-                                                                        <span className="quantity-btn" onClick={handleIncrement}>
-                                                                            +
-                                                                            <PlusCircle className="plus-circle" />
-                                                                            
-                                                                        </span>
-                                                                        <input
-                                                                            type="text"
-                                                                            className="quntity-input form-control bg-transparent"
-                                                                            defaultValue={2}
-                                                                        />
-                                                                        <span className="quantity-btn" onClick={handleDecrement}>
-                                                                            <Minus className="feather-search" />
-                                                                            
-                                                                        </span>
-                                                                    </div>
-                                                                </td>
-                                                                <td>3000</td>
-                                                                <td>400</td>
-                                                                <td>0.00</td>
-                                                                <td>0.00</td>
-                                                                <td>0.00</td>
-                                                                <td>1700</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>
-                                                                    <div className="d-flex align-items-center">
-                                                                        <Link
-                                                                            href="#"
-                                                                            className="avatar avatar-md me-2"
-                                                                        >
-                                                                            <img
-                                                                                src="assets/img/products/stock-img-05.png"
-                                                                                alt="product"
-                                                                            />
-                                                                        </Link>
-                                                                        <Link href="#">Lobar Handy</Link>
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <div className="product-quantity bg-gray-transparent border-0">
-                                                                        <span className="quantity-btn" onClick = {handleIncrement}>
-                                                                            +
-                                                                            <PlusCircle className="plus-circle" />
-                                                                            
-                                                                        </span>
-                                                                        <input
-                                                                            type="text"
-                                                                            className="quntity-input form-control bg-transparent"
-                                                                            defaultValue={2}
-                                                                        />
-                                                                        <span className="quantity-btn"  onClick = {handleDecrement}>
-                                                                            <Minus className="feather-search" />
-                                                                           
-                                                                        </span>
-                                                                    </div>
-                                                                </td>
-                                                                <td>2500</td>
-                                                                <td>500</td>
-                                                                <td>0.00</td>
-                                                                <td>0.00</td>
-                                                                <td>0.00</td>
-                                                                <td>2000</td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="row">
-                                                    <div className="col-lg-4 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Customer Name
-                                                                <span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <div className="row">
-                                                                <div className="col-lg-10 col-sm-10 col-10">
-                                                                    <Select
-                                                                        classNamePrefix="react-select"
-                                                                        options={CustomerName}
-                                                                        placeholder="Choose"
-                                                                    />
-                                                                </div>
-                                                                <div className="col-lg-2 col-sm-2 col-2 ps-0">
-                                                                    <div className="add-icon">
-                                                                        <Link
-                                                                            href="#"
-                                                                            className="bg-dark text-white p-2 rounded"
-                                                                        >
-                                                                            <PlusCircle className="plus" />
-                                                                        </Link>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-4 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Date<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <div className="input-groupicon calender-input">
-                                                                <DatePicker
-                                                                    className="form-control datetimepicker"
-                                                                    placeholder="dd/mm/yyyy"
-                                                                />
-                                                                <Calendar className="info-img" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-4 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Supplier<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <Select
-                                                                classNamePrefix="react-select"
-                                                                options={Supplier}
-                                                                placeholder="Choose"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-12 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Product Name
-                                                                <span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <div className="input-groupicon select-code">
-                                                                <input
-                                                                    type="text"
-                                                                    className="form-control"
-                                                                    placeholder="Please type product code and select"
-                                                                />
-                                                                <div className="addonset">
-                                                                    <img
-                                                                        src="assets/img/icons/scanners.svg"
-                                                                        alt="img"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="row">
-                                                    <div className="col-lg-6 ms-auto">
-                                                        <div className="total-order w-100 max-widthauto m-auto mb-4">
-                                                            <ul className="border-1 rounded-1">
-                                                                <li className="border-bottom">
-                                                                    <h4 className="border-end">Order Tax</h4>
-                                                                    <h5>$ 0.00</h5>
-                                                                </li>
-                                                                <li className="border-bottom">
-                                                                    <h4 className="border-end">Discount</h4>
-                                                                    <h5>$ 0.00</h5>
-                                                                </li>
-                                                                <li className="border-bottom">
-                                                                    <h4 className="border-end">Shipping</h4>
-                                                                    <h5>$ 0.00</h5>
-                                                                </li>
-                                                                <li className="border-bottom">
-                                                                    <h4 className="border-end">Grand Total</h4>
-                                                                    <h5>$5200.00</h5>
-                                                                </li>
-                                                            </ul>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="row">
-                                                    <div className="col-lg-3 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Order Tax<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <div className="input-groupicon select-code">
-                                                                <input
-                                                                    type="text"
-                                                                    className="form-control"
-                                                                    placeholder="0"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-3 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Discount<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <div className="input-groupicon select-code">
-                                                                <input
-                                                                    type="text"
-                                                                    className="form-control"
-                                                                    placeholder="0"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-3 col-sm-6 col-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Shipping<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <div className="input-groupicon select-code">
-                                                                <input
-                                                                    type="text"
-                                                                    className="form-control"
-                                                                    placeholder="0"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-3 col-sm-6 col-12">
-                                                        <div className="mb-3 mb-5">
-                                                            <label className="form-label">
-                                                                Status<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <Select
-                                                                classNamePrefix="react-select"
-                                                                options={OrderStatus}
-                                                                placeholder="Choose"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-lg-12">
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Notes<span className="text-danger ms-1">*</span>
-                                                            </label>
-                                                            <DefaultEditor value={values} onChange={onChange} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="modal-footer">
-                                            <button
-                                                type="button"
-                                                className="btn btn-secondary add-cancel me-3"
-                                                data-bs-dismiss="modal"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <Link href="#" className="btn btn-primary add-sale" data-bs-dismiss="modal">
-                                                Save Changes
-                                            </Link>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {/* /edit popup */}
-                {/* show payment Modal */}
-                <div
-                    className="modal fade"
-                    id="showpayment"
-                    tabIndex={-1}
-                    aria-labelledby="showpayment"
-                    aria-hidden="true"
-                >
-                    <div className="modal-dialog modal-dialog-centered stock-adjust-modal">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <div className="page-title">
-                                    <h4>Show Payments</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                >
-                                    <span aria-hidden="true">×</span>
-                                </button>
-                            </div>
-                            <div className="modal-body">
-                                <div className="row">
-                                    <div className="col-lg-12">
-                                        <div className="modal-body-table total-orders p-0">
-                                            <div className="table-responsive rounded">
-                                                <table className="table datatable">
-                                                    <thead className="thead-light">
-                                                        <tr>
-                                                            <th>Date</th>
-                                                            <th>Reference</th>
-                                                            <th>Amount</th>
-                                                            <th>Paid By</th>
-                                                            <th className="no-sort" />
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>19 Jan 2023</td>
-                                                            <td>INV/SL0101</td>
-                                                            <td>$1500</td>
-                                                            <td>Cash</td>
-                                                            <td>
-                                                                <div className="edit-delete-action d-flex align-items-center">
-                                                                    <Link
-                                                                        className="me-3 p-2 border rounded d-flex align-items-center"
-                                                                        href="#"
-                                                                    >
-                                                                        <i
-                                                                            data-feather="printer"
-                                                                            className="feather-rotate-ccw"
-                                                                        />
-                                                                    </Link>
-                                                                    <Link
-                                                                        className="me-3 p-2 border rounded d-flex align-items-center"
-                                                                        href="#"
-                                                                        data-bs-toggle="modal"
-                                                                        data-bs-target="#editpayment"
-                                                                    >
-                                                                        <i data-feather="edit" className="feather-edit" />
-                                                                    </Link>
-                                                                    <Link
-                                                                        className="p-2 border rounded d-flex align-items-center"
-                                                                        href="#"
-                                                                    >
-                                                                        <i
-                                                                            data-feather="trash-2"
-                                                                            className="feather-trash-2"
-                                                                        />
-                                                                    </Link>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {/* show payment Modal */}
-                {/* Create payment Modal */}
-                <div
-                    className="modal fade"
-                    id="createpayment"
-                    tabIndex={-1}
-                    aria-labelledby="createpayment"
-                    aria-hidden="true"
-                >
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <div className="page-title">
-                                    <h4>Create Payments</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                >
-                                    <span aria-hidden="true">×</span>
-                                </button>
-                            </div>
-                            <form>
-                                <div className="modal-body">
-                                    <div className="row">
-                                        <div className="col-lg-6">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    {" "}
-                                                    Date<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <div className="input-groupicon calender-input">
-                                                    <DatePicker
-                                                        className="form-control datetimepicker"
-                                                        placeholder="dd/mm/yyyy"
-                                                    />
-                                                    <Calendar className="info-img" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-6 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Reference<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <input type="text" className="form-control" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="row">
-                                        <div className="col-lg-4 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Received Amount<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <div className="input-groupicon doller-input">
-                                                    <DollarSign  className="info-img" />
-                                                    <input type="text" className="form-control ps-4" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-4 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Paying Amount<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <div className="input-groupicon doller-input">
-                                                <DollarSign  className="info-img" />
-                                                    <input type="text" className="form-control ps-4" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-4 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Payment type<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <Select
-                                                    classNamePrefix="react-select"
-                                                    options={PaymentType}
-                                                    placeholder="Choose"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">Description</label>
-                                               <DefaultEditor value={values} onChange={onChange}/>
-                                                <p>Maximum 60 Characters</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary me-2"
-                                        data-bs-dismiss="modal"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <Link href="#" className="btn btn-primary" data-bs-dismiss="modal">
-                                        Submit
-                                    </Link>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                {/* Create payment Modal */}
-                {/* edit payment Modal */}
-                <div
-                    className="modal fade"
-                    id="editpayment"
-                    tabIndex={-1}
-                    aria-labelledby="editpayment"
-                    aria-hidden="true"
-                >
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <div className="page-title">
-                                    <h4>Edit Payments</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                >
-                                    <span aria-hidden="true">×</span>
-                                </button>
-                            </div>
-                            <form>
-                                <div className="modal-body">
-                                    <div className="row">
-                                        <div className="col-lg-6">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Date<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <div className="input-groupicon calender-input">
-                                                    <i data-feather="calendar" className="info-img" />
-                                                    <input
-                                                        type="text"
-                                                        className="datetimepicker form-control"
-                                                        placeholder="Select Date"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-6 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Reference<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    className="form-control"
-                                                    defaultValue="INV/SL0101"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="row">
-                                        <div className="col-lg-4 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Received Amount<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <div className="input-groupicon calender-input">
-                                                    <i data-feather="dollar-sign" className="info-img" />
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        defaultValue={1500}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-4 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Paying Amount<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <div className="input-groupicon calender-input">
-                                                    <i data-feather="dollar-sign" className="info-img" />
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        defaultValue={1500}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-4 col-sm-12 col-12">
-                                            <div className="mb-3">
-                                                <label className="form-label">
-                                                    Payment type<span className="text-danger ms-1">*</span>
-                                                </label>
-                                                <select className="select">
-                                                    <option>Cash</option>
-                                                    <option>Online</option>
-                                                    <option>Inprogress</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div className="col-lg-12">
-                                            <div className="mb-3 summer-description-box transfer">
-                                                <label className="form-label">Description</label>
-                                                <div id="summernote2" />
-                                            </div>
-                                            <p>Maximum 60 Characters</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary me-2"
-                                        data-bs-dismiss="modal"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button type="submit" className="btn btn-primary">
-                                        Save Changes
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                {/* edit payment Modal */}
-            </>
-
-        </div>
-    )
+interface BootstrapModalInstance {
+  hide: () => void;
 }
 
-export default OnlineorderModal
+interface BootstrapModalStatic {
+  getInstance: (element: Element) => BootstrapModalInstance | null;
+  new (element: Element): BootstrapModalInstance;
+}
+
+declare global {
+  interface Window {
+    bootstrap?: {
+      Modal: BootstrapModalStatic;
+    };
+  }
+}
+
+const OnlineorderModal = () => {
+  const [api, contextHolder] = notification.useNotification();
+
+  type SaleItemRow = {
+    id: string;
+    productId: string;
+    quantity: string;
+    unitPrice: string;
+    discount: string;
+    taxRate: string;
+  };
+
+  const [values, setValue] = useState<string>("");
+
+  function onChange(e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) {
+    setValue(e.target.value);
+  }
+
+  const { stores } = useStores({ limit: 100 });
+  const { products } = useProducts({ limit: 100 });
+
+  const [storeId, setStoreId] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+
+  const [items, setItems] = useState<SaleItemRow[]>([
+    {
+      id: "row-1",
+      productId: "",
+      quantity: "1",
+      unitPrice: "0",
+      discount: "0",
+      taxRate: "0",
+    },
+  ]);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [insufficientStockDetails, setInsufficientStockDetails] = useState<
+    Record<string, { required: number; available: number }>
+  >({});
+
+  useEffect(() => {
+    if (!storeId && stores?.data?.length) {
+      setStoreId(stores.data[0].id);
+    }
+  }, [stores, storeId]);
+
+  const storeOptions = (stores?.data ?? []).map((s) => ({
+    value: s.id,
+    label: s.name,
+  }));
+
+  const productOptions = (products?.data ?? []).map((p) => ({
+    value: p.id,
+    label: `${p.name} (${p.sku})`,
+  }));
+
+  const parsedItems = items.map((item) => {
+    const quantityNum = parseFloat(item.quantity || "0");
+    const unitPriceNum = parseFloat(item.unitPrice || "0");
+    const discountNum = parseFloat(item.discount || "0");
+    const taxRateNum = parseFloat(item.taxRate || "0");
+
+    const lineSubtotal = quantityNum * unitPriceNum;
+    const taxAmount = lineSubtotal * (taxRateNum / 100);
+    const lineTotal = lineSubtotal - discountNum + taxAmount;
+
+    return {
+      ...item,
+      quantityNum,
+      unitPriceNum,
+      discountNum,
+      taxRateNum,
+      lineSubtotal,
+      taxAmount,
+      lineTotal,
+    };
+  });
+
+  const validItems = parsedItems.filter(
+    (item) => item.productId && item.quantityNum > 0 && item.unitPriceNum >= 0
+  );
+
+  const subtotal = parsedItems.reduce((sum, item) => sum + item.lineSubtotal, 0);
+  const orderDiscount = parsedItems.reduce((sum, item) => sum + item.discountNum, 0);
+  const orderTax = parsedItems.reduce((sum, item) => sum + item.taxAmount, 0);
+  const grandTotal = subtotal - orderDiscount + orderTax;
+
+  useEffect(() => {
+    if (!storeId || validItems.length === 0) {
+      setInsufficientStockDetails({});
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      const productQuantities = new Map<string, number>();
+      validItems.forEach((item) => {
+        const current = productQuantities.get(item.productId) ?? 0;
+        productQuantities.set(item.productId, current + item.quantityNum);
+      });
+
+      const liveInsufficient: Record<string, { required: number; available: number }> = {};
+
+      try {
+        await Promise.all(
+          Array.from(productQuantities.entries()).map(async ([productId, requiredQty]) => {
+            const stockResponse = await stockService.getStocks({
+              storeId,
+              productId,
+              limit: 100,
+            });
+
+            const stockData = stockResponse as { data?: { productId: string; quantity?: number }[] };
+            const available = (stockData.data ?? []).reduce(
+              (sum, stock) => sum + (stock.quantity ?? 0),
+              0
+            );
+
+            if (available < requiredQty) {
+              liveInsufficient[productId] = { required: requiredQty, available };
+            }
+          })
+        );
+
+        if (!cancelled) {
+          setInsufficientStockDetails(liveInsufficient);
+        }
+      } catch {
+        if (!cancelled) {
+          setInsufficientStockDetails({});
+        }
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [storeId, items]);
+
+  const hasStockIssues = Object.keys(insufficientStockDetails).length > 0;
+
+  const canSubmit = !!storeId && validItems.length > 0 && !hasStockIssues && !submitting;
+
+  const handleAddItemRow = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: `row-${prev.length + 1}`,
+        productId: "",
+        quantity: "1",
+        unitPrice: "0",
+        discount: "0",
+        taxRate: "0",
+      },
+    ]);
+  };
+
+  const handleItemChange = (
+    id: string,
+    field: keyof Omit<SaleItemRow, "id">,
+    value: string
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleCreateSale = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+
+    if (!storeId) {
+      api.warning({
+        message: "Sale validation error",
+        description: "Store is required",
+        placement: "topRight",
+      });
+      return;
+    }
+
+    if (validItems.length === 0) {
+      api.warning({
+        message: "Sale validation error",
+        description: "At least one product is required",
+        placement: "topRight",
+      });
+      return;
+    }
+
+    // Pre-check stock
+    const productQuantities = new Map<string, number>();
+    validItems.forEach((item) => {
+      const current = productQuantities.get(item.productId) ?? 0;
+      productQuantities.set(item.productId, current + item.quantityNum);
+    });
+
+    const insufficientDetails: Record<string, { required: number; available: number }> = {};
+
+    try {
+      await Promise.all(
+        Array.from(productQuantities.entries()).map(async ([productId, requiredQty]) => {
+          const stockResponse = await stockService.getStocks({
+            storeId,
+            productId,
+            limit: 100,
+          });
+
+          const stockData = stockResponse as { data?: { quantity?: number }[] };
+          const available = (stockData.data ?? []).reduce(
+            (sum, stock) => sum + (stock.quantity ?? 0),
+            0
+          );
+
+          if (available < requiredQty) {
+            insufficientDetails[productId] = { required: requiredQty, available };
+          }
+        })
+      );
+    } catch {}
+
+    if (Object.keys(insufficientDetails).length > 0) {
+      setInsufficientStockDetails(insufficientDetails);
+
+      api.warning({
+        message: "Insufficient stock",
+        description: "Please adjust quantities",
+        placement: "topRight",
+      });
+      return;
+    }
+
+    setInsufficientStockDetails({});
+
+    const paidAmount = grandTotal;
+
+    try {
+      setSubmitting(true);
+
+      await salesService.createSale({
+        storeId,
+        customerName: customerName || null,
+        customerEmail: customerEmail || null,
+        customerPhone: customerPhone || null,
+        items: validItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantityNum,
+          unitPrice: item.unitPriceNum,
+          discount: item.discountNum,
+          taxRate: item.taxRateNum,
+          taxAmount: item.taxAmount,
+        })),
+        discount: orderDiscount,
+        tax: orderTax,
+        paidAmount,
+      });
+
+      api.success({
+        message: "Sale created",
+        description: "The sale was created successfully.",
+        placement: "topRight",
+      });
+
+      if (typeof window !== "undefined") {
+        const modalElement = document.getElementById("add-sales-new");
+        if (modalElement && window.bootstrap?.Modal) {
+          const existingModal = window.bootstrap.Modal.getInstance(modalElement);
+          const modalInstance = existingModal ?? new window.bootstrap.Modal(modalElement);
+          modalInstance.hide();
+        }
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create sale";
+
+      api.error({
+        message: "Sale creation failed",
+        description: errorMessage,
+        placement: "topRight",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      {contextHolder}
+
+      <div
+        className="modal fade"
+        id="add-sales-new"
+        tabIndex={-1}
+        aria-labelledby="add-sales-new-label"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-xl modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4 className="modal-title" id="add-sales-new-label">
+                Add Sales
+              </h4>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              />
+            </div>
+            <div className="modal-body">
+              <div className="row g-3 mb-3">
+                <div className="col-md-4">
+                  <label className="form-label">
+                    Store<span className="text-danger ms-1">*</span>
+                  </label>
+                  <Select
+                    classNamePrefix="react-select"
+                    options={storeOptions}
+                    value={storeOptions.find((s) => s.value === storeId) || null}
+                    onChange={(opt) => setStoreId(opt?.value || "")}
+                    placeholder="Select store"
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label">Customer Name</label>
+                  <Select
+                    classNamePrefix="react-select"
+                    options={CustomerName}
+                    onChange={(opt) => setCustomerName(opt?.label || "")}
+                    placeholder="Walk-in Customer"
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label">Customer Email</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="customer@example.com"
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label">Customer Phone</label>
+                  <input
+                    type="tel"
+                    className="form-control"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="Phone number"
+                  />
+                </div>
+              </div>
+
+              <div className="table-responsive mb-3">
+                <table className="table align-middle">
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 220 }}>Product</th>
+                      <th style={{ width: 100 }}>Qty</th>
+                      <th style={{ width: 140 }}>Unit Price</th>
+                      <th style={{ width: 120 }}>Discount</th>
+                      <th style={{ width: 120 }}>Tax %</th>
+                      <th style={{ width: 140 }}>Line Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const parsed = parsedItems.find((p) => p.id === item.id);
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <Select
+                              classNamePrefix="react-select"
+                              options={productOptions}
+                              value={
+                                productOptions.find((p) => p.value === item.productId) || null
+                              }
+                              onChange={(opt) =>
+                                handleItemChange(item.id, "productId", opt?.value || "")
+                              }
+                              placeholder="Select product"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min={0}
+                              className="form-control"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                handleItemChange(item.id, "quantity", e.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min={0}
+                              className="form-control"
+                              value={item.unitPrice}
+                              onChange={(e) =>
+                                handleItemChange(item.id, "unitPrice", e.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min={0}
+                              className="form-control"
+                              value={item.discount}
+                              onChange={(e) =>
+                                handleItemChange(item.id, "discount", e.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min={0}
+                              className="form-control"
+                              value={item.taxRate}
+                              onChange={(e) =>
+                                handleItemChange(item.id, "taxRate", e.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <span>
+                              {parsed ? parsed.lineTotal.toFixed(2) : "0.00"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary"
+                  onClick={handleAddItemRow}
+                >
+                  <PlusCircle className="me-1" size={16} /> Add Item
+                </button>
+
+                <div className="text-end">
+                  <div>Subtotal: ${subtotal.toFixed(2)}</div>
+                  <div>Discount: ${orderDiscount.toFixed(2)}</div>
+                  <div>Tax: ${orderTax.toFixed(2)}</div>
+                  <div className="fw-bold">Grand Total: ${grandTotal.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-bs-dismiss="modal"
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleCreateSale}
+                disabled={!canSubmit}
+              >
+                {submitting ? "Saving..." : "Save Sale"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default OnlineorderModal;

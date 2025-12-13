@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Table } from "antd";
 
-const Datatable = ({ props, columns, dataSource }:any) => {
+const Datatable = ({ props, columns, dataSource, disableSelection, onRow }: any) => {
   const [searchText, setSearchText] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [filteredDataSource, setFilteredDataSource] = useState(dataSource);
@@ -20,10 +20,12 @@ const Datatable = ({ props, columns, dataSource }:any) => {
     );
     setFilteredDataSource(filteredData);
   };
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: onSelectChange,
-  };
+  const rowSelection = disableSelection
+    ? undefined
+    : {
+        selectedRowKeys,
+        onChange: onSelectChange,
+      };
 
   return (
     <>
@@ -55,6 +57,7 @@ const Datatable = ({ props, columns, dataSource }:any) => {
       columns={columns}
       dataSource={filteredDataSource}
       rowKey={(record) => record.id}
+      onRow={onRow}
       pagination={{
           locale: { items_per_page: "" },
           nextIcon: <span><i className="fa fa-angle-right" /></span>,

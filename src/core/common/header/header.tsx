@@ -17,6 +17,11 @@ export default function Header() {
   const [dataLayout, setDataLayout] = useState("default"); // Local state for dataLayout
   const { data: session } = useSession();
 
+  const user = session?.user;
+  const userName = user?.name || user?.username || "User";
+  const userRole = user?.role || "";
+  const userImage = user?.image || "assets/img/profiles/avator1.jpg";
+
   const handleLogout = async () => {
     await signOut({ redirect: true, callbackUrl: "/auth/signin" });
   };
@@ -346,46 +351,7 @@ export default function Header() {
               </Link>
             </li>
 
-            {/* Flag */}
-            <li className="nav-item dropdown has-arrow flag-nav nav-item-box">
-              <Link
-                className="nav-link dropdown-toggle"
-                data-bs-toggle="dropdown"
-                href="#"
-                role="button"
-              >
-                {/* <i data-feather="globe" /> */}
-                {/* <FeatherIcon icon="globe" /> */}
-                <img src={flagImage} alt="img" height={16} />
-              </Link>
-              <div className="dropdown-menu dropdown-menu-right">
-                <Link
-                  href="#"
-                  className="dropdown-item active"
-                  // onClick={() => changeLanguage("en")}
-                >
-                  <img
-                    src="assets/img/flags/english.svg"
-                    alt="img"
-                    height={16}
-                  />
-                  {/* {t("English")} */}
-                </Link>
-                <Link
-                  href="#"
-                  className="dropdown-item"
-                  // onClick={() => changeLanguage("fr")}
-                >
-                  <img
-                    src="assets/img/flags/arabic.svg"
-                    alt="img"
-                    height={16}
-                  />{" "}
-                  Arabic
-                </Link>
-              </div>
-            </li>
-            {/* /Flag */}
+            {/* /Flag dropdown removed per requirements */}
             <li className="nav-item nav-item-box">
               <Link
                 href="#"
@@ -395,13 +361,6 @@ export default function Header() {
               >
                 {/* <i data-feather="maximize" /> */}
                 <i className="ti ti-maximize"></i>
-              </Link>
-            </li>
-            <li className="nav-item nav-item-box">
-              <Link href="/email">
-                {/* <i data-feather="mail" /> */}
-                <i className="ti ti-mail"></i>
-                <span className="badge rounded-pill">1</span>
               </Link>
             </li>
             {/* Notifications */}
@@ -533,8 +492,8 @@ export default function Header() {
                 <span className="user-info p-0">
                   <span className="user-letter">
                     <img
-                      src="assets/img/profiles/avator1.jpg"
-                      alt="Img"
+                      src={userImage}
+                      alt={userName}
                       className="img-fluid"
                     />
                   </span>
@@ -543,11 +502,11 @@ export default function Header() {
               <div className="dropdown-menu menu-drop-user">
                 <div className="profileset d-flex align-items-center">
                   <span className="user-img me-2">
-                    <img src="assets/img/profiles/avator1.jpg" alt="Img" />
+                    <img src={userImage} alt={userName} />
                   </span>
                   <div>
-                    <h6 className="fw-medium">John Smilga</h6>
-                    <p>Admin</p>
+                    <h6 className="fw-medium">{userName}</h6>
+                    <p>{userRole || "Admin"}</p>
                   </div>
                 </div>
                 <Link className="dropdown-item" href={route.profile}>

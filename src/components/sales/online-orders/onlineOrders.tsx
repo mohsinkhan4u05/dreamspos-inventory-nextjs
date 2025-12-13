@@ -5,7 +5,6 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
-import { onlineOrderData } from "@/core/json/onlineOrderData";
 import {
   DollarSign,
   Download,
@@ -18,93 +17,141 @@ import Link from "next/link";
 import Table from "@/core/common/pagination/datatable";
 import OnlineorderModal from "./onlineorderModal";
 import CommonDeleteModal from "@/core/common/modal/commonDeleteModal";
+import { useSales, Sale } from "@/hooks/useSales";
 
 export default function OnlineOrdersComponent() {
-  const dataSource = onlineOrderData;
+  const { sales, loading, error, refetch } = useSales({ limit: 100 });
+
+  const mappedData = (sales?.data ?? []).map((sale: Sale) => {
+    const statusLabel =
+      sale.status.charAt(0) + sale.status.slice(1).toLowerCase();
+    const paymentLabel =
+      sale.paymentStatus === "PAID"
+        ? "Paid"
+        : sale.paymentStatus === "PARTIAL"
+        ? "Partial"
+        : "Unpaid";
+
+    return {
+      id: sale.id,
+      customer: sale.customer?.name || "Walk-in Customer",
+      image: "user-01.jpg",
+      reference: sale.invoiceNumber,
+      date: new Date(sale.saleDate || sale.createdAt).toLocaleDateString(),
+      status: statusLabel,
+      total: `$${sale.totalAmount.toFixed(2)}`,
+      paid: `$${sale.paidAmount.toFixed(2)}`,
+      due: `$${sale.dueAmount.toFixed(2)}`,
+      paymentstatus: paymentLabel,
+      biller:
+        sale.session?.user?.firstName ||
+        sale.session?.user?.username ||
+        "POS User",
+      action: "",
+    };
+  });
+
+  const dataSource = mappedData;
+
+  interface SalesRow {
+    id: string;
+    customer: string;
+    image: string;
+    reference: string;
+    date: string;
+    status: string;
+    total: string;
+    paid: string;
+    due: string;
+    paymentstatus: string;
+    biller: string;
+    action: string;
+    createdby?: string;
+  }
 
   const columns = [
     {
       title: "Customer Name",
       dataIndex: "customer",
-      render: (text: any, render: any) => (
+      render: (text: string, record: SalesRow) => (
         <div className="d-flex align-items-center">
           <Link href="#" className="avatar avatar-md">
-            <img src={`assets/img/users/${render.image}`} alt="product" />
+            <img src={`assets/img/users/${record.image}`} alt="product" />
           </Link>
           <Link href="#">{text}</Link>
         </div>
       ),
-      sorter: (a: any, b: any) => a.customer.length - b.customer.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.customer.length - b.customer.length,
     },
     {
       title: "Reference",
       dataIndex: "reference",
-      sorter: (a: any, b: any) => a.reference.length - b.reference.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.reference.length - b.reference.length,
     },
     {
       title: "Date",
       dataIndex: "date",
-      sorter: (a: any, b: any) => a.date.length - b.date.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.date.length - b.date.length,
     },
 
     {
       title: "Status",
       dataIndex: "status",
-      render: (render: any) => (
+      render: (value: string) => (
         <span
           className={`badge ${
-            render === "Pending"
+            value === "Pending"
               ? "badge-cyan"
-              : render === "Completed"
+              : value === "Completed"
               ? "badge-success"
               : ""
           } `}
         >
-          {render}
+          {value}
         </span>
       ),
-      sorter: (a: any, b: any) => a.status.length - b.status.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.status.length - b.status.length,
     },
     {
       title: "Grand Total",
       dataIndex: "total",
 
-      sorter: (a: any, b: any) => a.total.length - b.total.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.total.length - b.total.length,
     },
     {
       title: "Paid",
       dataIndex: "paid",
-      sorter: (a: any, b: any) => a.paid.length - b.paid.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.paid.length - b.paid.length,
     },
     {
       title: "Due",
       dataIndex: "due",
-      sorter: (a: any, b: any) => a.due.length - b.due.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.due.length - b.due.length,
     },
     {
       title: "Payment Status",
       dataIndex: "paymentstatus",
-      render: (render: any) => (
+      render: (value: string) => (
         <span
           className={`badge badge-xs shadow-none ${
-            render === "Unpaid"
+            value === "Unpaid"
               ? "badge-soft-danger"
-              : render === "Paid"
+              : value === "Paid"
               ? "badge-soft-success"
               : "badge-soft-warning"
           } `}
         >
           <i className="ti ti-point-filled me-1"></i>
-          {render}
+          {value}
         </span>
       ),
-      sorter: (a: any, b: any) =>
+      sorter: (a: SalesRow, b: SalesRow) =>
         a.paymentstatus.length - b.paymentstatus.length,
     },
     {
       title: "Biller",
       dataIndex: "biller",
-      sorter: (a: any, b: any) => a.biller.length - b.biller.length,
+      sorter: (a: SalesRow, b: SalesRow) => a.biller.length - b.biller.length,
     },
 
     {
@@ -185,7 +232,8 @@ export default function OnlineOrdersComponent() {
           </ul>
         </>
       ),
-      sorter: (a: any, b: any) => a.createdby.length - b.createdby.length,
+      sorter: (a: SalesRow, b: SalesRow) =>
+        (a.createdby || "").length - (b.createdby || "").length,
     },
   ];
   return (
@@ -201,7 +249,13 @@ export default function OnlineOrdersComponent() {
             </div>
             <ul className="table-top-head">
               <TooltipIcons />
-              <RefreshIcon />
+              <button
+                type="button"
+                className="btn btn-link p-0 ms-2"
+                onClick={() => refetch()}
+              >
+                <RefreshIcon />
+              </button>
               <CollapesIcon />
             </ul>
             <div className="page-btn">
@@ -338,7 +392,13 @@ export default function OnlineOrdersComponent() {
             </div>
             <div className="card-body">
               <div className="custom-datatable-filter table-responsive">
-                <Table columns={columns} dataSource={dataSource} />
+                {loading ? (
+                  <p>Loading sales...</p>
+                ) : error ? (
+                  <p className="text-danger">{error}</p>
+                ) : (
+                  <Table columns={columns} dataSource={dataSource} />
+                )}
               </div>
             </div>
           </div>

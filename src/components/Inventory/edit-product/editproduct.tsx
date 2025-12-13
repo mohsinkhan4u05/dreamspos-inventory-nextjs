@@ -20,6 +20,13 @@ interface EditProductProps {
   productId: string;
 }
 
+type ProductWithRelations = Product & {
+  storeId?: string;
+  categoryId?: string;
+  brandId?: string | null;
+  sellingPrice: number;
+};
+
 export default function EditProductComponent({ productId }: EditProductProps) {
   const route = all_routes;
   const router = useRouter();
@@ -44,17 +51,19 @@ export default function EditProductComponent({ productId }: EditProductProps) {
       try {
         setLoading(true);
         setLoadError(null);
-        const product = (await productService.getProduct(productId)) as Product;
+        const product = (await productService.getProduct(
+          productId,
+        )) as ProductWithRelations;
 
         setProductName(product.name);
-        setSku(product.sku);
-        setStoreId(product.storeId);
-        setCategoryId(product.categoryId);
+        setSku(product.sku ?? "");
+        setStoreId(product.storeId ?? "");
+        setCategoryId(product.categoryId ?? "");
         setBrandId(product.brandId || "");
         setPrice(product.sellingPrice.toString());
       } catch (error) {
         setLoadError(
-          error instanceof Error ? error.message : "Failed to load product"
+          error instanceof Error ? error.message : "Failed to load Item"
         );
       } finally {
         setLoading(false);
@@ -83,7 +92,15 @@ export default function EditProductComponent({ productId }: EditProductProps) {
       setIsSubmitting(true);
       setSubmitError(null);
 
-      await productService.updateProduct(productId, {
+      type ProductUpdatePayload = Partial<Product> & {
+        storeId?: string;
+        categoryId?: string;
+        brandId?: string;
+        costPrice?: number;
+        sellingPrice?: number;
+      };
+
+      const payload: ProductUpdatePayload = {
         name: productName,
         sku,
         storeId,
@@ -91,12 +108,14 @@ export default function EditProductComponent({ productId }: EditProductProps) {
         brandId: brandId || undefined,
         costPrice: numericPrice,
         sellingPrice: numericPrice,
-      });
+      };
+
+      await productService.updateProduct(productId, payload);
 
       router.push(route.productlist);
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : "Failed to update product"
+        error instanceof Error ? error.message : "Failed to update Item"
       );
     } finally {
       setIsSubmitting(false);
@@ -138,7 +157,7 @@ export default function EditProductComponent({ productId }: EditProductProps) {
         <div className="content">
           <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
             <div className="text-center">
-              <h5 className="text-danger">Error loading product</h5>
+              <h5 className="text-danger">Error loading Item</h5>
               <p className="text-muted">{loadError}</p>
             </div>
           </div>
@@ -154,8 +173,8 @@ export default function EditProductComponent({ productId }: EditProductProps) {
           <div className="page-header">
             <div className="add-item d-flex">
               <div className="page-title">
-                <h4>Edit Product</h4>
-                <h6>Update product details</h6>
+                <h4>Edit Item</h4>
+                <h6>Update item details</h6>
               </div>
             </div>
             <ul className="table-top-head">
@@ -165,7 +184,7 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                 <div className="page-btn">
                   <Link href={route.productlist} className="btn btn-secondary">
                     <ArrowLeft className="me-2" />
-                    Back to Product
+                    Back to Item
                   </Link>
                 </div>
               </li>
@@ -190,7 +209,7 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                       <div className="d-flex align-items-center justify-content-between flex-fill">
                         <h5 className="d-flex align-items-center">
                           <Info className="text-primary me-2" />
-                          <span>Product Information</span>
+                          <span>Item Information</span>
                         </h5>
                       </div>
                     </div>
@@ -227,7 +246,7 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                         <div className="col-sm-6 col-12">
                           <div className="mb-3">
                             <label className="form-label">
-                              Product Name
+                              Item Name
                               <span className="text-danger ms-1">*</span>
                             </label>
                             <input
@@ -368,7 +387,7 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                   className="btn btn-primary"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Update Product"}
+                  {isSubmitting ? "Saving..." : "Update Item"}
                 </button>
               </div>
             </div>

@@ -1,116 +1,200 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
 import CommonFooter from "@/core/common/footer/commonFooter";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
-import { purchaseslist } from "@/core/json/purchaselistdata";
-import AddPurchases from "@/core/modals/purchases/addpurchases";
-import EditPurchases from "@/core/modals/purchases/editpurchases";
-import ImportPurchases from "@/core/modals/purchases/importpurchases";
-import { Download } from "react-feather";
+import Table from "@/core/common/pagination/datatable";
 import Link from "next/link";
-import  Table  from "@/core/common/pagination/datatable";
+import { useSearchParams } from "next/navigation";
+import { Eye } from "react-feather";
+import { all_routes } from "@/data/all_routes";
+import { useBills, BillListItem } from "@/hooks/useBills";
+import { useStores } from "@/hooks/useStores";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { useMemo, useState } from "react";
+import { useOrgFormatting } from "@/hooks/useOrgFormatting";
 
 export default function PurchaseListComponent() {
-  const data = purchaseslist;
+  const route = all_routes;
+
+  const { formatCurrency, formatDate } = useOrgFormatting();
+
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  const searchParams = useSearchParams();
+  const purchaseOrderId = searchParams.get("purchaseOrderId") || undefined;
+  const purchaseOrderNumber = searchParams.get("purchaseOrderNumber") || undefined;
+
+  const { stores } = useStores({ limit: 100 });
+  const { suppliers } = useSuppliers({ limit: 100 });
+
+  const { bills, loading, error, refetch } = useBills({
+    limit: 100,
+    storeId: selectedStoreId || undefined,
+    status: selectedStatus || undefined,
+    purchaseOrderId,
+    supplierId: selectedSupplierId || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  });
+
+  const mappedData = useMemo(
+    () =>
+      (bills?.data || []).map((bill: BillListItem) => {
+        const normalizedPaymentStatus =
+          bill.paymentStatus?.toUpperCase?.() || "PENDING";
+        let paymentStatusLabel = "Unpaid";
+        if (normalizedPaymentStatus === "PAID") {
+          paymentStatusLabel = "Paid";
+        } else if (normalizedPaymentStatus === "PARTIAL") {
+          paymentStatusLabel = "Partial";
+        } else if (normalizedPaymentStatus === "REFUNDED") {
+          paymentStatusLabel = "Refunded";
+        } else if (normalizedPaymentStatus === "FAILED") {
+          paymentStatusLabel = "Failed";
+        }
+        return {
+          id: bill.id,
+          billno: bill.orderNumber,
+          supplierId: bill.supplier?.id || null,
+          supplierName: bill.supplier?.name || "-",
+          date: formatDate(bill.purchaseDate || bill.createdAt),
+          status: bill.status || "PENDING",
+          total: bill.totalAmount,
+          totalFormatted: formatCurrency(bill.totalAmount),
+          paid: bill.paidAmount,
+          paidFormatted: formatCurrency(bill.paidAmount),
+          due: bill.dueAmount,
+          dueFormatted: formatCurrency(bill.dueAmount),
+          paymentStatus: paymentStatusLabel,
+        };
+      }),
+    [bills?.data, formatCurrency, formatDate],
+  );
+
+  interface BillRow {
+    id: string;
+    billno: string;
+    supplierId: string | null;
+    supplierName: string;
+    date: string;
+    status: string;
+    total: number;
+    totalFormatted: string;
+    paid: number;
+    paidFormatted: string;
+    due: number;
+    dueFormatted: string;
+    paymentStatus: string;
+  }
 
   const columns = [
     {
-      title: "SupplierName",
-      dataIndex: "supplierName",
-      sorter: (a: any, b: any) => a.supplierName.length - b.supplierName.length,
+      title: "Bill #",
+      dataIndex: "billno",
+      render: (text: string, record: BillRow) => (
+        <Link href={`${route.billdetails}?id=${record.id}`}>{text}</Link>
+      ),
+      sorter: (a: BillRow, b: BillRow) => a.billno.localeCompare(b.billno),
     },
     {
-      title: "Reference",
-      dataIndex: "reference",
-      sorter: (a: any, b: any) => a.reference.length - b.reference.length,
+      title: "Supplier",
+      dataIndex: "supplierName",
+      render: (text: string, record: BillRow) => (
+        <Link
+          href={{
+            pathname: route.suppliers,
+            query: record.supplierId ? { supplierId: record.supplierId } : undefined,
+          }}
+        >
+          {text}
+        </Link>
+      ),
+      sorter: (a: BillRow, b: BillRow) =>
+        a.supplierName.localeCompare(b.supplierName),
     },
-
     {
       title: "Date",
       dataIndex: "date",
-      sorter: (a: any, b: any) => a.date.length - b.date.length,
+      sorter: (a: BillRow, b: BillRow) => a.date.localeCompare(b.date),
     },
-
     {
       title: "Status",
       dataIndex: "status",
-      render: (text: any) => (
-        <span
-          className={`badges status-badge fs-10 p-1 px-2 rounded-1 ${
-            text === "Pending"
-              ? "badge-pending"
-              : text === "Pending"
-              ? "bg-warning"
-              : ""
-          }`}
-        >
-          {text}
-        </span>
-      ),
-      sorter: (a: any, b: any) => a.status.length - b.status.length,
+      sorter: (a: BillRow, b: BillRow) => a.status.localeCompare(b.status),
     },
     {
-      title: "GrandTotal",
-      dataIndex: "grandTotal",
-      sorter: (a: any, b: any) => a.grandTotal.length - b.grandTotal.length,
+      title: "Total",
+      dataIndex: "totalFormatted",
+      sorter: (a: BillRow, b: BillRow) => a.total - b.total,
     },
     {
       title: "Paid",
-      dataIndex: "paid",
-      sorter: (a: any, b: any) => a.paid.length - b.paid.length,
+      dataIndex: "paidFormatted",
+      sorter: (a: BillRow, b: BillRow) => a.paid - b.paid,
     },
     {
       title: "Due",
-      dataIndex: "due",
-      sorter: (a: any, b: any) => a.due.length - b.due.length,
+      dataIndex: "dueFormatted",
+      sorter: (a: BillRow, b: BillRow) => a.due - b.due,
     },
     {
       title: "Payment Status",
-      dataIndex: "createdBy",
-      render: (text: any) => (
-        <span
-          className={`p-1 pe-2 rounded-1  fs-10 ${
-            text === "Paid"
-              ? "text-success bg-success-transparent"
-              : text === "Overdue"
-              ? "text-warning bg-warning-transparent "
-              : "text-danger bg-danger-transparent "
-          }`}
-        >
-          <i className="ti ti-point-filled me-1 fs-11"> </i> {text}
-        </span>
+      dataIndex: "paymentStatus",
+      render: (text: string) => (
+        <div>
+          {text === "Paid" && (
+            <span className="badge badge-soft-success badge-xs shadow-none">
+              <i className="ti ti-point-filled me-1"></i>
+              {text}
+            </span>
+          )}
+          {text === "Unpaid" && (
+            <span className="badge badge-soft-danger badge-xs shadow-none">
+              <i className="ti ti-point-filled me-1"></i>
+              {text}
+            </span>
+          )}
+          {text === "Partial" && (
+            <span className="badge badge-soft-warning badge-xs shadow-none">
+              <i className="ti ti-point-filled me-1"></i>
+              {text}
+            </span>
+          )}
+          {text === "Refunded" && (
+            <span className="badge badge-soft-secondary badge-xs shadow-none">
+              <i className="ti ti-point-filled me-1"></i>
+              {text}
+            </span>
+          )}
+          {text === "Failed" && (
+            <span className="badge badge-soft-danger badge-xs shadow-none">
+              <i className="ti ti-point-filled me-1"></i>
+              {text}
+            </span>
+          )}
+        </div>
       ),
-      sorter: (a: any, b: any) => a.createdBy.length - b.createdBy.length,
+      sorter: (a: BillRow, b: BillRow) =>
+        a.paymentStatus.localeCompare(b.paymentStatus),
     },
-
     {
       title: "Actions",
       dataIndex: "actions",
       key: "actions",
-      render: () => (
+      render: (_: unknown, record: BillRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link className="me-2 p-2" href="#">
-              <i data-feather="eye" className="feather-eye"></i>
-            </Link>
             <Link
-              href="#"
-              className="me-2 p-2"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
+              className="me-2 p-2 d-flex align-items-center justify-content-between border rounded"
+              href={`${route.billdetails}?id=${record.id}`}
             >
-              <i data-feather="edit" className="feather-edit"></i>
-            </Link>
-            <Link
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              className="p-2"
-              href="#"
-            >
-              <i data-feather="trash-2" className="feather-trash-2"></i>
+              <Eye className="feather-eye" />
             </Link>
           </div>
         </div>
@@ -124,75 +208,193 @@ export default function PurchaseListComponent() {
           <div className="page-header">
             <div className="add-item d-flex">
               <div className="page-title">
-                <h4>Purchase</h4>
-                <h6>Manage Your purchase</h6>
+                <h4>Bills</h4>
+                <h6>Manage your vendor bills</h6>
+                {purchaseOrderId && (
+                  <div className="mt-1 d-flex align-items-center gap-2 small">
+                    <span className="badge badge-soft-secondary">
+                      Filtered by Purchase Order
+                      {" "}
+                      {purchaseOrderNumber ? `#${purchaseOrderNumber}` : ""}
+                    </span>
+                    <Link
+                      href={route.purchaselist || "/purchase-list"}
+                      className="btn btn-link btn-sm p-0"
+                    >
+                      Clear filter
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
             <ul className="table-top-head">
               <TooltipIcons />
-              <RefreshIcon />
+              <button
+                type="button"
+                className="btn btn-link p-0 ms-2"
+                onClick={() => refetch()}
+              >
+                <RefreshIcon />
+              </button>
               <CollapesIcon />
             </ul>
             <div className="page-btn">
               <Link
-                href="#"
+                href={route.billadd || "/bill-add"}
                 className="btn btn-primary"
-                data-bs-toggle="modal"
-                data-bs-target="#add-units"
               >
-                <i className="ti ti-circle-plus me-1"></i>
-                Add Purchase
-              </Link>
-            </div>
-            <div className="page-btn import">
-              <Link
-                href="#"
-                className="btn btn-secondary color"
-                data-bs-toggle="modal"
-                data-bs-target="#view-notes"
-              >
-                <Download className="me-2" />
-                Import Purchase
+                <i className="ti ti-circle-plus me-1" />
+                New Bill
               </Link>
             </div>
           </div>
           {/* /product list */}
           <div className="card table-list-card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-              <div className="search-set"></div>
+              <div className="search-set" />
               <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                <div className="dropdown">
-                  <Link
-                    href="#"
+                <div className="dropdown me-2">
+                  <button
+                    type="button"
                     className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
                     data-bs-toggle="dropdown"
                   >
-                    Payment Status
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
+                    Store {selectedStoreId ? " : Selected" : ""}
+                  </button>
+                  <ul className="dropdown-menu dropdown-menu-end p-3">
                     <li>
-                      <Link href="#" className="dropdown-item rounded-1">
+                      <button
+                        type="button"
+                        className="dropdown-item rounded-1"
+                        onClick={() => setSelectedStoreId("")}
+                      >
+                        All Stores
+                      </button>
+                    </li>
+                    {stores?.data?.map((store) => (
+                      <li key={store.id}>
+                        <button
+                          type="button"
+                          className="dropdown-item rounded-1"
+                          onClick={() => setSelectedStoreId(store.id)}
+                        >
+                          {store.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="dropdown">
+                  <button
+                    type="button"
+                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
+                    data-bs-toggle="dropdown"
+                  >
+                    Status {selectedStatus ? ` : ${selectedStatus}` : ""}
+                  </button>
+                  <ul className="dropdown-menu dropdown-menu-end p-3">
+                    <li>
+                      <button
+                        type="button"
+                        className="dropdown-item rounded-1"
+                        onClick={() => setSelectedStatus("")}
+                      >
+                        All
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        className="dropdown-item rounded-1"
+                        onClick={() => setSelectedStatus("PAID")}
+                      >
                         Paid
-                      </Link>
+                      </button>
                     </li>
                     <li>
-                      <Link href="#" className="dropdown-item rounded-1">
+                      <button
+                        type="button"
+                        className="dropdown-item rounded-1"
+                        onClick={() => setSelectedStatus("PENDING")}
+                      >
                         Unpaid
-                      </Link>
+                      </button>
                     </li>
                     <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Overdue
-                      </Link>
+                      <button
+                        type="button"
+                        className="dropdown-item rounded-1"
+                        onClick={() => setSelectedStatus("PARTIAL")}
+                      >
+                        Partial
+                      </button>
                     </li>
                   </ul>
+                </div>
+                <div className="dropdown ms-2">
+                  <button
+                    type="button"
+                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
+                    data-bs-toggle="dropdown"
+                  >
+                    Supplier
+                    {selectedSupplierId ? " : Selected" : ""}
+                  </button>
+                  <ul className="dropdown-menu dropdown-menu-end p-3">
+                    <li>
+                      <button
+                        type="button"
+                        className="dropdown-item rounded-1"
+                        onClick={() => setSelectedSupplierId("")}
+                      >
+                        All Suppliers
+                      </button>
+                    </li>
+                    {suppliers?.data?.map((supplier) => (
+                      <li key={supplier.id}>
+                        <button
+                          type="button"
+                          className="dropdown-item rounded-1"
+                          onClick={() => setSelectedSupplierId(supplier.id)}
+                        >
+                          {supplier.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="ms-2 d-flex align-items-center gap-2">
+                  <div className="d-flex align-items-center gap-1">
+                    <span className="small text-muted">From</span>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="d-flex align-items-center gap-1">
+                    <span className="small text-muted">To</span>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="card-body">
               <div className="table-responsive">
-                <Table columns={columns} dataSource={data} />
+                {loading ? (
+                  <p>Loading bills...</p>
+                ) : error ? (
+                  <p className="text-danger">{error}</p>
+                ) : (
+                  <Table columns={columns} dataSource={mappedData} />
+                )}
               </div>
             </div>
           </div>
@@ -200,9 +402,7 @@ export default function PurchaseListComponent() {
         </div>
         <CommonFooter />
       </div>
-      <AddPurchases />
-      <ImportPurchases />
-      <EditPurchases />
+      {/* Legacy static purchase modals are no longer used for real bills */}
       <div className="modal fade" id="delete-modal">
         <div className="modal-dialog modal-dialog-centered">
           <div className="modal-content">

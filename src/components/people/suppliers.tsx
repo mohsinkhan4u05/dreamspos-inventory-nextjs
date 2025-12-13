@@ -10,6 +10,7 @@ import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import SupplierModal from "@/core/modals/peoples/supplierModal";
 import { useSuppliers } from "@/hooks/useSuppliers";
+import { all_routes } from "@/data/all_routes";
 
 interface SupplierRow {
   id: string;
@@ -24,6 +25,7 @@ interface SupplierRow {
 
 export default function SuppliersComponent() {
   const { suppliers, loading, error, refetch } = useSuppliers();
+  const route = all_routes;
 
   const [editingSupplier, setEditingSupplier] = useState<{
     id: string;
@@ -110,7 +112,7 @@ export default function SuppliersComponent() {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link className="me-2 p-2" href="#">
+            <Link className="me-2 p-2" href={`${route.suppliers}/${record.id}`}>
               <Eye className="feather-view" />
             </Link>
 
@@ -200,12 +202,10 @@ export default function SuppliersComponent() {
             </ul>
             <div className="page-btn">
               <Link
-                href="#"
+                href={route.addsupplier}
                 className="btn btn-primary"
-                data-bs-toggle="modal"
-                data-bs-target="#add-supplier"
               >
-              <i className='ti ti-circle-plus me-1'></i>
+                <i className='ti ti-circle-plus me-1'></i>
                 Add Supplier
               </Link>
             </div>

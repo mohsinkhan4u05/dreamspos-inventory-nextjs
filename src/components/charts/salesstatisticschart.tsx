@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 
-const ApexChartWrapper = dynamic(() => import('./apexwrapperschart/apexSalesStatisticschartwrapper'), { ssr: false });
+export interface SalesStatisticsChartProps {
+  categories: string[];
+  salesSeries: number[];
+  purchaseSeries: number[];
+}
 
-const SalesStatisticsChart: React.FC = () => {
-  return <ApexChartWrapper />;
-};
+const ApexChartWrapper = dynamic<SalesStatisticsChartProps>(
+  () => import("./apexwrapperschart/apexSalesStatisticschartwrapper"),
+  { ssr: false },
+);
 
-export default SalesStatisticsChart;
+export default function SalesStatisticsChart(props: SalesStatisticsChartProps) {
+  return <ApexChartWrapper {...props} />;
+}

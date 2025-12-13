@@ -1,25 +1,17 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import CounterThree from "@/core/common/counter/counterThree";
 import CommonFooter from "@/core/common/footer/commonFooter";
 import TextEditor from "@/core/common/texteditor/texteditor";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import AddBrand from "@/core/modals/inventory/addbrand";
-import AddCategory from "@/core/modals/inventory/addcategory";
 import Addunits from "@/core/modals/inventory/addunits";
-import AddVariant from "@/core/modals/inventory/addvariant";
-import AddVarientNew from "@/core/modals/inventory/addVarientNew";
 import { all_routes } from "@/data/all_routes";
-import { DatePicker } from "antd";
 import {
   ArrowLeft,
-  Calendar,
   Info,
   LifeBuoy,
-  List,
-  Plus,
   PlusCircle,
   X,
   Image,
@@ -27,50 +19,113 @@ import {
 import Link from "next/link";
 import { useState, FormEvent } from "react";
 import Select from "react-select";
-import TagInput from "@/core/common/Taginput";
 import { useRouter } from "next/navigation";
 import { productService } from "@/services/api";
-import { useStores } from "@/hooks/useStores";
-import { useWarehouses } from "@/hooks/useWarehouses";
-import { useCategories } from "@/hooks/useCategories";
 import { useBrands } from "@/hooks/useBrands";
+import { useUnits } from "@/hooks/useUnits";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { UploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 export default function AddProductComponent() {
   const route = all_routes;
   const router = useRouter();
-  const [tags, setTags] = useState(["Red", "Black"]);
-  const handleTagsChange = (newTags: string[]) => {
-    setTags(newTags);
-  };
-
-  const [product, setProduct] = useState(false);
-  const [product2, setProduct2] = useState(true);
-  const [storeId, setStoreId] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
   const [brandId, setBrandId] = useState<string>("");
+  const [unitId, setUnitId] = useState<string>("");
+  const [preferredVendorId, setPreferredVendorId] = useState<string>("");
+
   const [productName, setProductName] = useState<string>("");
   const [sku, setSku] = useState<string>("");
-  const [price, setPrice] = useState<string>("");
+  const [itemType, setItemType] = useState<"GOODS" | "SERVICE">("GOODS");
+  const [returnable, setReturnable] = useState<boolean>(false);
+
+  const [lengthValue, setLengthValue] = useState<string>("");
+  const [widthValue, setWidthValue] = useState<string>("");
+  const [heightValue, setHeightValue] = useState<string>("");
+  const [dimensionUnit, setDimensionUnit] = useState<string>("cm");
+
+  const [weightValue, setWeightValue] = useState<string>("");
+  const [weightUnit, setWeightUnit] = useState<string>("kg");
+
+  const [manufacturer, setManufacturer] = useState<string>("");
+
+  const [sellable, setSellable] = useState<boolean>(true);
+  const [sellingPrice, setSellingPrice] = useState<string>("");
+  const [salesAccount, setSalesAccount] = useState<string>("Sales");
+  const [salesDescription, setSalesDescription] = useState<string>("");
+
+  const [purchasable, setPurchasable] = useState<boolean>(true);
+  const [costPrice, setCostPrice] = useState<string>("");
+  const [purchaseAccount, setPurchaseAccount] = useState<string>(
+    "Cost of Goods Sold"
+  );
+  const [purchaseDescription, setPurchaseDescription] = useState<string>("");
+
+  const [trackInventory, setTrackInventory] = useState<boolean>(true);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
-  const { stores } = useStores({ page: 1, limit: 100, isActive: true });
-  const { warehouses } = useWarehouses({ page: 1, limit: 100, isActive: true });
-  const { categories } = useCategories({ page: 1, limit: 100, isActive: true });
   const { brands } = useBrands({ page: 1, limit: 100, isActive: true });
+  const { units } = useUnits({ page: 1, limit: 100, isActive: true });
+  const { suppliers } = useSuppliers({ page: 1, limit: 100, isActive: true });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!storeId || !categoryId || !productName || !sku || !price) {
+    if (!productName) {
       setSubmitError("Please fill in all required fields.");
       return;
     }
 
-    const numericPrice = parseFloat(price);
+    if (itemType === "GOODS" && !unitId) {
+      setSubmitError("Unit is required for goods items.");
+      return;
+    }
 
-    if (Number.isNaN(numericPrice)) {
-      setSubmitError("Price must be a valid number.");
+    let numericSellingPrice = 0;
+    if (sellingPrice) {
+      numericSellingPrice = parseFloat(sellingPrice);
+      if (Number.isNaN(numericSellingPrice)) {
+        setSubmitError("Selling price must be a valid number.");
+        return;
+      }
+    } else if (sellable) {
+      setSubmitError("Selling price is required when item is sellable.");
+      return;
+    }
+
+    let numericCostPrice = 0;
+    if (costPrice) {
+      numericCostPrice = parseFloat(costPrice);
+      if (Number.isNaN(numericCostPrice)) {
+        setSubmitError("Cost price must be a valid number.");
+        return;
+      }
+    } else if (purchasable) {
+      setSubmitError("Cost price is required when item is purchasable.");
+      return;
+    }
+
+
+    const lengthNum = lengthValue ? parseFloat(lengthValue) : undefined;
+    const widthNum = widthValue ? parseFloat(widthValue) : undefined;
+    const heightNum = heightValue ? parseFloat(heightValue) : undefined;
+    const weightNum = weightValue ? parseFloat(weightValue) : undefined;
+
+    if (
+      (lengthValue && Number.isNaN(lengthNum!)) ||
+      (widthValue && Number.isNaN(widthNum!)) ||
+      (heightValue && Number.isNaN(heightNum!))
+    ) {
+      setSubmitError("Dimensions must be valid numbers.");
+      return;
+    }
+
+    if (weightValue && Number.isNaN(weightNum!)) {
+      setSubmitError("Weight must be a valid number.");
       return;
     }
 
@@ -80,53 +135,42 @@ export default function AddProductComponent() {
 
       await productService.createProduct({
         name: productName,
-        sku,
-        storeId,
-        categoryId,
+        sku: sku || undefined,
         brandId: brandId || undefined,
-        costPrice: numericPrice,
-        sellingPrice: numericPrice,
+        image: imageUrl || undefined,
+        costPrice: numericCostPrice,
+        sellingPrice: numericSellingPrice,
         isActive: true,
+        itemType,
+        unitId: unitId || undefined,
+        returnable,
+        length: lengthNum,
+        width: widthNum,
+        height: heightNum,
+        dimensionUnit: dimensionUnit || undefined,
+        weight: weightNum,
+        weightUnit: weightUnit || undefined,
+        manufacturer: manufacturer || undefined,
+        sellable,
+        purchasable,
+        salesDescription: salesDescription || undefined,
+        purchaseDescription: purchaseDescription || undefined,
+        preferredVendorId: preferredVendorId || undefined,
+        salesAccount: salesAccount || undefined,
+        purchaseAccount: purchaseAccount || undefined,
+        trackInventory,
       });
 
       router.push(route.productlist);
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : "Failed to create product"
+        error instanceof Error ? error.message : "Failed to create item"
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const store = [
-    { value: "", label: "Choose" },
-    ...(stores?.data?.map((storeItem) => ({
-      value: storeItem.id,
-      label: storeItem.name,
-    })) || []),
-  ];
-
-  const warehouse = [
-    { value: "", label: "Choose" },
-    ...(warehouses?.data?.map((warehouseItem) => ({
-      value: warehouseItem.id,
-      label: warehouseItem.name,
-    })) || []),
-  ];
-
-  const category = [
-    { value: "", label: "Choose" },
-    ...(categories?.data?.map((categoryItem) => ({
-      value: categoryItem.id,
-      label: categoryItem.name,
-    })) || []),
-  ];
-  const subcategory = [
-    { value: "choose", label: "Choose" },
-    { value: "lenovo", label: "Lenovo" },
-    { value: "electronics", label: "Electronics" },
-  ];
 
   const brand = [
     { value: "", label: "Choose" },
@@ -135,41 +179,49 @@ export default function AddProductComponent() {
       label: brandItem.name,
     })) || []),
   ];
-  const unit = [
-    { value: "choose", label: "Choose" },
-    { value: "kg", label: "Kg" },
-    { value: "pc", label: "Pc" },
-  ];
-  const sellingtype = [
-    { value: "choose", label: "Choose" },
-    { value: "transactionalSelling", label: "Transactional selling" },
-    { value: "solutionSelling", label: "Solution selling" },
-  ];
-  const barcodesymbol = [
-    { value: "choose", label: "Choose" },
-    { value: "code34", label: "Code34" },
-    { value: "code35", label: "Code35" },
-    { value: "code36", label: "Code36" },
-  ];
-  const taxtype = [
-    { value: "exclusive", label: "Exclusive" },
-    { value: "salesTax", label: "Sales Tax" },
-  ];
-  const discounttype = [
-    { value: "choose", label: "Choose" },
-    { value: "percentage", label: "Percentage" },
-    { value: "cash", label: "Cash" },
+
+  const unitOptions = [
+    { value: "", label: "Select or type to add" },
+    ...(units?.data?.map((unitItem) => ({
+      value: unitItem.id,
+      label: unitItem.name,
+    })) || []),
   ];
 
-  const warrenty = [
-    { value: "choose", label: "Choose" },
-    { value: "Replacement Warranty", label: "Replacement Warranty" },
-    { value: "On-Site Warranty", label: "On-Site Warranty" },
-    {
-      value: "Accidental Protection Plan",
-      label: "Accidental Protection Plan",
-    },
+  const preferredVendorOptions = [
+    { value: "", label: "Select Vendor" },
+    ...(suppliers?.data?.map((supplier) => ({
+      value: supplier.id,
+      label: supplier.name,
+    })) || []),
   ];
+
+  const salesAccountOptions = [
+    { value: "", label: "Select an account" },
+    { value: "Sales", label: "Sales" },
+    { value: "Sales - Domestic", label: "Sales - Domestic" },
+    { value: "Sales - Export", label: "Sales - Export" },
+  ];
+
+  const purchaseAccountOptions = [
+    { value: "", label: "Select an account" },
+    { value: "Cost of Goods Sold", label: "Cost of Goods Sold" },
+    { value: "Purchases", label: "Purchases" },
+    { value: "Expenses", label: "Expenses" },
+  ];
+
+  const dimensionUnitOptions = [
+    { value: "cm", label: "cm" },
+    { value: "inch", label: "inch" },
+    { value: "ft", label: "ft" },
+  ];
+
+  const weightUnitOptions = [
+    { value: "kg", label: "kg" },
+    { value: "g", label: "g" },
+    { value: "lb", label: "lb" },
+  ];
+
   const [isImageVisible, setIsImageVisible] = useState(true);
 
   const handleRemoveProduct = () => {
@@ -187,8 +239,8 @@ export default function AddProductComponent() {
           <div className="page-header">
             <div className="add-item d-flex">
               <div className="page-title">
-                <h4>Create Product</h4>
-                <h6>Create new product</h6>
+                <h4>Create Item</h4>
+                <h6>Create new Item</h6>
               </div>
             </div>
             <ul className="table-top-head">
@@ -198,7 +250,7 @@ export default function AddProductComponent() {
                 <div className="page-btn">
                   <Link href={route.productlist} className="btn btn-secondary">
                     <ArrowLeft className="me-2" />
-                    Back to Product
+                    Back to Item
                   </Link>
                 </div>
               </li>
@@ -223,7 +275,7 @@ export default function AddProductComponent() {
                       <div className="d-flex align-items-center justify-content-between flex-fill">
                         <h5 className="d-flex align-items-center">
                           <Info className="text-primary me-2" />
-                          <span>Product Information</span>
+                          <span>Item Information</span>
                         </h5>
                       </div>
                     </div>
@@ -234,37 +286,40 @@ export default function AddProductComponent() {
                     aria-labelledby="headingSpacingOne"
                   >
                     <div className="accordion-body border-top">
-                      <div className="row">
-                        <div className="col-sm-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Store<span className="text-danger ms-1">*</span>
-                            </label>
-                            <Select
-                              className="react-select"
-                              options={store}
-                              placeholder="Choose"
-                              value={
-                                store.find((option) => option.value === storeId) ||
-                                store[0]
-                              }
-                              onChange={(option) =>
-                                setStoreId((option as { value: string; label: string } | null)?.value || "")
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="col-sm-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Warehouse
-                              <span className="text-danger ms-1">*</span>
-                            </label>
-                            <Select
-                              className="react-select"
-                              options={warehouse}
-                              placeholder="Choose"
-                            />
+                      <div className="row mb-3">
+                        <div className="col-lg-6 col-12">
+                          <label className="form-label">Type</label>
+                          <div className="d-flex align-items-center">
+                            <div className="form-check me-3">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="item-type-goods"
+                                checked={itemType === "GOODS"}
+                                onChange={() => setItemType("GOODS")}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="item-type-goods"
+                              >
+                                Goods
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="item-type-service"
+                                checked={itemType === "SERVICE"}
+                                onChange={() => setItemType("SERVICE")}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="item-type-service"
+                              >
+                                Service
+                              </label>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -272,8 +327,7 @@ export default function AddProductComponent() {
                         <div className="col-sm-6 col-12">
                           <div className="mb-3">
                             <label className="form-label">
-                              Product Name
-                              <span className="text-danger ms-1">*</span>
+                              Name<span className="text-danger ms-1">*</span>
                             </label>
                             <input
                               type="text"
@@ -284,173 +338,166 @@ export default function AddProductComponent() {
                           </div>
                         </div>
                         <div className="col-sm-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Slug<span className="text-danger ms-1">*</span>
-                            </label>
-                            <input type="text" className="form-control" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="row">
-                        <div className="col-sm-6 col-12">
-                          <div className="mb-3 list position-relative">
-                            <label className="form-label">
-                              SKU<span className="text-danger ms-1">*</span>
-                            </label>
+                          <div className="mb-3 list">
+                            <label className="form-label">SKU</label>
                             <input
                               type="text"
-                              className="form-control list"
+                              className="form-control"
                               value={sku}
                               onChange={(e) => setSku(e.target.value)}
                             />
-                            <button
-                              type="button"
-                              className="btn btn-primaryadd"
-                            >
-                              Generate
-                            </button>
                           </div>
                         </div>
+                      </div>
+                      <div className="row">
                         <div className="col-sm-6 col-12">
                           <div className="mb-3">
                             <label className="form-label">
-                              Selling Type
-                              <span className="text-danger ms-1">*</span>
+                              Unit
+                              {itemType === "GOODS" && (
+                                <span className="text-danger ms-1">*</span>
+                              )}
                             </label>
                             <Select
                               className="react-select"
-                              options={sellingtype}
-                              placeholder="Choose"
+                              options={unitOptions}
+                              placeholder="Select or type to add"
+                              value={
+                                unitOptions.find(
+                                  (option) => option.value === unitId
+                                ) || unitOptions[0]
+                              }
+                              onChange={(option) =>
+                                setUnitId(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
                             />
                           </div>
                         </div>
-                      </div>
-                      <div className="addservice-info">
-                        <div className="row">
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <div className="add-newplus">
-                                <label className="form-label">
-                                  Category
-                                  <span className="text-danger ms-1">*</span>
-                                </label>
-                                <Link
-                                  href="#"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#add-units-category"
-                                >
-                                  <PlusCircle
-                                    data-feather="plus-circle"
-                                    className="plus-down-add"
-                                  />
-                                  <span>Add New</span>
-                                </Link>
-                              </div>
-                              <Select
-                                className="react-select"
-                                options={category}
-                                placeholder="Choose"
-                                value={
-                                  category.find(
-                                    (option) => option.value === categoryId
-                                  ) || category[0]
-                                }
-                                onChange={(option) =>
-                                  setCategoryId(
-                                    (option as { value: string; label: string } | null)?.value ||
-                                      ""
-                                  )
-                                }
-                              />
-                            </div>
-                          </div>
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Sub Category
-                                <span className="text-danger ms-1">*</span>
-                              </label>
-                              <Select
-                                className="react-select"
-                                options={subcategory}
-                                placeholder="Choose"
-                              />
-                            </div>
+                        <div className="col-sm-6 col-12">
+                          <div className="form-check mt-4">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="returnableItem"
+                              checked={returnable}
+                              onChange={(e) => setReturnable(e.target.checked)}
+                            />
+                            <label
+                              className="form-check-label"
+                              htmlFor="returnableItem"
+                            >
+                              Returnable Item
+                            </label>
                           </div>
                         </div>
                       </div>
-                      <div className="add-product-new">
-                        <div className="row">
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <div className="add-newplus">
-                                <label className="form-label">
-                                  Brand
-                                  <span className="text-danger ms-1">*</span>
-                                </label>
-                              </div>
-                              <Select
-                                className="react-select"
-                                options={brand}
-                                placeholder="Choose"
-                                value={
-                                  brand.find(
-                                    (option) => option.value === brandId
-                                  ) || brand[0]
-                                }
-                                onChange={(option) =>
-                                  setBrandId(
-                                    (option as { value: string; label: string } | null)?.value || ""
-                                  )
-                                }
+                      <div className="row">
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Dimensions (Length x Width x Height)
+                            </label>
+                            <div className="d-flex align-items-center">
+                              <input
+                                type="text"
+                                className="form-control me-1"
+                                value={lengthValue}
+                                onChange={(e) => setLengthValue(e.target.value)}
                               />
+                              <span className="mx-1">x</span>
+                              <input
+                                type="text"
+                                className="form-control me-1"
+                                value={widthValue}
+                                onChange={(e) => setWidthValue(e.target.value)}
+                              />
+                              <span className="mx-1">x</span>
+                              <input
+                                type="text"
+                                className="form-control me-2"
+                                value={heightValue}
+                                onChange={(e) => setHeightValue(e.target.value)}
+                              />
+                              <select
+                                className="form-select w-auto"
+                                value={dimensionUnit}
+                                onChange={(e) => setDimensionUnit(e.target.value)}
+                              >
+                                {dimensionUnitOptions.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <div className="add-newplus">
-                                <label className="form-label">
-                                  Unit
-                                  <span className="text-danger ms-1">*</span>
-                                </label>
-                              </div>
-                              <Select
-                                className="react-select"
-                                options={unit}
-                                placeholder="Choose"
+                        </div>
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">Weight</label>
+                            <div className="d-flex align-items-center">
+                              <input
+                                type="text"
+                                className="form-control me-2"
+                                value={weightValue}
+                                onChange={(e) => setWeightValue(e.target.value)}
                               />
+                              <select
+                                className="form-select w-auto"
+                                value={weightUnit}
+                                onChange={(e) => setWeightUnit(e.target.value)}
+                              >
+                                {weightUnitOptions.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
                         </div>
                       </div>
                       <div className="row">
-                        <div className="col-lg-6 col-sm-6 col-12">
+                        <div className="col-lg-6 col-12">
                           <div className="mb-3">
-                            <label className="form-label">
-                              Barcode Symbology
-                              <span className="text-danger ms-1">*</span>
-                            </label>
-                            <Select
-                              className="react-select"
-                              options={barcodesymbol}
-                              placeholder="Choose"
+                            <label className="form-label">Manufacturer</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={manufacturer}
+                              onChange={(e) => setManufacturer(e.target.value)}
                             />
                           </div>
                         </div>
-                        <div className="col-lg-6 col-sm-6 col-12">
-                          <div className="mb-3 list position-relative">
-                            <label className="form-label">
-                              Item Code
-                              <span className="text-danger ms-1">*</span>
-                            </label>
-                            <input type="text" className="form-control list" />
-                            <button
-                              type="submit"
-                              className="btn btn-primaryadd"
-                            >
-                              Generate
-                            </button>
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <div className="add-newplus">
+                              <label className="form-label">Brand</label>
+                            </div>
+                            <Select
+                              className="react-select"
+                              options={brand}
+                              placeholder="Choose"
+                              value={
+                                brand.find((option) => option.value === brandId) ||
+                                brand[0]
+                              }
+                              onChange={(option) =>
+                                setBrandId(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
                           </div>
                         </div>
                       </div>
@@ -481,7 +528,7 @@ export default function AddProductComponent() {
                             data-feather="life-buoy"
                             className="text-primary me-2"
                           />
-                          <span>Pricing &amp; Stocks</span>
+                          <span>Sales &amp; Purchase Information</span>
                         </h5>
                       </div>
                     </div>
@@ -492,386 +539,175 @@ export default function AddProductComponent() {
                     aria-labelledby="headingSpacingTwo"
                   >
                     <div className="accordion-body border-top">
-                      <div className="mb-3s">
-                        <label className="form-label">
-                          Product Type
-                          <span className="text-danger ms-1">*</span>
-                        </label>
-                        <div className="single-pill-product mb-3">
-                          <ul
-                            className="nav nav-pills"
-                            id="pills-tab1"
-                            role="tablist"
-                          >
-                            <li className="nav-item" role="presentation">
-                              <span
-                                className="custom_radio me-4 mb-0 active"
-                                id="pills-home-tab"
-                                data-bs-toggle="pill"
-                                data-bs-target="#pills-home"
-                                role="tab"
-                                aria-controls="pills-home"
-                                aria-selected="true"
+                      <div className="row">
+                        <div className="col-lg-6 col-12 border-end">
+                          <h6 className="mb-3 d-flex align-items-center">
+                            <span className="me-2">Sales Information</span>
+                            <div className="form-check ms-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="sellable"
+                                checked={sellable}
+                                onChange={(e) => setSellable(e.target.checked)}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="sellable"
                               >
-                                <input
-                                  type="radio"
-                                  className="form-control"
-                                  name="payment"
-                                />
-                                <span className="checkmark" /> Single Product
-                              </span>
-                            </li>
-                            <li className="nav-item" role="presentation">
-                              <span
-                                className="custom_radio me-2 mb-0"
-                                id="pills-profile-tab"
-                                data-bs-toggle="pill"
-                                data-bs-target="#pills-profile"
-                                role="tab"
-                                aria-controls="pills-profile"
-                                aria-selected="false"
+                                Sellable
+                              </label>
+                            </div>
+                          </h6>
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Selling Price
+                              {sellable && (
+                                <span className="text-danger ms-1">*</span>
+                              )}
+                            </label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={sellingPrice}
+                              onChange={(e) => setSellingPrice(e.target.value)}
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Account</label>
+                            <Select
+                              className="react-select"
+                              options={salesAccountOptions}
+                              placeholder="Select an account"
+                              value={
+                                salesAccountOptions.find(
+                                  (option) => option.value === salesAccount
+                                ) || salesAccountOptions[0]
+                              }
+                              onChange={(option) =>
+                                setSalesAccount(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Description</label>
+                            <textarea
+                              className="form-control"
+                              rows={3}
+                              value={salesDescription}
+                              onChange={(e) => setSalesDescription(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-6 col-12">
+                          <h6 className="mb-3 d-flex align-items-center">
+                            <span className="me-2">Purchase Information</span>
+                            <div className="form-check ms-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="purchasable"
+                                checked={purchasable}
+                                onChange={(e) => setPurchasable(e.target.checked)}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="purchasable"
                               >
-                                <input
-                                  type="radio"
-                                  className="form-control"
-                                  name="sign"
-                                />
-                                <span className="checkmark" /> Variable Product
-                              </span>
-                            </li>
-                          </ul>
+                                Purchasable
+                              </label>
+                            </div>
+                          </h6>
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Cost Price
+                              {purchasable && (
+                                <span className="text-danger ms-1">*</span>
+                              )}
+                            </label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={costPrice}
+                              onChange={(e) => setCostPrice(e.target.value)}
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Account</label>
+                            <Select
+                              className="react-select"
+                              options={purchaseAccountOptions}
+                              placeholder="Select an account"
+                              value={
+                                purchaseAccountOptions.find(
+                                  (option) => option.value === purchaseAccount
+                                ) || purchaseAccountOptions[0]
+                              }
+                              onChange={(option) =>
+                                setPurchaseAccount(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Description</label>
+                            <textarea
+                              className="form-control"
+                              rows={3}
+                              value={purchaseDescription}
+                              onChange={(e) =>
+                                setPurchaseDescription(e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Preferred Vendor</label>
+                            <Select
+                              className="react-select"
+                              options={preferredVendorOptions}
+                              placeholder="Select Vendor"
+                              value={
+                                preferredVendorOptions.find(
+                                  (option) => option.value === preferredVendorId
+                                ) || preferredVendorOptions[0]
+                              }
+                              onChange={(option) =>
+                                setPreferredVendorId(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="tab-content" id="pills-tabContent">
-                        <div
-                          className="tab-pane fade show active"
-                          id="pills-home"
-                          role="tabpanel"
-                          aria-labelledby="pills-home-tab"
-                        >
-                          <div className="single-product">
-                            <div className="row">
-                              <div className="col-lg-4 col-sm-6 col-12">
-                                <div className="mb-3">
-                                  <label className="form-label">
-                                    Quantity
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <input type="text" className="form-control" />
-                                </div>
-                              </div>
-                              <div className="col-lg-4 col-sm-6 col-12">
-                                <div className="mb-3">
-                                  <label className="form-label">
-                                    Price
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    value={price}
-                                    onChange={(e) => setPrice(e.target.value)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="col-lg-4 col-sm-6 col-12">
-                                <div className="mb-3">
-                                  <label className="form-label">
-                                    Tax Type
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <Select
-                                    className="react-select"
-                                    options={taxtype}
-                                    placeholder="Select Option"
-                                  />
-                                </div>
-                              </div>
-                              <div className="col-lg-4 col-sm-6 col-12">
-                                <div className="mb-3">
-                                  <label className="form-label">
-                                    Discount Type
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <Select
-                                    className="react-select"
-                                    options={discounttype}
-                                    placeholder="Choose"
-                                  />
-                                </div>
-                              </div>
-                              <div className="col-lg-4 col-sm-6 col-12">
-                                <div className="mb-3">
-                                  <label className="form-label">
-                                    Discount Value
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <input className="form-control" type="text" />
-                                </div>
-                              </div>
-                              <div className="col-lg-4 col-sm-6 col-12">
-                                <div className="mb-3">
-                                  <label className="form-label">
-                                    Quantity Alert
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <input type="text" className="form-control" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          className="tab-pane fade"
-                          id="pills-profile"
-                          role="tabpanel"
-                          aria-labelledby="pills-profile-tab"
-                        >
-                          <div className="row select-color-add">
-                            <div className="col-lg-6 col-sm-6 col-12">
-                              <div className="mb-3">
-                                <label className="form-label">
-                                  Variant Attribute{" "}
-                                  <span className="text-danger ms-1">*</span>
-                                </label>
-                                <div className="row">
-                                  <div className="col-lg-10 col-sm-10 col-10">
-                                    <select
-                                      className="form-control variant-select select-option"
-                                      id="colorSelect"
-                                      onChange={() => setProduct(true)}
-                                    >
-                                      <option>Choose</option>
-                                      <option>Color</option>
-                                      <option value="red">Red</option>
-                                      <option value="black">Black</option>
-                                    </select>
-                                  </div>
-                                  <div className="col-lg-2 col-sm-2 col-2 ps-0">
-                                    <div className="add-icon tab">
-                                      <Link
-                                        href="#"
-                                        className="btn btn-filter"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#add-units"
-                                      >
-                                        <i className="feather feather-plus-circle" />
-                                      </Link>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              {product && (
-                                <div
-                                  className={`selected-hide-color ${
-                                    product2 ? "d-block" : ""
-                                  } `}
-                                  id="input-show"
-                                >
-                                  <label className="form-label">
-                                    Variant Attribute{" "}
-                                    <span className="text-danger ms-1">*</span>
-                                  </label>
-                                  <div className="row align-items-center">
-                                    <div className="col-lg-10 col-sm-10 col-10">
-                                      <div className="mb-3">
-                                        <TagInput
-                                          initialTags={tags}
-                                          onTagsChange={handleTagsChange}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-2 col-sm-2 col-2 ps-0">
-                                      <div className="mb-3 ">
-                                        <Link
-                                          href="#"
-                                          className="remove-color"
-                                          onClick={() => setProduct2(false)}
-                                        >
-                                          <i className="far fa-trash-alt" />
-                                        </Link>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {product && (
-                            <div
-                              className="modal-body-table variant-table d-block"
-                              id="variant-table"
+                      <hr className="my-4" />
+                      <div className="row">
+                        <div className="col-12">
+                          <div className="form-check mb-2">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="trackInventory"
+                              checked={trackInventory}
+                              onChange={(e) => setTrackInventory(e.target.checked)}
+                            />
+                            <label
+                              className="form-check-label fw-semibold"
+                              htmlFor="trackInventory"
                             >
-                              <div className="table-responsive">
-                                <table className="table">
-                                  <thead>
-                                    <tr>
-                                      <th>Variantion</th>
-                                      <th>Variant Value</th>
-                                      <th>SKU</th>
-                                      <th>Quantity</th>
-                                      <th>Price</th>
-                                      <th className="no-sort" />
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    <tr>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue="color"
-                                          />
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue="red"
-                                          />
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue={1234}
-                                          />
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <CounterThree />
-                                      </td>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue={50000}
-                                          />
-                                        </div>
-                                      </td>
-                                      <td className="action-table-data">
-                                        <div className="edit-delete-action">
-                                          <div className="input-block add-lists">
-                                            <label className="checkboxs">
-                                              <input
-                                                type="checkbox"
-                                                defaultChecked
-                                              />
-                                              <span className="checkmarks" />
-                                            </label>
-                                          </div>
-                                          <Link
-                                            className="me-2 p-2"
-                                            href="#"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#add-variation"
-                                          >
-                                            <Plus
-                                              data-feather="plus"
-                                              className="feather-edit"
-                                            />
-                                          </Link>
-                                          <Link
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#delete-modal"
-                                            className="p-2"
-                                            href="#"
-                                          >
-                                            <i
-                                              data-feather="trash-2"
-                                              className="feather-trash-2"
-                                            />
-                                          </Link>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue="color"
-                                          />
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue="black"
-                                          />
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue={2345}
-                                          />
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <CounterThree />
-                                      </td>
-                                      <td>
-                                        <div className="add-product">
-                                          <input
-                                            type="text"
-                                            className="form-control"
-                                            defaultValue={50000}
-                                          />
-                                        </div>
-                                      </td>
-                                      <td className="action-table-data">
-                                        <div className="edit-delete-action">
-                                          <div className="input-block add-lists">
-                                            <label className="checkboxs">
-                                              <input
-                                                type="checkbox"
-                                                defaultChecked
-                                              />
-                                              <span className="checkmarks" />
-                                            </label>
-                                          </div>
-                                          <Link
-                                            className="me-2 p-2"
-                                            href="#"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#edit-units"
-                                          >
-                                            <Plus
-                                              data-feather="plus"
-                                              className="feather-edit"
-                                            />
-                                          </Link>
-                                          <Link
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#delete-modal"
-                                            className="p-2"
-                                            href="#"
-                                          >
-                                            <i
-                                              data-feather="trash-2"
-                                              className="feather-trash-2"
-                                            />
-                                          </Link>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
+                              Track Inventory for this item
+                            </label>
+                          </div>
+                          <p className="text-muted fs-12 mb-3">
+                            You cannot enable/disable inventory tracking once you
+                            have created transactions for this item.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -907,178 +743,41 @@ export default function AddProductComponent() {
                         <div className="col-lg-12">
                           <div className="add-choosen">
                             <div className="mb-3">
-                              <div className="image-upload">
-                                <input type="file" />
-                                <div className="image-uploads">
-                                  <PlusCircle
-                                    data-feather="plus-circle"
-                                    className="plus-down-add me-0"
-                                  />
-                                  <h4>Add Images</h4>
-                                </div>
+                              <div className="image-upload d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3">
+                                <UploadButton<OurFileRouter, "productImages">
+                                  endpoint="productImages"
+                                  onClientUploadComplete={(res) => {
+                                    const file = res?.[0];
+                                    if (file?.url) {
+                                      setImageUrl(file.url);
+                                      setImageUploadError(null);
+                                    }
+                                  }}
+                                  onUploadError={(error) => {
+                                    setImageUploadError(error.message);
+                                  }}
+                                />
+                                {imageUploadError && (
+                                  <div className="text-danger small mt-2 mt-sm-0">
+                                    {imageUploadError}
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            {isImageVisible1 && (
+                            {imageUrl && (
                               <div className="phone-img">
-                                <img
-                                  src="assets/img/products/phone-add-2.png"
-                                  alt="image"
-                                />
+                                <img src={imageUrl} alt="Product" />
                                 <Link href="#">
                                   <X
                                     className="x-square-add remove-product"
-                                    onClick={handleRemoveProduct1}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setImageUrl(null);
+                                    }}
                                   />
                                 </Link>
                               </div>
                             )}
-                            {isImageVisible && (
-                              <div className="phone-img">
-                                <img
-                                  src="assets/img/products/phone-add-1.png"
-                                  alt="image"
-                                />
-                                <Link href="#">
-                                  <X
-                                    className="x-square-add remove-product"
-                                    onClick={handleRemoveProduct}
-                                  />
-                                </Link>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="accordion-item border mb-4">
-                  <h2 className="accordion-header" id="headingSpacingFour">
-                    <div
-                      className="accordion-button collapsed bg-white"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#SpacingFour"
-                      aria-expanded="true"
-                      aria-controls="SpacingFour"
-                    >
-                      <div className="d-flex align-items-center justify-content-between flex-fill">
-                        <h5 className="d-flex align-items-center">
-                          <List
-                            data-feather="list"
-                            className="text-primary me-2"
-                          />
-                          <span>Custom Fields</span>
-                        </h5>
-                      </div>
-                    </div>
-                  </h2>
-                  <div
-                    id="SpacingFour"
-                    className="accordion-collapse collapse show"
-                    aria-labelledby="headingSpacingFour"
-                  >
-                    <div className="accordion-body border-top">
-                      <div>
-                        <div className="p-3 bg-light rounded d-flex align-items-center border mb-3">
-                          <div className=" d-flex align-items-center">
-                            <div className="form-check form-check-inline">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id="warranties"
-                                defaultValue="option1"
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="warranties"
-                              >
-                                Warranties
-                              </label>
-                            </div>
-                            <div className="form-check form-check-inline">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id="manufacturer"
-                                defaultValue="option2"
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="manufacturer"
-                              >
-                                Manufacturer
-                              </label>
-                            </div>
-                            <div className="form-check form-check-inline">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id="expiry"
-                                defaultValue="option2"
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="expiry"
-                              >
-                                Expiry
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="row">
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Warranty
-                                <span className="text-danger ms-1">*</span>
-                              </label>
-                              <Select
-                                className="react-select"
-                                options={warrenty}
-                                placeholder="Choose"
-                              />
-                            </div>
-                          </div>
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3 add-product">
-                              <label className="form-label">
-                                Manufacturer
-                                <span className="text-danger ms-1">*</span>
-                              </label>
-                              <input type="text" className="form-control" />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="row">
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Manufactured Date
-                                <span className="text-danger ms-1">*</span>
-                              </label>
-                              <div className="input-groupicon calender-input">
-                                <Calendar className="info-img" />
-                                <DatePicker
-                                  className="form-control datetimepicker"
-                                  placeholder="dd/mm/yyyy"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Expiry On
-                                <span className="text-danger ms-1">*</span>
-                              </label>
-                              <div className="input-groupicon calender-input">
-                                <Calendar className="info-img" />
-                                <DatePicker
-                                  className="form-control datetimepicker"
-                                  placeholder="dd/mm/yyyy"
-                                />
-                              </div>
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -1102,7 +801,7 @@ export default function AddProductComponent() {
                   className="btn btn-primary"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Add Product"}
+                  {isSubmitting ? "Saving..." : "Add Item"}
                 </button>
               </div>
             </div>
@@ -1112,10 +811,7 @@ export default function AddProductComponent() {
         <CommonFooter />
       </div>
       <Addunits />
-      <AddCategory />
-      <AddVariant />
       <AddBrand />
-      <AddVarientNew />
       <div className="modal fade" id="delete-modal">
         <div className="modal-dialog modal-dialog-centered">
           <div className="modal-content">

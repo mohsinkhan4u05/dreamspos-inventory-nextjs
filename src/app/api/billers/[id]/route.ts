@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     const biller = await prisma.biller.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!biller) {
@@ -35,7 +37,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -45,6 +47,7 @@ export async function PUT(
     }
 
     const body = await request.json()
+    const { id } = await context.params
     const { name, company, email, phone, address, country, state, city, postalCode, isActive } = body
 
     if (!name) {
@@ -55,7 +58,7 @@ export async function PUT(
     }
 
     const biller = await prisma.biller.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         company: company ?? null,
@@ -82,7 +85,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -91,8 +94,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await context.params
+
     await prisma.biller.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     })
 

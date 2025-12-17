@@ -9,39 +9,56 @@ export const authOptions = {
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
-      async authorize(credentials: Record<"email" | "password", string> | undefined) {
+      async authorize(
+        credentials: Record<"email" | "password", string> | undefined,
+        _req?: any,
+      ) {
         if (!credentials?.email || !credentials?.password) {
           return null
         }
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
-          }
+            email: credentials.email,
+          },
+          include: {
+            customRole: true,
+          },
         })
 
         if (!user) {
           return null
         }
 
+        // If there is no stored password hash, treat as invalid credentials
+        if (!user.password) {
+          return null
+        }
+
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
-          user.password
+          user.password,
         )
 
         if (!isPasswordValid) {
           return null
         }
 
-        return {
+        const safeUsername = user.username || user.email;
+
+        const authUser = {
           id: user.id,
           email: user.email,
-          name: `${user.firstName} ${user.lastName}`.trim() || user.username,
-          username: user.username,
+          name: `${user.firstName} ${user.lastName}`.trim() || safeUsername,
+          username: safeUsername,
           role: user.role,
-        }
+          roleId: user.roleId,
+          customRoleName: user.customRole?.displayName ?? null,
+        } as any;
+
+        return authUser
       }
     })
   ],
@@ -51,7 +68,8 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
-        token.role = user.role
+        token.role = user.customRoleName || user.role
+        token.roleId = user.roleId || null
       }
       return token
     },
@@ -59,6 +77,7 @@ export const authOptions = {
       if (token) {
         session.user.id = token.sub!
         session.user.role = token.role as string
+        session.user.roleId = (token.roleId as string | null) ?? null
       }
       return session
     },

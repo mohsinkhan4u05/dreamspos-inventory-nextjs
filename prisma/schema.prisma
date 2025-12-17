@@ -13,24 +13,68 @@ datasource db {
 
 // User Management
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
+  id        String     @id @default(cuid())
+  email     String     @unique
+  username  String?    @unique
+  password  String?
   firstName String?
   lastName  String?
   phone     String?
-  role      UserRole @default(STAFF)
+  role      UserRole   @default(STAFF) // Legacy enum role - kept for backward compatibility
+  roleId    String?    // New granular role system
   avatar    String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    UserStatus @default(PENDING)
+  isActive  Boolean    @default(true)
+  invitedAt DateTime?
+  joinedAt  DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   // Relations
-  posSessions      POSSession[]
-  stockAdjustments StockAdjustment[]
+  posSessions        POSSession[]
+  stockAdjustments   StockAdjustment[]
+  customRole         Role?             @relation(fields: [roleId], references: [id])
+  auditLogs          AuditLog[]
+  invitationsSent    UserInvitation[]  @relation("InvitedBy")
 
   @@map("users")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+// User Invitation Management
+model UserInvitation {
+  id          String           @id @default(cuid())
+  email       String
+  firstName   String?
+  lastName    String?
+  roleId      String
+  token       String           @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id])
+  role      Role @relation(fields: [roleId], references: [id])
+
+  @@unique([email, status])
+  @@index([token])
+  @@index([email])
+  @@map("user_invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
 
 enum UserRole {
@@ -1334,4 +1378,85 @@ model StockAdjustment {
 
   @@index([productId, storeId, createdAt])
   @@map("stock_adjustments")
+}
+
+// ============================================
+// RBAC System - Role-Based Access Control
+// ============================================
+
+// Role model - supports both system roles and custom roles
+model Role {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  displayName   String
+  description   String?
+  isSystemRole  Boolean  @default(false) // System roles cannot be deleted
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  users           User[]
+  rolePermissions RolePermission[]
+  auditLogs       AuditLog[]
+  invitations     UserInvitation[]
+
+  @@map("roles")
+}
+
+// Permission model - granular permissions for resources
+model Permission {
+  id          String   @id @default(cuid())
+  resource    String   // e.g., "sales", "purchase", "inventory"
+  action      String   // e.g., "read", "create", "update", "delete", "approve", "email", "export"
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@index([resource])
+  @@map("permissions")
+}
+
+// RolePermission join table - many-to-many relationship
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// AuditLog model - track critical actions and changes
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  roleId      String?
+  action      String   // e.g., "role.created", "permission.updated", "user.role_assigned"
+  resource    String?  // e.g., "role", "user", "inventory"
+  resourceId  String?
+  description String?
+  metadata    Json?    // Additional context data
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+  role Role? @relation(fields: [roleId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resource, resourceId])
+  @@map("audit_logs")
 }

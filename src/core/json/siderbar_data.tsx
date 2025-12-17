@@ -96,6 +96,32 @@ export const SidebarData = [
     ],
   },
   {
+    label: "User Management",
+    submenuOpen: true,
+    showSubRoute: false,
+    submenuHdr: "User Management",
+    submenuItems: [
+      {
+        label: "Users",
+        link: "/users",
+        icon: "shield-up",
+        showSubRoute: false,
+        submenu: false,
+        permissionResource: "users",
+        permissionAction: "read",
+      },
+      {
+        label: "Roles & Permissions",
+        link: "/roles",
+        icon: "jump-rope",
+        showSubRoute: false,
+        submenu: false,
+        permissionResource: "roles",
+        permissionAction: "read",
+      },
+    ],
+  },
+  {
     label: "Inventory",
     submenuOpen: true,
     showSubRoute: false,

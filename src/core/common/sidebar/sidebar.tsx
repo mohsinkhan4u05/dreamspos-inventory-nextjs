@@ -7,9 +7,25 @@ import React, { useState, useEffect } from "react";
 
 import { SidebarData } from "../../json/siderbar_data";
 import { all_routes } from "@/data/all_routes";
+import { Can } from "@/components/rbac/Can";
+import type { PermissionAction, PermissionResource } from "@/lib/rbac/permissions";
 import { ChevronsLeft } from "react-feather";
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
+// Map high-level menu sections to RBAC permissions.
+// These ensure entire sections (e.g. Purchases) are hidden when user
+// doesn't have at least read access to that module.
+const SECTION_PERMISSIONS: Record<
+  string,
+  { resource: import("@/lib/rbac/permissions").PermissionResource;
+    action: import("@/lib/rbac/permissions").PermissionAction }
+> = {
+  "User Management": { resource: "users", action: "read" },
+  Sales: { resource: "sales", action: "read" },
+  Purchases: { resource: "purchase", action: "read" },
+  Inventory: { resource: "inventory", action: "read" },
+};
+
 export default function Sidebar() {
   const route = all_routes;
   const pathname = usePathname();
@@ -126,130 +142,169 @@ export default function Sidebar() {
           <div className="sidebar-inner slimscroll">
             <div id="sidebar-menu" className="sidebar-menu">
               <ul>
-                {SidebarData?.map((mainLabel: any, index: any) => (
-                  <li className="submenu-open" key={index}>
-                    <h6 className="submenu-hdr">{mainLabel?.label}</h6>
-                    <ul>
-                      {mainLabel?.submenuItems?.map((title: any, i: any) => {
-                        let link_array: any[] = [];
-                        title?.submenuItems?.map((link: any) => {
-                          link_array.push(link?.link);
-                          if (link?.submenu) {
-                            link?.submenuItems?.map((item: any) => {
-                              link_array.push(item?.link);
-                            });
-                          }
-                          return link_array;
-                        });
-                        title.links = link_array;
-                        return (
-                          <React.Fragment key={i}>
-                            <li
-                              className={`submenu ${
-                                !title?.submenu && pathname === title?.link
-                                  ? "custom-active-hassubroute-false"
-                                  : ""
-                              }`}
-                            >
-                              <Link
-                                href={title?.link || "#"}
-                                onClick={() => toggleSidebar(title?.label)}
-                                className={`${
-                                  subOpen === title?.label ? "subdrop" : ""
-                                } ${
-                                  title?.links?.includes(pathname)
-                                    ? "subdrop active"
+                {SidebarData?.map((mainLabel: any, index: any) => {
+                  const sectionPerm = SECTION_PERMISSIONS[mainLabel?.label as string];
+
+                  const sectionContent = (
+                    <li className="submenu-open" key={index}>
+                      <h6 className="submenu-hdr">{mainLabel?.label}</h6>
+                      <ul>
+                        {mainLabel?.submenuItems?.map((title: any, i: any) => {
+                          let link_array: any[] = [];
+                          title?.submenuItems?.map((link: any) => {
+                            link_array.push(link?.link);
+                            if (link?.submenu) {
+                              link?.submenuItems?.map((item: any) => {
+                                link_array.push(item?.link);
+                              });
+                            }
+                            return link_array;
+                          });
+                          title.links = link_array;
+
+                          const itemPermRes =
+                            title.permissionResource as PermissionResource | undefined;
+                          const itemPermAction =
+                            (title.permissionAction as PermissionAction | undefined) ||
+                            "read";
+
+                          const itemContent = (
+                            <React.Fragment key={i}>
+                              <li
+                                className={`submenu ${
+                                  !title?.submenu && pathname === title?.link
+                                    ? "custom-active-hassubroute-false"
                                     : ""
                                 }`}
                               >
-                                <i className={`ti ti-${title.icon} me-2`}></i>
-                                <span className="custom-active-span">
-                                  {(title?.label)}
-                                </span>
-                                {title?.submenu && (
-                                  <span className="menu-arrow" />
-                                )}
-                              </Link>
-                              <ul
-                                style={{
-                                  display:
-                                    subOpen === title?.label ? "block" : "none",
-                                }}
-                              >
-                                {title?.submenuItems?.map(
-                                  (item: any, titleIndex: any) => (
-                                    <li
-                                      className="submenu submenu-two"
-                                      key={titleIndex}
-                                    >
-                                      <Link
-                                        href={item?.link || "#"}
-                                        className={`${
-                                          item?.submenuItems
-                                            ?.map((link: any) => link.link)
-                                            .includes(pathname) ||
-                                          item?.link === pathname
-                                            ? "active"
-                                            : ""
-                                        } ${
-                                          subsidebar === item?.label
-                                            ? "subdrop"
-                                            : ""
-                                        }`}
-                                        onClick={() =>
-                                          toggleSubsidebar(item?.label)
-                                        }
+                                <Link
+                                  href={title?.link || "#"}
+                                  onClick={() => toggleSidebar(title?.label)}
+                                  className={`${
+                                    subOpen === title?.label ? "subdrop" : ""
+                                  } ${
+                                    title?.links?.includes(pathname)
+                                      ? "subdrop active"
+                                      : ""
+                                  }`}
+                                >
+                                  <i className={`ti ti-${title.icon} me-2`}></i>
+                                  <span className="custom-active-span">
+                                    {title?.label}
+                                  </span>
+                                  {title?.submenu && (
+                                    <span className="menu-arrow" />
+                                  )}
+                                </Link>
+                                <ul
+                                  style={{
+                                    display:
+                                      subOpen === title?.label ? "block" : "none",
+                                  }}
+                                >
+                                  {title?.submenuItems?.map(
+                                    (item: any, titleIndex: any) => (
+                                      <li
+                                        className="submenu submenu-two"
+                                        key={titleIndex}
                                       >
-                                        {item?.label}
-                                        {item?.submenu && (
-                                          <span className="menu-arrow inside-submenu" />
-                                        )}
-                                      </Link>
-                                      <ul
-                                        style={{
-                                          display:
+                                        <Link
+                                          href={item?.link || "#"}
+                                          className={`${
+                                            item?.submenuItems
+                                              ?.map((link: any) => link.link)
+                                              .includes(pathname) ||
+                                            item?.link === pathname
+                                              ? "active"
+                                              : ""
+                                          } ${
                                             subsidebar === item?.label
-                                              ? "block"
-                                              : "none",
-                                        }}
-                                      >
-                                        {item?.submenuItems?.map(
-                                          (items: any, subIndex: any) => (
-                                            <li key={subIndex}>
-                                              <Link
-                                                href={items?.link || "#"}
-                                                className={`${
-                                                  subsidebar === items?.label
-                                                    ? "submenu-two subdrop"
-                                                    : "submenu-two"
-                                                } ${
-                                                  items?.submenuItems
-                                                    ?.map(
-                                                      (link: any) => link.link
-                                                    )
-                                                    .includes(pathname) ||
-                                                  items?.link === pathname
-                                                    ? "active"
-                                                    : ""
-                                                }`}
-                                              >
-                                                {items?.label}
-                                              </Link>
-                                            </li>
-                                          )
-                                        )}
-                                      </ul>
-                                    </li>
-                                  )
-                                )}
-                              </ul>
-                            </li>
-                          </React.Fragment>
-                        );
-                      })}
-                    </ul>
-                  </li>
-                ))}
+                                              ? "subdrop"
+                                              : ""
+                                          }`}
+                                          onClick={() =>
+                                            toggleSubsidebar(item?.label)
+                                          }
+                                        >
+                                          {item?.label}
+                                          {item?.submenu && (
+                                            <span className="menu-arrow inside-submenu" />
+                                          )}
+                                        </Link>
+                                        <ul
+                                          style={{
+                                            display:
+                                              subsidebar === item?.label
+                                                ? "block"
+                                                : "none",
+                                          }}
+                                        >
+                                          {item?.submenuItems?.map(
+                                            (items: any, subIndex: any) => (
+                                              <li key={subIndex}>
+                                                <Link
+                                                  href={items?.link || "#"}
+                                                  className={`${
+                                                    subsidebar === items?.label
+                                                      ? "submenu-two subdrop"
+                                                      : "submenu-two"
+                                                  } ${
+                                                    items?.submenuItems
+                                                      ?.map(
+                                                        (link: any) => link.link
+                                                      )
+                                                      .includes(pathname) ||
+                                                    items?.link === pathname
+                                                      ? "active"
+                                                      : ""
+                                                  }`}
+                                                >
+                                                  {items?.label}
+                                                </Link>
+                                              </li>
+                                            )
+                                          )}
+                                        </ul>
+                                      </li>
+                                    )
+                                  )}
+                                </ul>
+                              </li>
+                            </React.Fragment>
+                          );
+
+                          if (itemPermRes) {
+                            return (
+                              <Can
+                                key={i}
+                                resource={itemPermRes}
+                                action={itemPermAction}
+                              >
+                                {itemContent}
+                              </Can>
+                            );
+                          }
+
+                          return itemContent;
+                        })}
+                      </ul>
+                    </li>
+                  );
+
+                  if (sectionPerm) {
+                    return (
+                      <Can
+                        key={index}
+                        resource={sectionPerm.resource}
+                        action={sectionPerm.action}
+                      >
+                        {sectionContent}
+                      </Can>
+                    );
+                  }
+
+                  return sectionContent;
+                })}
               </ul>
             </div>
           </div>

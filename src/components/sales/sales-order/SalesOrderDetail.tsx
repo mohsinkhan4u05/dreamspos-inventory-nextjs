@@ -388,6 +388,22 @@ export default function SalesOrderDetail({ id }: Props) {
                   View Invoice {latestInvoice.invoiceNumber}
                 </Link>
               )}
+              {latestInvoice &&
+                typeof latestInvoice.dueAmount === "number" &&
+                latestInvoice.dueAmount > 0 &&
+                (order.status === "SHIPPED" || order.status === "INVOICED") && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() =>
+                      router.push(
+                        `${route.invoicedetails}?id=${latestInvoice.id}&autoOpenPayment=1`,
+                      )
+                    }
+                  >
+                    Record Payment
+                  </button>
+                )}
             </div>
           </div>
 
@@ -419,8 +435,6 @@ export default function SalesOrderDetail({ id }: Props) {
             </div>
           </div>
 
-
-
           <div className="card mb-3">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Items</h5>
@@ -447,7 +461,8 @@ export default function SalesOrderDetail({ id }: Props) {
                 )}
                 {(order.status === "CONFIRMED" ||
                   order.status === "PACKED" ||
-                  order.status === "SHIPPED") && (
+                  order.status === "SHIPPED" ||
+                  order.status === "INVOICED") && (
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
@@ -469,7 +484,8 @@ export default function SalesOrderDetail({ id }: Props) {
                 )}
                 {(order.status === "CONFIRMED" ||
                   order.status === "PACKED" ||
-                  order.status === "SHIPPED") && (
+                  order.status === "SHIPPED" ||
+                  order.status === "INVOICED") && (
                   <button
                     type="button"
                     className="btn btn-outline-primary btn-sm"
@@ -481,7 +497,8 @@ export default function SalesOrderDetail({ id }: Props) {
                 )}
                 {(order.status === "CONFIRMED" ||
                   order.status === "PACKED" ||
-                  order.status === "SHIPPED") && (
+                  order.status === "SHIPPED" ||
+                  order.status === "INVOICED") && (
                   <button
                     type="button"
                     className="btn btn-outline-success btn-sm"

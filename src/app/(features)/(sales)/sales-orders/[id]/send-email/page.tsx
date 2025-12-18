@@ -39,8 +39,8 @@ function SalesOrderSendEmailForm({ id }: SalesOrderSendEmailFormProps) {
     if (!order) return;
 
     if (!to) {
-      const existingRecipients = order.emailRecipients || "";
-      const customerEmail = order.customer?.email || "";
+      const existingRecipients = (order.emailRecipients || "").toLowerCase();
+      const customerEmail = (order.customer?.email || "").toLowerCase();
       const initial = existingRecipients || customerEmail;
       if (initial) setTo(initial);
     }
@@ -121,9 +121,9 @@ function SalesOrderSendEmailForm({ id }: SalesOrderSendEmailFormProps) {
       const payload: Record<string, any> = {
         type: "SALES_ORDER",
         entityId: order.id,
-        to: to.trim(),
-        cc: cc.trim() || undefined,
-        bcc: bcc.trim() || undefined,
+        to: to.trim().toLowerCase(),
+        cc: cc.trim() ? cc.trim().toLowerCase() : undefined,
+        bcc: bcc.trim() ? bcc.trim().toLowerCase() : undefined,
         subject: subject.trim(),
         message: message.trim(),
         includePdf,

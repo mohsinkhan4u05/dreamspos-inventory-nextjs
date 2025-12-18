@@ -561,7 +561,7 @@ export default function SalesOrderAddPos() {
               <div className="flex-fill">
                 <div className="page-header border-0 pb-0 mb-3 d-flex align-items-center justify-content-between">
                   <div className="page-title">
-                    <h4>New Sales Order (POS Style)</h4>
+                    <h4>New Sales Order</h4>
                     <h6>Create a new sales order</h6>
                   </div>
                   <ul className="table-top-head">

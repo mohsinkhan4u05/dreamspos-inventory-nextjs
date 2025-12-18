@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import type { OrganizationProfile } from "@/types/api";
 
 interface OrganizationContextValue {
@@ -35,6 +36,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<OrganizationProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { status } = useSession();
 
   const load = useCallback(async () => {
     try {
@@ -52,8 +54,23 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    // Wait for auth status before deciding what to do
+    if (status === "loading") {
+      setLoading(true);
+      return;
+    }
+
+    if (status === "unauthenticated") {
+      // No session: no organization, and not loading
+      setOrganization(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    // Authenticated: load organization profile
+    void load();
+  }, [status, load]);
 
   const value: OrganizationContextValue = {
     organization,

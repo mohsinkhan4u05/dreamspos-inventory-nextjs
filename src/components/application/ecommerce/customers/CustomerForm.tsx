@@ -81,8 +81,6 @@ type AddressValue = z.infer<typeof addressSchema>;
 type ContactPersonValue = z.infer<typeof contactPersonSchema>;
 type DocumentValue = z.infer<typeof documentSchema>;
 
-const DRAFT_KEY = "add_customer_draft_v1";
-
 export default function CustomerForm() {
   const router = useRouter();
   const route = all_routes;
@@ -146,37 +144,25 @@ export default function CustomerForm() {
     message: string;
   }>({ show: false, variant: "success", message: "" });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(DRAFT_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        reset(parsed);
-      }
-    } catch {}
-  }, [reset]);
-
-  const watchedValues = watch();
+  const primaryFirstName = watch("firstName");
+  const primaryLastName = watch("lastName");
+  const companyName = watch("companyName");
+  const customerType = watch("type");
+  const displayNameValue = watch("displayName");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
-    } catch {}
-  }, [watchedValues]);
+    const contactName = `${primaryFirstName || ""} ${primaryLastName || ""}`.trim();
+    const autoName =
+      customerType === "BUSINESS"
+        ? (companyName || contactName)
+        : contactName;
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleBeforeUnload = () => {
-      try {
-        const value = methods.getValues();
-        window.localStorage.setItem(DRAFT_KEY, JSON.stringify(value));
-      } catch {}
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [methods]);
+    if (!autoName) return;
+
+    if (!displayNameValue) {
+      setValue("displayName", autoName, { shouldDirty: true });
+    }
+  }, [primaryFirstName, primaryLastName, companyName, customerType, displayNameValue, setValue]);
 
   const onSubmit = async (values: CustomerFormValues) => {
     try {
@@ -263,10 +249,6 @@ export default function CustomerForm() {
       };
 
       await customerService.createCustomer(payload as unknown as Record<string, unknown>);
-
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(DRAFT_KEY);
-      }
 
       setToastState({
         show: true,
@@ -443,6 +425,7 @@ export default function CustomerForm() {
                     <input
                       type="text"
                       className="form-control"
+                      autoComplete="off"
                       {...methods.register("displayName")}
                     />
                     {errors.displayName && (
@@ -482,23 +465,6 @@ export default function CustomerForm() {
                       className="form-control"
                       {...methods.register("mobile")}
                     />
-                  </div>
-                </div>
-
-                <div className="row mb-3">
-                  <div className="col-lg-4 mb-3">
-                    <label className="form-label">Customer Language</label>
-                    <select
-                      className="form-select"
-                      {...methods.register("language")}
-                    >
-                      <option value="">Select</option>
-                      {languageOptions.map((lang) => (
-                        <option key={lang} value={lang}>
-                          {lang}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
               </div>

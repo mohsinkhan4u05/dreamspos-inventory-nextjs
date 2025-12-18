@@ -85,10 +85,10 @@ export default function ProductListComponent() {
       dataIndex: "product",
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
-          <Link href={`${route.productdetails}?id=${record.id}`} className="avatar avatar-md me-2">
+          <Link href={`/item/${record.id}`} className="avatar avatar-md me-2">
             <img alt="" src={record.productImage} />
           </Link>
-          <Link href={`${route.productdetails}?id=${record.id}`}>{text}</Link>
+          <Link href={`/item/${record.id}`}>{text}</Link>
         </div>
       ),
       sorter: (a: any, b: any) => a.product.length - b.product.length,

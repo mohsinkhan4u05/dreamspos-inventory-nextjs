@@ -701,7 +701,9 @@ export default function PurchaseOrderAdd() {
                       className="form-control"
                       placeholder="Comma separated emails"
                       value={emailRecipients}
-                      onChange={(e) => setEmailRecipients(e.target.value)}
+                      onChange={(e) =>
+                        setEmailRecipients(e.target.value.toLowerCase())
+                      }
                     />
                   </div>
                 </div>

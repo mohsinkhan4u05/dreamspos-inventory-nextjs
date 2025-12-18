@@ -155,7 +155,7 @@ export default function PurchaseOrderReportComponent() {
               </ul>
               <div className="page-btn">
                 <Link
-                  href={route.purchaseorderadd || "#"}
+                  href={route.purchaseorderadd2 || "#"}
                   className="btn btn-primary"
                 >
                   <i className="ti ti-circle-plus me-1" />

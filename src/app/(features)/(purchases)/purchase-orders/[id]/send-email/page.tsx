@@ -45,8 +45,8 @@ function PurchaseOrderSendEmailForm({ id }: PurchaseOrderSendEmailFormProps) {
     if (!order) return;
 
     if (!to) {
-      const orderTo = order.emailRecipients || "";
-      const supplierTo = order.supplier?.email || "";
+      const orderTo = (order.emailRecipients || "").toLowerCase();
+      const supplierTo = (order.supplier?.email || "").toLowerCase();
       const initialTo = orderTo || supplierTo;
       if (initialTo) setTo(initialTo);
     }
@@ -129,9 +129,9 @@ function PurchaseOrderSendEmailForm({ id }: PurchaseOrderSendEmailFormProps) {
       const payload: Record<string, any> = {
         type: "PURCHASE_ORDER",
         entityId: order.id,
-        to: to.trim(),
-        cc: cc.trim() || undefined,
-        bcc: bcc.trim() || undefined,
+        to: to.trim().toLowerCase(),
+        cc: cc.trim() ? cc.trim().toLowerCase() : undefined,
+        bcc: bcc.trim() ? bcc.trim().toLowerCase() : undefined,
         subject: subject.trim(),
         message: message.trim(),
         includePdf,

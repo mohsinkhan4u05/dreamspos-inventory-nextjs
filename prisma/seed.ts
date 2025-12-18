@@ -34,6 +34,20 @@ async function main() {
     },
   })
 
+  // Create additional SUPER_ADMIN user for Mohsin
+  const mohsinUser = await prisma.user.upsert({
+    where: { email: 'mohsin4u05@gmail.com' },
+    update: {},
+    create: {
+      email: 'mohsin4u05@gmail.com',
+      username: 'mohsin',
+      password: hashedPassword,
+      firstName: 'Mohsin',
+      lastName: 'Khan',
+      role: 'SUPER_ADMIN',
+    },
+  })
+
   // Create categories
   const categories = await Promise.all([
     prisma.category.upsert({

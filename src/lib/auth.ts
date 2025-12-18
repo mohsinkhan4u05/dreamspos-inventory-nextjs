@@ -68,8 +68,11 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
-        token.role = user.customRoleName || user.role
+        // Preserve enum role (e.g. SUPER_ADMIN) for RBAC checks
+        token.role = user.role
         token.roleId = user.roleId || null
+        // Expose custom role display name separately for UI
+        token.roleName = user.customRoleName || null
       }
       return token
     },
@@ -78,6 +81,7 @@ export const authOptions = {
         session.user.id = token.sub!
         session.user.role = token.role as string
         session.user.roleId = (token.roleId as string | null) ?? null
+        session.user.roleName = (token.roleName as string | null) ?? null
       }
       return session
     },

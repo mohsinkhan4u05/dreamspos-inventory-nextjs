@@ -12,9 +12,11 @@ import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import { PlusCircle } from "react-feather";
 import AddRole from "@/core/modals/usermanagement/addrole";
 import EditRole from "@/core/modals/usermanagement/editrole";
+import { useRole } from "@/hooks/usePermission";
 export default function RolesPermissionsComponent() {
   const route = all_routes;
   const dataSource = rolesandpermission;
+  const { isSuperAdmin } = useRole();
   const columns = [
     {
       title: "Role Name",
@@ -79,17 +81,17 @@ export default function RolesPermissionsComponent() {
               <RefreshIcon />
               <CollapesIcon />
             </ul>
-            <div className="page-btn">
-              <Link
-                href="#"
-                className="btn btn-primary"
-                data-bs-toggle="modal"
-                data-bs-target="#add-units"
-              >
-                <PlusCircle className=" feather me-2" />
-                Add Role
-              </Link>
-            </div>
+            {isSuperAdmin && (
+              <div className="page-btn">
+                <Link
+                  href="/roles/create"
+                  className="btn btn-primary"
+                >
+                  <PlusCircle className=" feather me-2" />
+                  Create Role
+                </Link>
+              </div>
+            )}
           </div>
           {/* /product list */}
           <div className="card table-list-card">

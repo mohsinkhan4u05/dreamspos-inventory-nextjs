@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface InvitationMeta {
@@ -14,6 +14,20 @@ interface InvitationMeta {
 }
 
 export default function AcceptInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="invite-page">
+          <div className="card">Validating invitation...</div>
+        </div>
+      }
+    >
+      <AcceptInvitationPageContent />
+    </Suspense>
+  );
+}
+
+function AcceptInvitationPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");

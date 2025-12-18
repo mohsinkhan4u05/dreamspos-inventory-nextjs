@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { InviteUserModal } from "@/components/user-management/InviteUserModal";
 import { Can } from "@/components/rbac/Can";
-import { UserRole } from "@prisma/client";
+
+type UserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "STAFF" | "CASHIER";
 
 interface CustomRole {
   id: string;

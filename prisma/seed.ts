@@ -128,9 +128,7 @@ async function main() {
         description: 'Latest iPhone model',
         sku: 'IPHONE15',
         barcode: '1234567890123',
-        categoryId: categories[0].id,
         brandId: brands[0].id,
-        storeId: store.id,
         costPrice: 799.99,
         sellingPrice: 999.99,
         minPrice: 899.99,
@@ -146,9 +144,7 @@ async function main() {
         description: '4K Smart TV',
         sku: 'SAMSUNG-TV',
         barcode: '1234567890124',
-        categoryId: categories[0].id,
         brandId: brands[1].id,
-        storeId: store.id,
         costPrice: 599.99,
         sellingPrice: 799.99,
         minPrice: 699.99,
@@ -164,8 +160,6 @@ async function main() {
         description: 'High quality rice',
         sku: 'RICE-BAG',
         barcode: '1234567890125',
-        categoryId: categories[1].id,
-        storeId: store.id,
         costPrice: 15.99,
         sellingPrice: 19.99,
         minPrice: 17.99,
@@ -209,7 +203,14 @@ async function main() {
   // Create initial stock
   await Promise.all([
     prisma.stock.upsert({
-      where: { productId_variantId_storeId: { productId: products[0].id, variantId: '', storeId: store.id } },
+      where: {
+        productId_variantId_storeId_warehouseId: {
+          productId: products[0].id,
+          variantId: null,
+          storeId: store.id,
+          warehouseId: null,
+        },
+      },
       update: { quantity: 50 },
       create: {
         productId: products[0].id,
@@ -220,7 +221,14 @@ async function main() {
       },
     }),
     prisma.stock.upsert({
-      where: { productId_variantId_storeId: { productId: products[1].id, variantId: '', storeId: store.id } },
+      where: {
+        productId_variantId_storeId_warehouseId: {
+          productId: products[1].id,
+          variantId: null,
+          storeId: store.id,
+          warehouseId: null,
+        },
+      },
       update: { quantity: 15 },
       create: {
         productId: products[1].id,
@@ -231,7 +239,14 @@ async function main() {
       },
     }),
     prisma.stock.upsert({
-      where: { productId_variantId_storeId: { productId: products[2].id, variantId: '', storeId: store.id } },
+      where: {
+        productId_variantId_storeId_warehouseId: {
+          productId: products[2].id,
+          variantId: null,
+          storeId: store.id,
+          warehouseId: null,
+        },
+      },
       update: { quantity: 100 },
       create: {
         productId: products[2].id,

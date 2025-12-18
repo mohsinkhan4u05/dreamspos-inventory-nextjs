@@ -363,7 +363,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({
                     disabled={isAdding}
                     data-bs-dismiss={isAdding ? undefined : "modal"}
                   >
-                    {isAdding ? "Saving..." : "Add Supplier"}
+                    {isAdding ? "Saving..." : "Add Vendor"}
                   </button>
                 </div>
               </form>

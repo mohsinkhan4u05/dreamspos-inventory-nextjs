@@ -175,7 +175,7 @@ export default function Header() {
             {/* /Search */}
 
             {/* Select Store */}
-            <li className="nav-item dropdown has-arrow main-drop select-store-dropdown">
+            {/* <li className="nav-item dropdown has-arrow main-drop select-store-dropdown">
               <Link
                 href="#"
                 className="dropdown-toggle nav-link select-store"
@@ -228,7 +228,7 @@ export default function Header() {
                   Grocery Eden
                 </Link>
               </div>
-            </li>
+            </li> */}
             {/* /Select Store */}
 
             <li className="nav-item dropdown link-nav">

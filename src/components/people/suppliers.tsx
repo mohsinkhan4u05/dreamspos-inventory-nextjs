@@ -206,7 +206,7 @@ export default function SuppliersComponent() {
                 className="btn btn-primary"
               >
                 <i className='ti ti-circle-plus me-1'></i>
-                Add Supplier
+                Add Vendor
               </Link>
             </div>
           </div>

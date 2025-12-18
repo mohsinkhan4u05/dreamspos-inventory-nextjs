@@ -203,16 +203,10 @@ async function main() {
   // Create initial stock
   await Promise.all([
     prisma.stock.upsert({
-      where: {
-        productId_variantId_storeId_warehouseId: {
-          productId: products[0].id,
-          variantId: null,
-          storeId: store.id,
-          warehouseId: null,
-        },
-      },
+      where: { id: 'stock-iphone15-default' },
       update: { quantity: 50 },
       create: {
+        id: 'stock-iphone15-default',
         productId: products[0].id,
         storeId: store.id,
         unitId: units[0].id,
@@ -221,16 +215,10 @@ async function main() {
       },
     }),
     prisma.stock.upsert({
-      where: {
-        productId_variantId_storeId_warehouseId: {
-          productId: products[1].id,
-          variantId: null,
-          storeId: store.id,
-          warehouseId: null,
-        },
-      },
+      where: { id: 'stock-samsungtv-default' },
       update: { quantity: 15 },
       create: {
+        id: 'stock-samsungtv-default',
         productId: products[1].id,
         storeId: store.id,
         unitId: units[0].id,
@@ -239,16 +227,10 @@ async function main() {
       },
     }),
     prisma.stock.upsert({
-      where: {
-        productId_variantId_storeId_warehouseId: {
-          productId: products[2].id,
-          variantId: null,
-          storeId: store.id,
-          warehouseId: null,
-        },
-      },
+      where: { id: 'stock-ricebag-default' },
       update: { quantity: 100 },
       create: {
+        id: 'stock-ricebag-default',
         productId: products[2].id,
         storeId: store.id,
         unitId: units[1].id,

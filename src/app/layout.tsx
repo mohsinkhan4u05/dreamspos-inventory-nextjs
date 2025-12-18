@@ -9,6 +9,7 @@ import "../style/icons/fontawesome/css/all.min.css";
 import "../style/fonts/feather/css/iconfont.css";
 import BootstrapJs from "../components/bootstrap-js/bootstrapjs";
 import { Providers } from "../components/providers";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ export default function RootLayout({
           <>{children}</>
           <BootstrapJs />
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );

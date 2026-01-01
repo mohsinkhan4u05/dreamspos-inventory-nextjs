@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { InviteUserModal } from "@/components/user-management/InviteUserModal";
+import { UpdatePasswordModal } from "@/components/user-management/UpdatePasswordModal";
 import { Can } from "@/components/rbac/Can";
 
 type UserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "STAFF" | "CASHIER";
@@ -58,10 +60,15 @@ interface UsersApiResponse {
 }
 
 export default function UsersPage() {
+  const { data: session } = useSession();
   const [data, setData] = useState<UsersApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
+
+  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     fetchUsers();
@@ -132,6 +139,11 @@ export default function UsersPage() {
     }
   }
 
+  function handleUpdatePassword(user: UserRow) {
+    setSelectedUser(user);
+    setPasswordModalOpen(true);
+  }
+
   const users = data?.users ?? [];
   const invitations = data?.pendingInvitations ?? [];
 
@@ -200,6 +212,15 @@ export default function UsersPage() {
                   </td>
                   <td>
                     <div className="actions">
+                      {isSuperAdmin && (
+                        <button
+                          className="btn-link"
+                          onClick={() => handleUpdatePassword(user)}
+                          title="Update Password"
+                        >
+                          🔑 Password
+                        </button>
+                      )}
                       <Can resource="users" action="update">
                         <button
                           className="btn-link"
@@ -268,6 +289,26 @@ export default function UsersPage() {
         onClose={() => setInviteOpen(false)}
         onSuccess={fetchUsers}
       />
+
+      {selectedUser && (
+        <UpdatePasswordModal
+          isOpen={passwordModalOpen}
+          onClose={() => {
+            setPasswordModalOpen(false);
+            setSelectedUser(null);
+          }}
+          onSuccess={() => {
+            alert("Password updated successfully");
+            fetchUsers();
+          }}
+          user={{
+            id: selectedUser.id,
+            email: selectedUser.email,
+            firstName: selectedUser.firstName,
+            lastName: selectedUser.lastName,
+          }}
+        />
+      )}
 
       <style jsx>{`
         .page-wrapper {

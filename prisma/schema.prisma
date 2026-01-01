@@ -85,6 +85,21 @@ enum UserRole {
   CASHIER
 }
 
+// Password Update OTP
+model PasswordUpdateOTP {
+  id        String   @id @default(cuid())
+  userId    String
+  adminId   String
+  otpHash   String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, verified])
+  @@index([expiresAt])
+  @@map("password_update_otps")
+}
+
 // Store Management
 model Store {
   id        String   @id @default(cuid())

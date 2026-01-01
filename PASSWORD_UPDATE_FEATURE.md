@@ -5,7 +5,7 @@ This feature allows Super Admin users to update any user's password through the 
 
 ## Features
 - ✅ **Super Admin Only**: Only users with SUPER_ADMIN role can access this feature
-- ✅ **Two-Step Verification**: OTP sent to user's email before password update
+- ✅ **Two-Step Verification**: OTP sent to Super Admin's email (not the target user's email)
 - ✅ **Secure OTP**: 6-digit OTP with SHA-256 hashing and 10-minute expiration
 - ✅ **Email Notifications**: Professional email template with security warnings
 - ✅ **Audit Logging**: All password updates are logged for security tracking
@@ -57,21 +57,23 @@ npx prisma generate
 2. **Request OTP**
    - Modal opens with security notice
    - Super Admin clicks "Send OTP"
-   - System sends 6-digit OTP to user's email
+   - System sends 6-digit OTP to **Super Admin's email address**
    
 3. **Verify OTP and Update Password**
-   - Super Admin enters OTP received by user
-   - Enters new password (minimum 8 characters)
+   - Super Admin checks their email and retrieves the OTP
+   - Enters OTP in the modal
+   - Enters new password for the target user (minimum 8 characters)
    - Confirms password
-   - System verifies OTP and updates password
+   - System verifies OTP and updates the target user's password
 
 ### Security Features
 
 - **OTP Hashing**: OTPs are hashed using SHA-256 before storage
 - **Time-Limited**: OTPs expire after 10 minutes
 - **Single Use**: OTPs are marked as verified after use
-- **Email Verification**: User receives email with OTP and security warning
+- **Email Verification**: Super Admin receives OTP via email with security warning
 - **Audit Trail**: All password updates are logged with admin and user details
+- **Admin Verification**: OTP sent to Super Admin ensures the person making the change is authorized
 
 ## API Endpoints
 
@@ -80,7 +82,7 @@ npx prisma generate
 POST /api/users/[id]/password/request-otp
 ```
 - Requires: SUPER_ADMIN role
-- Sends OTP to user's email
+- Sends OTP to Super Admin's email address
 - Returns: Success message and expiry time
 
 ### Update Password
@@ -129,9 +131,9 @@ model PasswordUpdateOTP {
 
 1. **Happy Path**
    - Super Admin requests OTP
-   - User receives email with OTP
+   - Super Admin receives email with OTP at their own email address
    - Super Admin enters correct OTP and new password
-   - Password is updated successfully
+   - Target user's password is updated successfully
 
 2. **OTP Expiry**
    - Request OTP

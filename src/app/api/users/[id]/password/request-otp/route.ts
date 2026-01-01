@@ -88,29 +88,36 @@ export const POST = withPermission(
         },
       });
 
+      if (!admin) {
+        return NextResponse.json(
+          { error: "Admin user not found" },
+          { status: 404 }
+        );
+      }
+
       // Get organization name
       const orgName = process.env.ORGANIZATION_NAME || "DreamsPOS";
 
-      // Prepare email data
-      const recipientName =
-        user.firstName || user.lastName || user.email.split("@")[0];
-      const adminName = admin
-        ? `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || admin.email
-        : adminUser.email;
+      // Prepare email data - OTP sent to Super Admin
+      const adminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || admin.email;
+      const targetUserName = user.firstName || user.lastName 
+        ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+        : user.email;
 
       const emailData = {
-        recipientName,
-        recipientEmail: user.email,
+        recipientName: adminName,
+        recipientEmail: admin.email,
         otp,
-        adminName,
+        targetUserName,
+        targetUserEmail: user.email,
         organizationName: orgName,
         expiryMinutes: 10,
       };
 
-      // Send OTP email
+      // Send OTP email to Super Admin
       try {
         await sendEmail({
-          to: user.email,
+          to: admin.email,
           subject: `Password Update Verification - ${orgName}`,
           html: generateOTPEmailHTML(emailData),
           text: generateOTPEmailText(emailData),
@@ -125,7 +132,7 @@ export const POST = withPermission(
 
       return NextResponse.json({
         success: true,
-        message: `OTP sent to ${user.email}`,
+        message: `OTP sent to your email (${admin.email})`,
         expiresAt: expiresAt.toISOString(),
       });
     } catch (error) {

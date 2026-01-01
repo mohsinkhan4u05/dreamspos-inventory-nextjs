@@ -153,9 +153,8 @@ export function UpdatePasswordModal({
                 <div>
                   <h3>Two-Step Verification Required</h3>
                   <p>
-                    For security purposes, an OTP will be sent to the user's email
-                    address. You will need to enter this OTP to complete the password
-                    update.
+                    For security purposes, an OTP will be sent to <strong>your email address</strong> (Super Admin). 
+                    You will need to enter this OTP to complete the password update for this user.
                   </p>
                 </div>
               </div>
@@ -191,8 +190,8 @@ export function UpdatePasswordModal({
                 <div>
                   <h3>OTP Sent Successfully</h3>
                   <p>
-                    A 6-digit verification code has been sent to <strong>{user.email}</strong>.
-                    Please enter the code below to proceed.
+                    A 6-digit verification code has been sent to <strong>your email address</strong>.
+                    Please check your inbox and enter the code below to proceed.
                   </p>
                   {expiresAt && (
                     <p className="expiry-text">

@@ -6,7 +6,8 @@ interface OTPEmailData {
   recipientName: string;
   recipientEmail: string;
   otp: string;
-  adminName: string;
+  targetUserName: string;
+  targetUserEmail: string;
   organizationName: string;
   expiryMinutes: number;
 }
@@ -132,7 +133,7 @@ export function generateOTPEmailHTML(data: OTPEmailData): string {
       <div class="greeting">Hi ${data.recipientName},</div>
       
       <div class="message">
-        A Super Admin (<strong>${data.adminName}</strong>) has requested to update your password. 
+        You have requested to update the password for user <strong>${data.targetUserName}</strong> (${data.targetUserEmail}). 
         To verify this action, please use the One-Time Password (OTP) below:
       </div>
       
@@ -144,8 +145,8 @@ export function generateOTPEmailHTML(data: OTPEmailData): string {
       
       <div class="warning-box">
         <p class="warning-text">
-          <strong>⚠️ Security Alert:</strong> If you did not request this password change, 
-          please contact your administrator immediately and do not share this code with anyone.
+          <strong>⚠️ Security Alert:</strong> This OTP is for administrative password reset. 
+          Do not share this code with anyone. If you did not initiate this action, please secure your account immediately.
         </p>
       </div>
       
@@ -178,13 +179,13 @@ export function generateOTPEmailText(data: OTPEmailData): string {
   return `
 Hi ${data.recipientName},
 
-A Super Admin (${data.adminName}) has requested to update your password.
+You have requested to update the password for user ${data.targetUserName} (${data.targetUserEmail}).
 
 Your Verification Code: ${data.otp}
 
 This code will expire in ${data.expiryMinutes} minutes.
 
-⚠️ SECURITY ALERT: If you did not request this password change, please contact your administrator immediately and do not share this code with anyone.
+⚠️ SECURITY ALERT: This OTP is for administrative password reset. Do not share this code with anyone. If you did not initiate this action, please secure your account immediately.
 
 Security Tips:
 - Never share your OTP with anyone

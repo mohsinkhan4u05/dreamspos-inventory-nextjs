@@ -35,6 +35,7 @@ export default withAuth(
           "/invite/accept",
           "/invite",
           "/api/auth",
+          "/api/users/invite",
           "/api/health",
           "/api/test",
           "/api/swagger",

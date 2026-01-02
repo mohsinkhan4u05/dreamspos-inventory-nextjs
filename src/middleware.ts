@@ -32,6 +32,8 @@ export default withAuth(
           "/auth/under-maintenance",
           "/auth/error-404",
           "/auth/error-500",
+          "/invite/accept",
+          "/invite",
           "/api/auth",
           "/api/health",
           "/api/test",

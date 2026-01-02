@@ -67,15 +67,30 @@ export const authOptions = {
     strategy: "jwt" as const,
   },
   callbacks: {
-    async jwt({ token, user }: { token: any; user: any }) {
+    async jwt({ token, user, trigger, session }: any) {
+      // On initial sign-in, seed token from the authenticated user
       if (user) {
-        // Preserve enum role (e.g. SUPER_ADMIN) for RBAC checks
         token.role = user.role
         token.roleId = user.roleId || null
-        // Expose custom role display name separately for UI
         token.roleName = user.customRoleName || null
         token.avatar = user.avatar ?? null
       }
+
+      // When the client calls useSession().update(), refresh avatar (and role info)
+      if (trigger === "update" && token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          include: { customRole: true },
+        })
+
+        if (dbUser) {
+          token.role = dbUser.role
+          token.roleId = dbUser.roleId || null
+          token.roleName = dbUser.customRole?.displayName ?? null
+          token.avatar = dbUser.avatar ?? null
+        }
+      }
+
       return token
     },
     async session({ session, token }: { session: any; token: any }) {

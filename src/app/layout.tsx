@@ -13,12 +13,12 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dreams POS - Inventory Management & Admin Dashboard Template",
+  title: "Bawarchi Masala - Inventory Management Software",
   description:
-    "Dreams POS is a powerful Bootstrap-based Inventory Management Admin Template designed for businesses, offering seamless invoicing, project tracking, and estimates.",
+    "Bawarchi Masala Inventory Management Software is a powerful Inventory Management System designed for managing inventory, sales, and purchases.",
   keywords:
-    "inventory management, admin dashboard, bootstrap template, invoicing, estimates, business management, responsive admin, POS system",
-  authors: [{ name: "Dreams Technologies" }],
+    "Bawarchi Masala Inventory Management Software is a powerful Inventory Management System designed for managing inventory, sales, and purchases.",
+  authors: [{ name: "Bawarchi Masala" }],
   icons: {
     icon: "favicon.png",
     shortcut: "favicon.png", // Add shortcut icon for better support

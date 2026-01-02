@@ -27,16 +27,16 @@ const ThemeSettings = () => {
     dataLayout: Cookies.get("dataLayout") || "default",
     dataWidth: Cookies.get("dataWidth") || "fluid",
     dataTopBar: Cookies.get("dataTopBar") || "white",
-    dataTopBarColor: Cookies.get("dataTopBarColor") || "white",
+    dataTopBarColor: Cookies.get("dataTopBarColor") || "#2c2c2c",
     dataTheme: Cookies.get("dataTheme") || "light",
     dataSidebarAll: Cookies.get("dataSidebarAll") || "",
     dataColorAll: Cookies.get("dataColorAll") || "",
     dataTopBarColorAll: Cookies.get("dataTopBarColorAll") || "",
     dataTopbarAll: Cookies.get("dataTopbarAll") || "",
-    dataSidebar: Cookies.get("dataSidebar") || "light",
+    dataSidebar: Cookies.get("dataSidebar") || "#2c2c2c",
     dataSidebarBg: Cookies.get("dataSidebarBg") || "",
     dataTopbarBg: Cookies.get("dataTopbarBg") || "",
-    dataColor: Cookies.get("dataColor") || "primary",
+    dataColor: Cookies.get("dataColor") || "#d63031",
   });
 
   // Local state for theme settings

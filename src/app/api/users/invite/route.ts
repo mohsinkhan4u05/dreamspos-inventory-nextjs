@@ -89,7 +89,7 @@ export const POST = withPermission("users", "create", async (request, user) => {
     });
 
     // Get organization name (you can make this dynamic from settings)
-    const orgName = process.env.ORGANIZATION_NAME || "DreamsPOS";
+    const orgName = process.env.ORGANIZATION_NAME || "Bawarchi Masala";
 
     // Generate invitation URL
     const baseUrl =

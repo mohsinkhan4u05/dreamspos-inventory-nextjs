@@ -9,8 +9,13 @@ export const dynamic = "force-dynamic";
 export const POST = withPermission(
   "manufacturing",
   "cancel",
-  async (request: NextRequest, user: AuthenticatedUser, context: { params: { id: string } }) => {
-    const { id } = context.params;
+  async (
+    request: NextRequest,
+    user: AuthenticatedUser,
+    context: { params: { id: string } | Promise<{ id: string }> },
+  ) => {
+    const params = await context.params;
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json({ error: "Production order id is required" }, { status: 400 });

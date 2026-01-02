@@ -16,6 +16,8 @@ export default function ProductionOrderDetail() {
   const [data, setData] = useState<ProductionOrderDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const id = params?.id as string | undefined;
 
@@ -26,6 +28,7 @@ export default function ProductionOrderDetail() {
       try {
         setLoading(true);
         setError(null);
+        setActionError(null);
         const response = await productionOrderService.getProductionOrder(id);
         setData(response as ProductionOrderDetailResponse);
       } catch (err) {
@@ -39,6 +42,80 @@ export default function ProductionOrderDetail() {
 
     fetchDetail();
   }, [id]);
+
+  const handleCancel = async () => {
+    if (!id || !data) return;
+
+    try {
+      setActionLoading(true);
+      setActionError(null);
+
+      const res = await fetch(`/api/manufacturing/production-orders/${id}/cancel`, {
+        method: "POST",
+      });
+
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const message =
+          payload?.error ||
+          (res.status === 400
+            ? "Unable to cancel production order"
+            : "Unexpected error while cancelling production order");
+        setActionError(message);
+        return;
+      }
+
+      setData({ ...data, order: payload });
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to cancel production order",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!id || !data) return;
+
+    try {
+      setActionLoading(true);
+      setActionError(null);
+
+      const res = await fetch(
+        `/api/manufacturing/production-orders/${id}/complete`,
+        {
+          method: "POST",
+        },
+      );
+
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const message =
+          payload?.error ||
+          (res.status === 400
+            ? "Unable to complete production order"
+            : "Unexpected error while completing production order");
+        setActionError(message);
+        return;
+      }
+
+      try {
+        const refreshed = await productionOrderService.getProductionOrder(id);
+        setData(refreshed as ProductionOrderDetailResponse);
+      } catch {
+        setData({ ...data, order: payload });
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to complete production order",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (!id) {
     return (
@@ -82,6 +159,31 @@ export default function ProductionOrderDetail() {
           <div className="page-title">
             <h4>Production Order Details</h4>
             <h6>Order #{order.id?.slice(-8) || order.id}</h6>
+          </div>
+          <div className="page-btn d-flex align-items-center gap-2">
+            {actionError && (
+              <span className="text-danger small me-3">{actionError}</span>
+            )}
+            {order.status !== "COMPLETED" && order.status !== "CANCELLED" && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={actionLoading}
+                  onClick={handleComplete}
+                >
+                  {actionLoading ? "Processing..." : "Complete Order"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={actionLoading}
+                  onClick={handleCancel}
+                >
+                  {actionLoading ? "Cancelling..." : "Cancel Order"}
+                </button>
+              </>
+            )}
           </div>
         </div>
 

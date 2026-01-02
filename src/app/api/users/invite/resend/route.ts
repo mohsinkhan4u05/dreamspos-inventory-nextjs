@@ -83,9 +83,11 @@ export const POST = withPermission("users", "create", async (request, user) => {
     const orgName = process.env.ORGANIZATION_NAME || "DreamsPOS";
 
     // Generate invitation URL
-    const baseUrl = process.env.APP_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : "http://localhost:3000";
+    const baseUrl =
+      process.env.APP_URL ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
     const invitationUrl = `${baseUrl}/invite/accept?token=${token}`;
 
     // Prepare email data

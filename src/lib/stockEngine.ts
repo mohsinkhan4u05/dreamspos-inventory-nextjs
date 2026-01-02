@@ -4,6 +4,7 @@ import {
   MovementType,
   PaymentMethod,
   PaymentStatus,
+  ProductionStatus,
   PurchaseOrderStatus,
   PurchaseStatus,
   ReturnStatus,
@@ -1196,6 +1197,274 @@ export async function applyFifoForShipment(
       })
     }
   }
+}
+
+// Manufacturing: complete a production order using FIFO raw material consumption
+// and create finished goods stock/output movements.
+export async function completeProductionOrder(
+  input: { productionOrderId: string; userId: string },
+) {
+  const { productionOrderId } = input
+
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.productionOrder.findUnique({
+      where: { id: productionOrderId },
+      include: {
+        finishedProduct: true,
+        store: true,
+      },
+    })
+
+    if (!order) {
+      throw new Error("PRODUCTION_ORDER_NOT_FOUND")
+    }
+
+    if (order.status === ProductionStatus.COMPLETED) {
+      throw new Error("PRODUCTION_ORDER_ALREADY_COMPLETED")
+    }
+
+    if (order.status === ProductionStatus.CANCELLED) {
+      throw new Error("PRODUCTION_ORDER_CANCELLED")
+    }
+
+    const bomItems = await tx.billOfMaterial.findMany({
+      where: { finishedProductId: order.finishedProductId },
+      include: {
+        rawMaterial: true,
+      },
+    })
+
+    if (bomItems.length === 0) {
+      throw new Error("BOM_NOT_DEFINED_FOR_PRODUCT")
+    }
+
+    const storeId = order.storeId
+
+    type RawConsumptionResult = {
+      rawMaterialId: string
+      quantityRequired: number
+      quantityConsumed: number
+      totalCost: number
+    }
+
+    const consumptionResults: RawConsumptionResult[] = []
+
+    // 1) Consume each raw material according to BOM using FIFO
+    for (const bom of bomItems) {
+      const requiredQty = bom.quantityRequired * order.quantityPlanned
+
+      if (requiredQty <= 0) {
+        continue
+      }
+
+      let stock = await tx.stock.findFirst({
+        where: {
+          productId: bom.rawMaterialId,
+          variantId: null,
+          storeId,
+        },
+      })
+
+      if (!stock) {
+        throw new InsufficientStockError(
+          `INSUFFICIENT_STOCK_RAW_MATERIAL_${bom.rawMaterialId}`,
+        )
+      }
+
+      const stockUpdate = await tx.stock.updateMany({
+        where: {
+          id: stock.id,
+          quantity: {
+            gte: requiredQty,
+          },
+        },
+        data: {
+          quantity: {
+            decrement: requiredQty,
+          },
+        },
+      })
+
+      if (stockUpdate.count === 0) {
+        throw new InsufficientStockError(
+          `INSUFFICIENT_STOCK_RAW_MATERIAL_${bom.rawMaterialId}`,
+        )
+      }
+
+      let remaining = requiredQty
+
+      const layers = await tx.stockLayer.findMany({
+        where: {
+          productId: bom.rawMaterialId,
+          variantId: null,
+          storeId,
+        },
+        orderBy: { createdAt: "asc" },
+      })
+
+      let totalCost = 0
+      let totalQty = 0
+
+      for (const layer of layers) {
+        if (remaining <= 0) break
+        const available = layer.quantity - layer.quantityUsed
+        if (available <= 0) continue
+
+        const useQty = Math.min(available, remaining)
+
+        await tx.stockLayer.update({
+          where: { id: layer.id },
+          data: {
+            quantityUsed: {
+              increment: useQty,
+            },
+          },
+        })
+
+        remaining -= useQty
+        totalQty += useQty
+        totalCost += useQty * layer.unitCost
+      }
+
+      if (remaining > 0) {
+        const product = await tx.product.findUnique({
+          where: { id: bom.rawMaterialId },
+        })
+
+        const fallbackCost = product?.costPrice ?? 0
+        totalCost += remaining * fallbackCost
+        totalQty += remaining
+        remaining = 0
+      }
+
+      const avgUnitCost = totalQty > 0 ? totalCost / totalQty : 0
+
+      await tx.productionConsumption.create({
+        data: {
+          productionOrderId: order.id,
+          rawMaterialId: bom.rawMaterialId,
+          quantityUsed: requiredQty,
+        },
+      })
+
+      await tx.stockMovement.create({
+        data: {
+          productId: bom.rawMaterialId,
+          variantId: null,
+          storeId,
+          warehouseId: stock.warehouseId,
+          unitId: stock.unitId,
+          stockId: stock.id,
+          movementType: MovementType.PRODUCTION_CONSUMPTION,
+          quantity: requiredQty,
+          unitCost: avgUnitCost,
+          totalCost: avgUnitCost * requiredQty,
+          reference: order.id,
+          description: `Production consumption for order ${order.id}`,
+          sourceType: MovementSourceType.PRODUCTION,
+          sourceId: order.id,
+        },
+      })
+
+      consumptionResults.push({
+        rawMaterialId: bom.rawMaterialId,
+        quantityRequired: requiredQty,
+        quantityConsumed: requiredQty,
+        totalCost,
+      })
+    }
+
+    // 2) Create finished goods stock layer and PRODUCTION_OUTPUT movement
+    const totalRawCost = consumptionResults.reduce(
+      (sum, c) => sum + c.totalCost,
+      0,
+    )
+
+    const quantityProduced = order.quantityPlanned
+
+    let finishedStock = await tx.stock.findFirst({
+      where: {
+        productId: order.finishedProductId,
+        variantId: null,
+        storeId,
+      },
+    })
+
+    if (!finishedStock) {
+      finishedStock = await tx.stock.create({
+        data: {
+          productId: order.finishedProductId,
+          variantId: null,
+          storeId,
+          warehouseId: null,
+          unitId: null,
+          quantity: 0,
+          minStock: 0,
+          maxStock: null,
+        },
+      })
+    }
+
+    const newFinishedQty = finishedStock.quantity + quantityProduced
+
+    await tx.stock.update({
+      where: { id: finishedStock.id },
+      data: { quantity: newFinishedQty },
+    })
+
+    const finishedUnitCost =
+      quantityProduced > 0 ? totalRawCost / quantityProduced : 0
+
+    const finishedLayer = await tx.stockLayer.create({
+      data: {
+        productId: order.finishedProductId,
+        variantId: null,
+        storeId,
+        warehouseId: finishedStock.warehouseId,
+        quantity: quantityProduced,
+        quantityUsed: 0,
+        unitCost: finishedUnitCost,
+        sourceType: MovementSourceType.PRODUCTION,
+        sourceId: order.id,
+      },
+    })
+
+    await tx.stockMovement.create({
+      data: {
+        productId: order.finishedProductId,
+        variantId: null,
+        storeId,
+        warehouseId: finishedStock.warehouseId,
+        unitId: finishedStock.unitId,
+        stockId: finishedStock.id,
+        stockLayerId: finishedLayer.id,
+        movementType: MovementType.PRODUCTION_OUTPUT,
+        quantity: quantityProduced,
+        unitCost: finishedUnitCost,
+        totalCost: finishedUnitCost * quantityProduced,
+        reference: order.id,
+        description: `Production output for order ${order.id}`,
+        sourceType: MovementSourceType.PRODUCTION,
+        sourceId: order.id,
+      },
+    })
+
+    const updatedOrder = await tx.productionOrder.update({
+      where: { id: order.id },
+      data: {
+        status: ProductionStatus.COMPLETED,
+        quantityProduced,
+        completedAt: new Date(),
+      },
+      include: {
+        finishedProduct: true,
+        store: true,
+        consumptions: true,
+      },
+    })
+
+    return updatedOrder
+  })
 }
 
 type SalesReturnItemInput = {

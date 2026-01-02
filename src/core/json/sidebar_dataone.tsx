@@ -420,6 +420,28 @@ export const SidebarData1 = [
         route: "/qrcode",
         subRoutes: [],
       },
+      {
+        tittle: 'Manufacturing',
+        hasSubRoute: true,
+        showSubRoute: false,
+        route: "/manufacturing/production-orders",
+        subRoutes: [
+          {
+            tittle: 'Bill of Materials',
+            hasSubRoute: false,
+            showSubRoute: false,
+            route: "/manufacturing/bom",
+            subRoutes: [],
+          },
+          {
+            tittle: 'Production Orders',
+            hasSubRoute: false,
+            showSubRoute: false,
+            route: "/manufacturing/production-orders",
+            subRoutes: [],
+          },
+        ],
+      },
     ],
   },
   {

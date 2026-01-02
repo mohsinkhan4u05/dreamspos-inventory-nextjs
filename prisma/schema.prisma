@@ -21,7 +21,7 @@ model User {
   lastName  String?
   phone     String?
   role      UserRole   @default(STAFF) // Legacy enum role - kept for backward compatibility
-  roleId    String?    // New granular role system
+  roleId    String? // New granular role system
   avatar    String?
   status    UserStatus @default(PENDING)
   isActive  Boolean    @default(true)
@@ -31,11 +31,12 @@ model User {
   updatedAt DateTime   @updatedAt
 
   // Relations
-  posSessions        POSSession[]
-  stockAdjustments   StockAdjustment[]
-  customRole         Role?             @relation(fields: [roleId], references: [id])
-  auditLogs          AuditLog[]
-  invitationsSent    UserInvitation[]  @relation("InvitedBy")
+  posSessions             POSSession[]
+  stockAdjustments        StockAdjustment[]
+  customRole              Role?             @relation(fields: [roleId], references: [id])
+  auditLogs               AuditLog[]
+  invitationsSent         UserInvitation[]  @relation("InvitedBy")
+  productionOrdersCreated ProductionOrder[]
 
   @@map("users")
 }
@@ -113,19 +114,20 @@ model Store {
   updatedAt DateTime @updatedAt
 
   // Relations
-  stocks           Stock[]
-  stockMovements   StockMovement[]
-  posSessions      POSSession[]
-  sales            Sale[]
-  purchases        Purchase[]
-  purchaseOrders   PurchaseOrder[]
-  salesOrders      SalesOrder[]
-  stockAdjustments StockAdjustment[]
-  stockLayers      StockLayer[]      @relation("StoreStockLayers")
-  packages         Package[]
-  shipments        Shipment[]
-  purchaseReceives PurchaseReceive[]
+  stocks            Stock[]
+  stockMovements    StockMovement[]
+  posSessions       POSSession[]
+  sales             Sale[]
+  purchases         Purchase[]
+  purchaseOrders    PurchaseOrder[]
+  salesOrders       SalesOrder[]
+  stockAdjustments  StockAdjustment[]
+  stockLayers       StockLayer[]      @relation("StoreStockLayers")
+  packages          Package[]
+  shipments         Shipment[]
+  purchaseReceives  PurchaseReceive[]
   accountingEntries AccountingEntry[]
+  productionOrders  ProductionOrder[]
 
   @@map("stores")
 }
@@ -202,9 +204,10 @@ model Unit {
 
   // Relations
   products        ProductUnit[]
-  primaryProducts Product[]       @relation("PrimaryUnit")
+  primaryProducts Product[]        @relation("PrimaryUnit")
   stockMovements  StockMovement[]
   stocks          Stock[]
+  billOfMaterials BillOfMaterial[]
 
   @@map("units")
 }
@@ -212,6 +215,9 @@ model Unit {
 enum ItemType {
   GOODS
   SERVICE
+  RAW_MATERIAL
+  FINISHED_GOOD
+  CONSUMABLE
 }
 
 enum InventoryValuationMethod {
@@ -265,24 +271,28 @@ model Product {
   updatedAt             DateTime                 @updatedAt
 
   // Relations
-  brand            Brand?            @relation(fields: [brandId], references: [id])
-  unit             Unit?             @relation("PrimaryUnit", fields: [unitId], references: [id])
-  preferredVendor  Supplier?         @relation("SupplierProducts", fields: [preferredVendorId], references: [id])
-  variants         ProductVariant[]
-  units            ProductUnit[]
-  stocks           Stock[]
-  stockMovements   StockMovement[]
-  stockLayers      StockLayer[]      @relation("ProductStockLayers")
-  gstRates         ProductGST[]
-  saleItems        SaleItem[]
-  salesOrderItems  SalesOrderItem[]
-  purchaseItems    PurchaseItem[]
-  purchaseOrderItems PurchaseOrderItem[]
-  returnItems      ReturnItem[]
-  stockAdjustments StockAdjustment[]
-  packageItems     PackageItem[]
-  shipmentItems    ShipmentItem[]
-  purchaseReceiveItems PurchaseReceiveItem[]
+  brand                  Brand?                  @relation(fields: [brandId], references: [id])
+  unit                   Unit?                   @relation("PrimaryUnit", fields: [unitId], references: [id])
+  preferredVendor        Supplier?               @relation("SupplierProducts", fields: [preferredVendorId], references: [id])
+  variants               ProductVariant[]
+  units                  ProductUnit[]
+  stocks                 Stock[]
+  stockMovements         StockMovement[]
+  stockLayers            StockLayer[]            @relation("ProductStockLayers")
+  gstRates               ProductGST[]
+  saleItems              SaleItem[]
+  salesOrderItems        SalesOrderItem[]
+  purchaseItems          PurchaseItem[]
+  purchaseOrderItems     PurchaseOrderItem[]
+  returnItems            ReturnItem[]
+  stockAdjustments       StockAdjustment[]
+  packageItems           PackageItem[]
+  shipmentItems          ShipmentItem[]
+  purchaseReceiveItems   PurchaseReceiveItem[]
+  bomAsParent            BillOfMaterial[]        @relation("BOMParent")
+  bomAsChild             BillOfMaterial[]        @relation("BOMChild")
+  productionOrders       ProductionOrder[]
+  productionConsumptions ProductionConsumption[]
 
   @@map("products")
 }
@@ -302,16 +312,16 @@ model ProductVariant {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  stocks          Stock[]
-  stockMovements  StockMovement[]
-  saleItems       SaleItem[]
-  returnItems     ReturnItem[]
-  stockLayers     StockLayer[]     @relation("VariantStockLayers")
-  salesOrderItems SalesOrderItem[]
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stocks             Stock[]
+  stockMovements     StockMovement[]
+  saleItems          SaleItem[]
+  returnItems        ReturnItem[]
+  stockLayers        StockLayer[]        @relation("VariantStockLayers")
+  salesOrderItems    SalesOrderItem[]
   purchaseOrderItems PurchaseOrderItem[]
-  packageItems    PackageItem[]
-  shipmentItems   ShipmentItem[]
+  packageItems       PackageItem[]
+  shipmentItems      ShipmentItem[]
 
   @@unique([productId, name])
   @@map("product_variants")
@@ -412,6 +422,8 @@ enum MovementType {
   RETURN_OUT
   DAMAGE
   EXPIRED
+  PRODUCTION_CONSUMPTION
+  PRODUCTION_OUTPUT
 }
 
 enum MovementSourceType {
@@ -423,6 +435,7 @@ enum MovementSourceType {
   SALES_RETURN
   PURCHASE_RETURN
   OTHER
+  PRODUCTION
 }
 
 enum StockAdjustmentType {
@@ -579,11 +592,11 @@ model SalesOrder {
   updatedAt            DateTime         @updatedAt
 
   // Relations
-  customer Customer?        @relation(fields: [customerId], references: [id])
-  store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  items    SalesOrderItem[]
-  invoices Sale[]           @relation("SalesOrderInvoices")
-  packages Package[]
+  customer  Customer?        @relation(fields: [customerId], references: [id])
+  store     Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items     SalesOrderItem[]
+  invoices  Sale[]           @relation("SalesOrderInvoices")
+  packages  Package[]
   shipments Shipment[]
 
   @@index([storeId, orderDate])
@@ -608,10 +621,10 @@ model SalesOrderItem {
   invoicedQuantity Float   @default(0)
 
   // Relations
-  salesOrder SalesOrder      @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  product    Product         @relation(fields: [productId], references: [id])
-  variant    ProductVariant? @relation(fields: [variantId], references: [id])
-  packageItems PackageItem[]
+  salesOrder    SalesOrder      @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product       Product         @relation(fields: [productId], references: [id])
+  variant       ProductVariant? @relation(fields: [variantId], references: [id])
+  packageItems  PackageItem[]
   shipmentItems ShipmentItem[]
 
   @@index([salesOrderId])
@@ -633,9 +646,9 @@ model Payment {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  sale     Sale?       @relation(fields: [saleId], references: [id])
-  purchase Purchase?   @relation(fields: [purchaseId], references: [id])
-  session  POSSession? @relation(fields: [sessionId], references: [id])
+  sale              Sale?             @relation(fields: [saleId], references: [id])
+  purchase          Purchase?         @relation(fields: [purchaseId], references: [id])
+  session           POSSession?       @relation(fields: [sessionId], references: [id])
   accountingEntries AccountingEntry[]
 
   @@map("payments")
@@ -674,30 +687,30 @@ enum AccountingAccountCode {
 }
 
 model AccountingEntry {
-  id               String               @id @default(cuid())
-  date             DateTime             @default(now())
-  storeId          String
-  type             AccountingEntryType
+  id      String              @id @default(cuid())
+  date    DateTime            @default(now())
+  storeId String
+  type    AccountingEntryType
 
   purchaseOrderId   String?
   purchaseReceiveId String?
   purchaseId        String?
   paymentId         String?
 
-  debitAccount      AccountingAccountCode
-  creditAccount     AccountingAccountCode
-  amount            Float
-  currency          String              @default("INR")
-  narration         String?
-  meta              Json?
-  createdAt         DateTime            @default(now())
-  createdById       String?
+  debitAccount  AccountingAccountCode
+  creditAccount AccountingAccountCode
+  amount        Float
+  currency      String                @default("INR")
+  narration     String?
+  meta          Json?
+  createdAt     DateTime              @default(now())
+  createdById   String?
 
-  store             Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  purchaseOrder     PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id])
-  purchaseReceive   PurchaseReceive?    @relation(fields: [purchaseReceiveId], references: [id])
-  purchase          Purchase?           @relation(fields: [purchaseId], references: [id])
-  payment           Payment?            @relation(fields: [paymentId], references: [id])
+  store           Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
+  purchaseReceive PurchaseReceive? @relation(fields: [purchaseReceiveId], references: [id])
+  purchase        Purchase?        @relation(fields: [purchaseId], references: [id])
+  payment         Payment?         @relation(fields: [paymentId], references: [id])
 
   @@index([storeId, date])
   @@index([type, date])
@@ -757,8 +770,8 @@ model Package {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  store      Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  salesOrder SalesOrder    @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   items      PackageItem[]
   shipments  Shipment[]
 
@@ -768,21 +781,21 @@ model Package {
 }
 
 model PackageItem {
-  id               String         @id @default(cuid())
+  id               String   @id @default(cuid())
   packageId        String
   salesOrderItemId String
   productId        String
   variantId        String?
   quantity         Float
-  shippedQuantity  Float          @default(0)
-  createdAt        DateTime       @default(now())
+  shippedQuantity  Float    @default(0)
+  createdAt        DateTime @default(now())
 
   // Relations
-  package       Package       @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  salesOrderItem SalesOrderItem @relation(fields: [salesOrderItemId], references: [id], onDelete: Cascade)
-  product       Product       @relation(fields: [productId], references: [id])
-  variant       ProductVariant? @relation(fields: [variantId], references: [id])
-  shipmentItems ShipmentItem[]
+  package        Package         @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  salesOrderItem SalesOrderItem  @relation(fields: [salesOrderItemId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id])
+  variant        ProductVariant? @relation(fields: [variantId], references: [id])
+  shipmentItems  ShipmentItem[]
 
   @@index([packageId])
   @@index([salesOrderItemId])
@@ -810,9 +823,9 @@ model Shipment {
   updatedAt        DateTime       @updatedAt
 
   // Relations
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  package    Package    @relation(fields: [packageId], references: [id])
-  store      Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  salesOrder SalesOrder     @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  package    Package        @relation(fields: [packageId], references: [id])
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   items      ShipmentItem[]
 
   @@index([salesOrderId])
@@ -822,20 +835,20 @@ model Shipment {
 }
 
 model ShipmentItem {
-  id               String         @id @default(cuid())
+  id               String   @id @default(cuid())
   shipmentId       String
   packageItemId    String
   salesOrderItemId String
   productId        String
   variantId        String?
   quantity         Float
-  createdAt        DateTime       @default(now())
+  createdAt        DateTime @default(now())
 
   // Relations
-  shipment       Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  packageItem    PackageItem   @relation(fields: [packageItemId], references: [id])
-  salesOrderItem SalesOrderItem @relation(fields: [salesOrderItemId], references: [id])
-  product        Product       @relation(fields: [productId], references: [id])
+  shipment       Shipment        @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  packageItem    PackageItem     @relation(fields: [packageItemId], references: [id])
+  salesOrderItem SalesOrderItem  @relation(fields: [salesOrderItemId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
   variant        ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@index([shipmentId])
@@ -845,32 +858,32 @@ model ShipmentItem {
 
 // Purchase Management
 model PurchaseOrder {
-  id                   String              @id @default(cuid())
-  orderNumber          String              @unique
-  supplierId           String?
-  storeId              String
-  referenceNumber      String?
-  orderDate            DateTime            @default(now())
-  expectedReceiptDate  DateTime?
-  paymentTerms         String?
-  deliveryMethod       String?
-  buyer                String?
-  subtotal             Float
-  discount             Float               @default(0)
-  taxAmount            Float               @default(0)
-  adjustment           Float               @default(0)
-  totalAmount          Float
-  status               PurchaseOrderStatus @default(DRAFT)
-  notes                String?
-  terms                String?
-  emailRecipients      String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  id                  String              @id @default(cuid())
+  orderNumber         String              @unique
+  supplierId          String?
+  storeId             String
+  referenceNumber     String?
+  orderDate           DateTime            @default(now())
+  expectedReceiptDate DateTime?
+  paymentTerms        String?
+  deliveryMethod      String?
+  buyer               String?
+  subtotal            Float
+  discount            Float               @default(0)
+  taxAmount           Float               @default(0)
+  adjustment          Float               @default(0)
+  totalAmount         Float
+  status              PurchaseOrderStatus @default(DRAFT)
+  notes               String?
+  terms               String?
+  emailRecipients     String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
-  supplier Supplier?        @relation("supplierPurchaseOrders", fields: [supplierId], references: [id])
-  store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  items    PurchaseOrderItem[]
-  purchaseReceives PurchaseReceive[]
+  supplier          Supplier?           @relation("supplierPurchaseOrders", fields: [supplierId], references: [id])
+  store             Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items             PurchaseOrderItem[]
+  purchaseReceives  PurchaseReceive[]
   accountingEntries AccountingEntry[]
 
   @@index([storeId, orderDate])
@@ -893,9 +906,9 @@ model PurchaseOrderItem {
   receivedQuantity Float   @default(0)
   billedQuantity   Float   @default(0)
 
-  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  product       Product        @relation(fields: [productId], references: [id])
-  variant       ProductVariant? @relation(fields: [variantId], references: [id])
+  purchaseOrder PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product               @relation(fields: [productId], references: [id])
+  variant       ProductVariant?       @relation(fields: [variantId], references: [id])
   receiveItems  PurchaseReceiveItem[]
 
   @@index([purchaseOrderId])
@@ -923,11 +936,11 @@ model Purchase {
   updatedAt     DateTime       @updatedAt
 
   // Relations
-  store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  supplier Supplier?        @relation("supplierPurchases", fields: [supplierId], references: [id])
-  items    PurchaseItem[]
-  payments Payment[]
-  returns  PurchaseReturn[]
+  store             Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier          Supplier?         @relation("supplierPurchases", fields: [supplierId], references: [id])
+  items             PurchaseItem[]
+  payments          Payment[]
+  returns           PurchaseReturn[]
   accountingEntries AccountingEntry[]
 
   @@index([storeId, purchaseDate])
@@ -976,25 +989,25 @@ enum PurchaseOrderStatus {
 }
 
 model PurchaseReceive {
-  id             String                @id @default(cuid())
-  receiveNumber  String                @unique
+  id              String                @id @default(cuid())
+  receiveNumber   String                @unique
   purchaseOrderId String?
-  supplierId     String?
-  storeId        String
-  subtotal       Float
-  discount       Float                 @default(0)
-  taxAmount      Float                 @default(0)
-  totalAmount    Float
-  status         PurchaseReceiveStatus @default(DRAFT)
-  notes          String?
-  receiveDate    DateTime              @default(now())
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  supplierId      String?
+  storeId         String
+  subtotal        Float
+  discount        Float                 @default(0)
+  taxAmount       Float                 @default(0)
+  totalAmount     Float
+  status          PurchaseReceiveStatus @default(DRAFT)
+  notes           String?
+  receiveDate     DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  supplier      Supplier?      @relation("supplierPurchaseReceives", fields: [supplierId], references: [id])
-  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  items         PurchaseReceiveItem[]
+  purchaseOrder     PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
+  supplier          Supplier?             @relation("supplierPurchaseReceives", fields: [supplierId], references: [id])
+  store             Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items             PurchaseReceiveItem[]
   accountingEntries AccountingEntry[]
 
   @@index([storeId, receiveDate])
@@ -1003,20 +1016,20 @@ model PurchaseReceive {
 }
 
 model PurchaseReceiveItem {
-  id                String  @id @default(cuid())
-  purchaseReceiveId String
+  id                  String  @id @default(cuid())
+  purchaseReceiveId   String
   purchaseOrderItemId String?
-  productId         String
-  quantity          Float
-  unitCost          Float
-  totalPrice        Float
-  discount          Float   @default(0)
-  taxRate           Float   @default(0)
-  taxAmount         Float   @default(0)
+  productId           String
+  quantity            Float
+  unitCost            Float
+  totalPrice          Float
+  discount            Float   @default(0)
+  taxRate             Float   @default(0)
+  taxAmount           Float   @default(0)
 
-  purchaseReceive  PurchaseReceive  @relation(fields: [purchaseReceiveId], references: [id], onDelete: Cascade)
+  purchaseReceive   PurchaseReceive    @relation(fields: [purchaseReceiveId], references: [id], onDelete: Cascade)
   purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
-  product          Product          @relation(fields: [productId], references: [id])
+  product           Product            @relation(fields: [productId], references: [id])
 
   @@index([purchaseReceiveId])
   @@map("purchase_receive_items")
@@ -1156,13 +1169,13 @@ model Supplier {
   remarks      String?
 
   // Relations
-  purchases       Purchase[]          @relation("supplierPurchases")
-  purchaseOrders  PurchaseOrder[]     @relation("supplierPurchaseOrders")
-  purchaseReceives PurchaseReceive[] @relation("supplierPurchaseReceives")
-  products        Product[]           @relation("SupplierProducts")
-  addresses       SupplierAddress[]
-  contactPersons  SupplierContactPerson[]
-  activityLogs    SupplierActivityLog[]
+  purchases        Purchase[]              @relation("supplierPurchases")
+  purchaseOrders   PurchaseOrder[]         @relation("supplierPurchaseOrders")
+  purchaseReceives PurchaseReceive[]       @relation("supplierPurchaseReceives")
+  products         Product[]               @relation("SupplierProducts")
+  addresses        SupplierAddress[]
+  contactPersons   SupplierContactPerson[]
+  activityLogs     SupplierActivityLog[]
 
   @@map("suppliers")
 }
@@ -1240,35 +1253,35 @@ model Biller {
 }
 
 model OrganizationProfile {
-  id                  String   @id @default(cuid())
-  name                String
-  industry            String?
-  location            String
-  addressLine1        String
-  addressLine2        String?
-  city                String
-  state               String
-  zipCode             String
-  websiteUrl          String?
+  id           String  @id @default(cuid())
+  name         String
+  industry     String?
+  location     String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  zipCode      String
+  websiteUrl   String?
 
   primaryContactName  String
   primaryContactEmail String
   primaryContactPhone String?
 
-  baseCurrency        String
-  fiscalYear          String
-  language            String
-  communicationLang   String
-  timezone            String
-  dateFormat          String
-  companyId           String?
+  baseCurrency      String
+  fiscalYear        String
+  language          String
+  communicationLang String
+  timezone          String
+  dateFormat        String
+  companyId         String?
 
-  logoUrl             String?
+  logoUrl String?
 
-  customFields        Json?
+  customFields Json?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("organization_profiles")
 }
@@ -1395,20 +1408,80 @@ model StockAdjustment {
   @@map("stock_adjustments")
 }
 
+// Manufacturing - Bill of Materials
+model BillOfMaterial {
+  id                String @id @default(cuid())
+  finishedProductId String
+  rawMaterialId     String
+  quantityRequired  Float
+  unitId            String
+
+  finishedProduct Product @relation("BOMParent", fields: [finishedProductId], references: [id], onDelete: Cascade)
+  rawMaterial     Product @relation("BOMChild", fields: [rawMaterialId], references: [id])
+  unit            Unit    @relation(fields: [unitId], references: [id])
+
+  @@unique([finishedProductId, rawMaterialId])
+  @@map("bill_of_materials")
+}
+
+// Manufacturing - Production Orders
+model ProductionOrder {
+  id                String           @id @default(cuid())
+  finishedProductId String
+  storeId           String
+  quantityPlanned   Float
+  quantityProduced  Float?
+  status            ProductionStatus @default(DRAFT)
+  notes             String?
+  createdById       String
+  createdAt         DateTime         @default(now())
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+
+  finishedProduct Product                 @relation(fields: [finishedProductId], references: [id])
+  store           Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdBy       User                    @relation(fields: [createdById], references: [id])
+  consumptions    ProductionConsumption[]
+
+  @@index([finishedProductId, storeId, status, createdAt])
+  @@map("production_orders")
+}
+
+enum ProductionStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Manufacturing - Raw Material Consumption per Production Order
+model ProductionConsumption {
+  id                String @id @default(cuid())
+  productionOrderId String
+  rawMaterialId     String
+  quantityUsed      Float
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  rawMaterial     Product         @relation(fields: [rawMaterialId], references: [id])
+
+  @@index([productionOrderId])
+  @@map("production_consumptions")
+}
+
 // ============================================
 // RBAC System - Role-Based Access Control
 // ============================================
 
 // Role model - supports both system roles and custom roles
 model Role {
-  id            String   @id @default(cuid())
-  name          String   @unique
-  displayName   String
-  description   String?
-  isSystemRole  Boolean  @default(false) // System roles cannot be deleted
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String   @unique
+  displayName  String
+  description  String?
+  isSystemRole Boolean  @default(false) // System roles cannot be deleted
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   users           User[]
@@ -1422,8 +1495,8 @@ model Role {
 // Permission model - granular permissions for resources
 model Permission {
   id          String   @id @default(cuid())
-  resource    String   // e.g., "sales", "purchase", "inventory"
-  action      String   // e.g., "read", "create", "update", "delete", "approve", "email", "export"
+  resource    String // e.g., "sales", "purchase", "inventory"
+  action      String // e.g., "read", "create", "update", "delete", "approve", "email", "export"
   description String?
   createdAt   DateTime @default(now())
 
@@ -1457,11 +1530,11 @@ model AuditLog {
   id          String   @id @default(cuid())
   userId      String?
   roleId      String?
-  action      String   // e.g., "role.created", "permission.updated", "user.role_assigned"
-  resource    String?  // e.g., "role", "user", "inventory"
+  action      String // e.g., "role.created", "permission.updated", "user.role_assigned"
+  resource    String? // e.g., "role", "user", "inventory"
   resourceId  String?
   description String?
-  metadata    Json?    // Additional context data
+  metadata    Json? // Additional context data
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())

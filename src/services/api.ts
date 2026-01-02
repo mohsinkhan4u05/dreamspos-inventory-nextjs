@@ -97,6 +97,72 @@ export const productService = {
   },
 }
 
+// Manufacturing - Production Order & BOM API services
+export const productionOrderService = {
+  async getProductionOrders(params?: {
+    page?: number
+    limit?: number
+    storeId?: string
+    status?: string
+    finishedProductId?: string
+  }) {
+    const searchParams = new URLSearchParams()
+
+    if (params?.page) searchParams.set("page", params.page.toString())
+    if (params?.limit) searchParams.set("limit", params.limit.toString())
+    if (params?.storeId) searchParams.set("storeId", params.storeId)
+    if (params?.status) searchParams.set("status", params.status)
+    if (params?.finishedProductId)
+      searchParams.set("finishedProductId", params.finishedProductId)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/manufacturing/production-orders${query ? `?${query}` : ""}`)
+  },
+
+  async getProductionOrder(id: string) {
+    return fetchAPI(`/manufacturing/production-orders/${id}`)
+  },
+
+  async createProductionOrder(data: Record<string, unknown>) {
+    return fetchAPI("/manufacturing/production-orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  async completeProductionOrder(id: string) {
+    return fetchAPI(`/manufacturing/production-orders/${id}/complete`, {
+      method: "POST",
+    })
+  },
+
+  async cancelProductionOrder(id: string) {
+    return fetchAPI(`/manufacturing/production-orders/${id}/cancel`, {
+      method: "POST",
+    })
+  },
+}
+
+export const bomService = {
+  async getBom(finishedProductId: string) {
+    return fetchAPI(`/manufacturing/bom/${finishedProductId}`)
+  },
+
+  async saveBom(
+    finishedProductId: string,
+    items: Array<{
+      rawMaterialId: string
+      unitId: string
+      quantityRequired: number
+    }>,
+  ) {
+    return fetchAPI("/manufacturing/bom", {
+      method: "POST",
+      body: JSON.stringify({ finishedProductId, items }),
+    })
+  },
+}
+
 // Category API services
 export const categoryService = {
   async getCategories(params?: {

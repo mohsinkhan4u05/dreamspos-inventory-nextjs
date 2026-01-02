@@ -141,6 +141,7 @@ export const SidebarData = [
         showSubRoute: false,
         submenu: false,
       },
+      
      
       // {
       //   label: "Expired Products",
@@ -221,36 +222,84 @@ export const SidebarData = [
       // },
     ],
   },
-  // {
-  //   label: "Stock",
-  //   submenuOpen: true,
-  //   submenuHdr: "Stock",
-  //   submenu: true,
-  //   showSubRoute: false,
-  //   submenuItems: [
-  //     {
-  //       label: "Manage Stock",
-  //       link: "/manage-stocks",
-  //       icon: "stack-3",
+    {
+    label: "Manufacturing",
+    submenuOpen: true,
+    showSubRoute: false,
+    submenuHdr: "Manufacturing",
+    submenuItems: [
+      {
+        label: "Proudction Orders",
+        link: "/manufacturing/production-orders",
+        icon: "shield-up",
+        showSubRoute: false,
+        submenu: false,
+        permissionResource: "users",
+        permissionAction: "read",
+      },
+      {
+        label: "Bill of Materials",
+        link: "/manufacturing/bom",
+        icon: "jump-rope",
+        showSubRoute: false,
+        submenu: false,
+        permissionResource: "roles",
+        permissionAction: "read",
+      },
+    ],
+  },
+  //  {
+  //       title: 'Manufacturing',
+  //       hasSubRoute: true,
   //       showSubRoute: false,
-  //       submenu: false,
+  //       route: "/manufacturing/production-orders",
+  //       subRoutes: [
+  //         {
+  //           title: 'Bill of Materials',
+  //           hasSubRoute: false,
+  //           showSubRoute: false,
+  //           route: "/manufacturing/bom",
+  //           subRoutes: [],
+  //         },
+  //         {
+  //           title: 'Production Orders',
+  //           hasSubRoute: false,
+  //           showSubRoute: false,
+  //           route: "/manufacturing/production-orders",
+  //           subRoutes: [],
+  //         },
+  //       ],
   //     },
-  //     {
-  //       label: "Stock Adjustment",
-  //       link: "/stock-adjustment",
-  //       icon: "stairs-up",
-  //       showSubRoute: false,
-  //       submenu: false,
-  //     },
-  //     {
-  //       label: "Stock Transfer",
-  //       link: "/stock-transfer",
-  //       icon: "stack-pop",
-  //       showSubRoute: false,
-  //       submenu: false,
-  //     },
-  //   ],
-  // },
+  {
+    label: "Stock",
+    submenuOpen: true,
+    submenuHdr: "Stock",
+    submenu: true,
+    showSubRoute: false,
+    submenuItems: [
+      {
+        label: "Manage Stock",
+        link: "/manage-stocks",
+        icon: "stack-3",
+        showSubRoute: false,
+        submenu: false,
+      },
+      {
+        label: "Stock Adjustment",
+        link: "/stock-adjustment",
+        icon: "stairs-up",
+        showSubRoute: false,
+        submenu: false,
+      },
+      {
+        label: "Stock Transfer",
+        link: "/stock-transfer",
+        icon: "stack-pop",
+        showSubRoute: false,
+        submenu: false,
+      },
+    ],
+  },
   {
     label: "Sales",
     submenuOpen: true,

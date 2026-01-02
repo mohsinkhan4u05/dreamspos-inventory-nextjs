@@ -8,7 +8,7 @@ import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import { useProducts } from "@/hooks/useProducts";
 import Brand from "@/core/modals/inventory/brand";
 import { all_routes } from "@/data/all_routes";
-import { Download, Edit, Eye, Trash2 } from "react-feather";
+import { Download, Edit, Eye, Trash2, GitMerge } from "react-feather";
 import Link from "next/link";
 import { productService } from "@/services/api";
 import { formatCurrencyINR } from "@/lib/currency";
@@ -125,6 +125,12 @@ export default function ProductListComponent() {
           <div className="edit-delete-action">
             <Link className="me-2 p-2" href={`/item/${record.id}`}>
               <Eye className="feather-view" />
+            </Link>
+            <Link
+              className="me-2 p-2"
+              href={`${route.manufacturingBOM}?productId=${record.id}`}
+            >
+              <GitMerge className="feather-edit" />
             </Link>
             <Link className="me-2 p-2" href={`${route.editproduct}/${record.id}`}>
               <Edit className="feather-edit" />

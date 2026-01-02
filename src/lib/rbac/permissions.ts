@@ -1,7 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { User, UserRole } from "@prisma/client";
 
-export type PermissionAction = "read" | "create" | "update" | "delete" | "approve" | "email" | "export" | "manage" | "adjust";
+export type PermissionAction =
+  | "read"
+  | "create"
+  | "update"
+  | "delete"
+  | "approve"
+  | "email"
+  | "export"
+  | "manage"
+  | "adjust"
+  | "complete"
+  | "cancel";
 export type PermissionResource =
   | "sales"
   | "purchase"
@@ -16,7 +27,8 @@ export type PermissionResource =
   | "roles"
   | "settings"
   | "products"
-  | "stores";
+  | "stores"
+  | "manufacturing";
 
 export interface Permission {
   resource: PermissionResource;
@@ -244,6 +256,11 @@ const ENUM_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: "stores", action: "update" },
     // Settings
     { resource: "settings", action: "read" },
+    // Manufacturing
+    { resource: "manufacturing", action: "read" },
+    { resource: "manufacturing", action: "create" },
+    { resource: "manufacturing", action: "complete" },
+    { resource: "manufacturing", action: "cancel" },
   ],
 
   MANAGER: [
@@ -296,6 +313,10 @@ const ENUM_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: "products", action: "export" },
     // Stores
     { resource: "stores", action: "read" },
+    // Manufacturing (no cancel for managers by default)
+    { resource: "manufacturing", action: "read" },
+    { resource: "manufacturing", action: "create" },
+    { resource: "manufacturing", action: "complete" },
   ],
 
   STAFF: [

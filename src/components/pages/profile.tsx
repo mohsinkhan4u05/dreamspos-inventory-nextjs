@@ -5,9 +5,11 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 import React, { useEffect, useState } from "react";
 import { UploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
+import { useSession } from "next-auth/react";
 
 
 export default function ProfileComponent () {
+  const { update } = useSession();
   const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -276,6 +278,13 @@ export default function ProfileComponent () {
       setAvatar(updated.avatar);
       setInitialProfile(updated);
       setSuccess("Profile updated successfully.");
+
+      // Refresh NextAuth session so header avatar & user info update immediately
+      try {
+        await update();
+      } catch {
+        // Ignore session update errors; UI will still work with updated profile data
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to update profile",

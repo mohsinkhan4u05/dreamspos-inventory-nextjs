@@ -295,6 +295,36 @@ export default function CompanySettingsComponent() {
     setDateFormat(organization.dateFormat || "DD-MMM-YYYY");
     setCompanyId(organization.companyId || "");
 
+    // Initialize selects for country, state, and city based on saved organization data
+    // Country is fixed to India in the UI, but only set if organization has a location
+    if (organization.location) {
+      setCountryValue(INDIA_COUNTRY_OPTION);
+    }
+
+    // Map saved state (stored as label) back to INDIA_STATES option
+    if (organization.state) {
+      const matchedState = INDIA_STATES.find(
+        (opt) => opt.label.toLowerCase() === organization.state.toLowerCase(),
+      );
+
+      if (matchedState) {
+        setStateValue(matchedState);
+
+        // Map saved city (stored as label) back to CITY_OPTIONS_BY_STATE option
+        if (organization.city) {
+          const possibleCities =
+            CITY_OPTIONS_BY_STATE[matchedState.value] || [];
+          const matchedCity = possibleCities.find(
+            (opt) => opt.label.toLowerCase() === organization.city!.toLowerCase(),
+          );
+
+          if (matchedCity) {
+            setCityValue(matchedCity);
+          }
+        }
+      }
+    }
+
     setInitialized(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organization, initialized]);

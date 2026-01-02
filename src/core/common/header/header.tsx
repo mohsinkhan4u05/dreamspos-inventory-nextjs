@@ -341,15 +341,6 @@ export default function Header() {
                 </div>
               </div>
             </li>
-            <li className="nav-item pos-nav">
-              <Link
-                href={route.pos}
-                className="btn btn-dark btn-md d-inline-flex align-items-center"
-              >
-                <i className="ti ti-device-laptop me-1" />
-                POS
-              </Link>
-            </li>
 
             {/* /Flag dropdown removed per requirements */}
             <li className="nav-item nav-item-box">
@@ -478,7 +469,7 @@ export default function Header() {
             </li>
             {/* /Notifications */}
             <li className="nav-item nav-item-box">
-              <Link href="/general-settings">
+              <Link href="/company-settings">
                 {/* <i data-feather="settings" /> */}
                 <i className="ti ti-settings"></i>
               </Link>
@@ -513,10 +504,6 @@ export default function Header() {
                   <i className="ti ti-user-circle me-2" />
                   MyProfile
                 </Link>
-                <Link className="dropdown-item" href={route.generalsettings}>
-                  <i className="ti ti-settings-2 me-2" />
-                  Settings
-                </Link>
                 <hr className="my-2" />
                 <Link className="dropdown-item logout pb-0" href="#" onClick={handleLogout}>
                   <i className="ti ti-logout me-2" />
@@ -539,9 +526,6 @@ export default function Header() {
             <div className="dropdown-menu dropdown-menu-right">
               <Link className="dropdown-item" href="profile">
                 My Profile
-              </Link>
-              <Link className="dropdown-item" href="generalsettings">
-                Settings
               </Link>
               <Link className="dropdown-item" href="#" onClick={handleLogout}>
                 Logout

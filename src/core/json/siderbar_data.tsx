@@ -477,7 +477,7 @@ export const SidebarData = [
         submenu: false,
       },
       {
-        label: "Add Purchase (POS Style)",
+        label: "Add Purchase",
         link: route.purchaseorderadd2,
         icon: "file-unknown",
         showSubRoute: false,

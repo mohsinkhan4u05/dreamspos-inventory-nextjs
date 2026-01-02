@@ -56,6 +56,7 @@ export const authOptions = {
           role: user.role,
           roleId: user.roleId,
           customRoleName: user.customRole?.displayName ?? null,
+          avatar: user.avatar ?? null,
         } as any;
 
         return authUser
@@ -73,6 +74,7 @@ export const authOptions = {
         token.roleId = user.roleId || null
         // Expose custom role display name separately for UI
         token.roleName = user.customRoleName || null
+        token.avatar = user.avatar ?? null
       }
       return token
     },
@@ -82,6 +84,7 @@ export const authOptions = {
         session.user.role = token.role as string
         session.user.roleId = (token.roleId as string | null) ?? null
         session.user.roleName = (token.roleName as string | null) ?? null
+        session.user.image = (token.avatar as string | null) ?? null
       }
       return session
     },

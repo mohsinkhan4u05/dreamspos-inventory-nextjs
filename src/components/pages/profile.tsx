@@ -3,6 +3,8 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useEffect, useState } from "react";
+import { UploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 
 export default function ProfileComponent () {
@@ -24,6 +26,10 @@ export default function ProfileComponent () {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordStep, setPasswordStep] = useState<"request" | "verify">(
+    "request",
+  );
+  const [otp, setOtp] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
@@ -42,30 +48,15 @@ export default function ProfileComponent () {
     setPasswordVisible((prevState) => !prevState);
   };
 
-  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
+  const handleAvatarUploadComplete = (res: Array<{ url: string }>) => {
+    const file = res?.[0];
+    if (!file?.url) {
       return;
     }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Avatar must be smaller than 2 MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : null;
-      if (result) {
-        setAvatar(result);
-        setAvatarDirty(true);
-        setSuccess(null);
-      }
-    };
-    reader.onerror = () => {
-      setError("Failed to read selected image.");
-    };
-    reader.readAsDataURL(file);
+    setAvatar(file.url);
+    setAvatarDirty(true);
+    setError(null);
+    setSuccess(null);
   };
 
   const handleAvatarClear = () => {
@@ -73,12 +64,54 @@ export default function ProfileComponent () {
     setAvatarDirty(true);
   };
 
-  const handleChangePassword = async () => {
+  const handleRequestPasswordOTP = async () => {
     setPasswordError(null);
     setPasswordSuccess(null);
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError("Please fill in all password fields.");
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+
+      const res = await fetch("/api/profile/password/request-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ currentPassword }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to request OTP");
+      }
+
+      setPasswordSuccess(data?.message || "OTP sent to your email.");
+      setPasswordStep("verify");
+    } catch (err) {
+      setPasswordError(
+        err instanceof Error ? err.message : "Failed to request OTP",
+      );
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleVerifyPasswordOTP = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!otp || otp.length !== 6) {
+      setPasswordError("Please enter a valid 6-digit OTP.");
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters long.");
       return;
     }
 
@@ -87,34 +120,32 @@ export default function ProfileComponent () {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters long.");
-      return;
-    }
-
     try {
       setPasswordSaving(true);
 
-      const res = await fetch("/api/profile/change-password", {
+      const res = await fetch("/api/profile/password/update", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({ otp, newPassword }),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to change password");
+        throw new Error(data?.error || "Failed to update password");
       }
 
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setOtp("");
+      setPasswordStep("request");
       setPasswordSuccess("Password updated successfully.");
     } catch (err) {
       setPasswordError(
-        err instanceof Error ? err.message : "Failed to change password",
+        err instanceof Error ? err.message : "Failed to update password",
       );
     } finally {
       setPasswordSaving(false);
@@ -292,11 +323,20 @@ export default function ProfileComponent () {
               </div>
               <div className="mb-3">
                 <div className="image-upload mb-0 d-inline-flex">
-                  <input type="file" onChange={handleAvatarFileChange} />
-                  <div className="btn btn-primary fs-13">Change Image</div>
+                  <UploadButton<OurFileRouter, "profileAvatar">
+                    endpoint="profileAvatar"
+                    onUploadBegin={() => {
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    onClientUploadComplete={handleAvatarUploadComplete}
+                    onUploadError={(error) => {
+                      setError(error?.message || "Failed to upload image");
+                    }}
+                  />
                 </div>
                 <p className="mt-2">
-                  Upload an image below 2 MB, Accepted File format JPG, PNG
+                  Upload an image below 2 MB. Accepted file formats: JPG, PNG.
                 </p>
               </div>
             </div>
@@ -404,56 +444,88 @@ export default function ProfileComponent () {
                     className="form-control"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    disabled={passwordSaving}
+                    disabled={passwordSaving || passwordStep === "verify"}
                   />
                 </div>
               </div>
-              <div className="col-lg-4 col-sm-12">
-                <div className="mb-3">
-                  <label className="form-label">
-                    New Password<span className="text-danger ms-1">*</span>
-                  </label>
-                  <div className="pass-group">
-                    <input
-                      type={isPasswordVisible ? "text" : "password"}
-                      className="form-control"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      disabled={passwordSaving}
-                    />
-                    <span
-                      className={`ti toggle-password ${
-                        isPasswordVisible ? "ti-eye" : "ti-eye-off"
-                      }`}
-                      onClick={togglePasswordVisibility}
-                    ></span>
+              {passwordStep === "verify" && (
+                <>
+                  <div className="col-lg-4 col-sm-12">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        OTP Code<span className="text-danger ms-1">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={otp}
+                        onChange={(e) =>
+                          setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                        }
+                        maxLength={6}
+                        disabled={passwordSaving}
+                      />
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="col-lg-4 col-sm-12">
-                <div className="mb-3">
-                  <label className="form-label">
-                    Confirm New Password
-                    <span className="text-danger ms-1">*</span>
-                  </label>
-                  <input
-                    type={isPasswordVisible ? "text" : "password"}
-                    className="form-control"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={passwordSaving}
-                  />
-                </div>
-              </div>
+                  <div className="col-lg-4 col-sm-12">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        New Password<span className="text-danger ms-1">*</span>
+                      </label>
+                      <div className="pass-group">
+                        <input
+                          type={isPasswordVisible ? "text" : "password"}
+                          className="form-control"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          disabled={passwordSaving}
+                        />
+                        <span
+                          className={`ti toggle-password ${
+                            isPasswordVisible ? "ti-eye" : "ti-eye-off"
+                          }`}
+                          onClick={togglePasswordVisibility}
+                        ></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-lg-4 col-sm-12">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Confirm New Password
+                        <span className="text-danger ms-1">*</span>
+                      </label>
+                      <input
+                        type={isPasswordVisible ? "text" : "password"}
+                        className="form-control"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={passwordSaving}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="col-12 d-flex justify-content-end mb-3">
-                <button
-                  type="button"
-                  className="btn btn-primary shadow-none"
-                  onClick={handleChangePassword}
-                  disabled={passwordSaving}
-                >
-                  {passwordSaving ? "Updating Password..." : "Change Password"}
-                </button>
+                {passwordStep === "request" ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary shadow-none"
+                    onClick={handleRequestPasswordOTP}
+                    disabled={passwordSaving}
+                  >
+                    {passwordSaving ? "Sending OTP..." : "Send OTP"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary shadow-none"
+                    onClick={handleVerifyPasswordOTP}
+                    disabled={passwordSaving}
+                  >
+                    {passwordSaving ? "Updating Password..." : "Update Password"}
+                  </button>
+                )}
               </div>
               <div className="col-12 d-flex justify-content-end">
                 <button

@@ -13,6 +13,9 @@ export const ourFileRouter = {
   organizationLogo: f({
     image: { maxFileSize: "2MB", maxFileCount: 1 },
   }).onUploadComplete(() => {}),
+  profileAvatar: f({
+    image: { maxFileSize: "2MB", maxFileCount: 1 },
+  }).onUploadComplete(() => {}),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

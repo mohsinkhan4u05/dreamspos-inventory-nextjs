@@ -123,16 +123,7 @@ export default function PackageComponent(){
                     <img src="assets/img/icons/pdf.svg" alt="img" />
                   </Link>
                 </li>
-                <li>
-                  <Link href="#" data-bs-toggle="tooltip" data-bs-placement="top" title="Excel">
-                    <img src="assets/img/icons/excel.svg" alt="img" />
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" data-bs-toggle="tooltip" data-bs-placement="top" title="Refresh">
-                    <i data-feather="rotate-ccw" className="feather-rotate-ccw" />
-                  </Link>
-                </li>
+                {/* Excel and Refresh icons removed as per requirements */}
                 <li>
                   <Link href="#"
                     data-bs-toggle="tooltip"

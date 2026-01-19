@@ -95,7 +95,7 @@ export default function SigninThreeComponent () {
                             Sign In
                           </button>
                         </div>
-                        <div className="signinform">
+                        {/* <div className="signinform">
                           <h4>
                             New on our platform?
                             <Link href={route.register} className="hover-a">
@@ -146,7 +146,7 @@ export default function SigninThreeComponent () {
                               </Link>
                             </div>
                           </div>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                   </form>

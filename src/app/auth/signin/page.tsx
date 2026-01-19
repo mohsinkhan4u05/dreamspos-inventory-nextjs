@@ -150,7 +150,7 @@ export default function Login() {
                   {isLoading ? "Signing In..." : "Sign In"}
                 </button>
               </div>
-              <div className="signinform">
+              {/* <div className="signinform">
                 <h4>
                   New on our platform?
                   <Link href={route.register} className="hover-a">
@@ -158,7 +158,7 @@ export default function Login() {
                     Create an account
                   </Link>
                 </h4>
-              </div>
+              </div> */}
                         
               <div className="my-4 d-flex justify-content-center align-items-center copyright-text">
                 <p>Copyright 2025 | Bawarchi Masala Invetory Management System</p>

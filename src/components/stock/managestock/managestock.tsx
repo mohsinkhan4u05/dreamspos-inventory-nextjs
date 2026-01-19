@@ -91,17 +91,20 @@ export default function ManageStockComponent() {
     {
       title: "Warehouse",
       dataIndex: "Warehouse",
+      priority: "optional",
       sorter: (a: any, b: any) =>
         (a.Warehouse || "").localeCompare(b.Warehouse || ""),
     },
     {
       title: "Shop",
       dataIndex: "Shop",
+      priority: "always",
       sorter: (a: any, b: any) => (a.Shop || "").localeCompare(b.Shop || ""),
     },
     {
       title: "Product",
       dataIndex: "Product",
+      priority: "always",
       render: (text: any, record: any) => (
         <span className="userimgname">
           <Link href="#" className="product-img">
@@ -117,6 +120,7 @@ export default function ManageStockComponent() {
     {
       title: "Date",
       dataIndex: "Date",
+      priority: "desktop",
       sorter: (a: any, b: any) =>
         new Date(a.Date).getTime() - new Date(b.Date).getTime(),
     },
@@ -124,12 +128,15 @@ export default function ManageStockComponent() {
     {
       title: "Qty",
       dataIndex: "Quantity",
+      priority: "always",
       sorter: (a: any, b: any) => a.Quantity - b.Quantity,
     },
 
     {
       title: "",
       dataIndex: "action",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: any, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

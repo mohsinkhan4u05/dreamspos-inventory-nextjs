@@ -83,6 +83,7 @@ export default function ProductionOrderList() {
     {
       title: "Date",
       dataIndex: "createdAt",
+      priority: "desktop",
       render: (_: unknown, record: ProductionOrder) =>
         formatDate(record.createdAt),
       sorter: (a: ProductionOrder, b: ProductionOrder) =>
@@ -91,6 +92,7 @@ export default function ProductionOrderList() {
     {
       title: "Order#",
       dataIndex: "id",
+      priority: "always",
       render: (_: unknown, record: ProductionOrder) => (
         <Link
           href={`${route.manufacturingProductionOrders}/${record.id}`}
@@ -104,6 +106,7 @@ export default function ProductionOrderList() {
     {
       title: "Finished Product",
       dataIndex: "finishedProduct",
+      priority: "always",
       render: (_: unknown, record: ProductionOrder) =>
         record.finishedProduct?.name || "-",
       sorter: (a: ProductionOrder, b: ProductionOrder) =>
@@ -112,6 +115,7 @@ export default function ProductionOrderList() {
     {
       title: "Store",
       dataIndex: "store",
+      priority: "optional",
       render: (_: unknown, record: ProductionOrder) => record.store?.name || "-",
       sorter: (a: ProductionOrder, b: ProductionOrder) =>
         (a.store?.name || "").localeCompare(b.store?.name || ""),
@@ -119,6 +123,7 @@ export default function ProductionOrderList() {
     {
       title: "Planned Qty",
       dataIndex: "quantityPlanned",
+      priority: "always",
       render: (value: number) => value,
       sorter: (a: ProductionOrder, b: ProductionOrder) =>
         a.quantityPlanned - b.quantityPlanned,
@@ -126,6 +131,7 @@ export default function ProductionOrderList() {
     {
       title: "Produced Qty",
       dataIndex: "quantityProduced",
+      priority: "optional",
       render: (_: unknown, record: ProductionOrder) => record.quantityProduced ?? "-",
       sorter: (a: ProductionOrder, b: ProductionOrder) =>
         (a.quantityProduced || 0) - (b.quantityProduced || 0),
@@ -133,6 +139,7 @@ export default function ProductionOrderList() {
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: string) => (
         <span className="badge badge-soft-info badge-xs shadow-none">
           <i className="ti ti-point-filled me-1" />
@@ -145,6 +152,8 @@ export default function ProductionOrderList() {
     {
       title: "Actions",
       dataIndex: "actions",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: unknown, record: ProductionOrder) => {
         const disabled =
           actionLoadingId === record.id ||

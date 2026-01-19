@@ -85,7 +85,7 @@ export default function SigninTwoComponent () {
                         Sign In
                       </button>
                     </div>
-                    <div className="signinform">
+                    {/* <div className="signinform">
                       <h4>
                         New on our platform?
                         <Link href={route.registerTwo} className="hover-a">
@@ -139,7 +139,7 @@ export default function SigninTwoComponent () {
                       <div className="my-4 d-flex justify-content-center align-items-center copyright-text">
                         <p>Copyright © 2025 DreamsPOS</p>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </form>
               </div>

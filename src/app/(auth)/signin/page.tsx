@@ -148,7 +148,7 @@ export default function Login() {
                       {isLoading ? "Signing In..." : "Sign In"}
                     </button>
                   </div>
-                  <div className="signinform">
+                  {/* <div className="signinform">
                     <h4>
                       New on our platform?
                       <Link href={route.register} className="hover-a">
@@ -156,8 +156,8 @@ export default function Login() {
                         Create an account
                       </Link>
                     </h4>
-                  </div>
-                  <div className="form-setlogin or-text">
+                  </div> */}
+                  {/* <div className="form-setlogin or-text">
                     <h4>OR</h4>
                   </div>
                   <div className="mt-2">
@@ -199,7 +199,7 @@ export default function Login() {
                         </Link>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                   <div className="my-4 d-flex justify-content-center align-items-center copyright-text">
                     <p>Copyright © 2025 DreamsPOS</p>
                   </div>

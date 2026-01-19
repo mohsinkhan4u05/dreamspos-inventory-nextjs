@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useSalesOrders } from "@/hooks/useSalesOrders";
+import Table from "@/core/common/pagination/datatable";
 
 export default function ShipmentsListPage() {
   const { orders, loading, error } = useSalesOrders({});
@@ -54,6 +55,75 @@ export default function ShipmentsListPage() {
     });
   });
 
+  const columns = [
+    {
+      title: "Shipment #",
+      dataIndex: "shipmentNumber",
+      priority: "always",
+      render: (_: any, record: any) => (
+        <Link href={`/shipments/${record.shipmentId}`}>
+          #{record.shipmentNumber}
+        </Link>
+      ),
+      sorter: (a: any, b: any) =>
+        (a.shipmentNumber || "").localeCompare(b.shipmentNumber || ""),
+    },
+    {
+      title: "Date",
+      dataIndex: "shipmentDate",
+      priority: "desktop",
+      render: (value: string | null) =>
+        value ? new Date(value).toLocaleDateString() : "-",
+      sorter: (a: any, b: any) => {
+        const aTime = a.shipmentDate ? new Date(a.shipmentDate).getTime() : 0;
+        const bTime = b.shipmentDate ? new Date(b.shipmentDate).getTime() : 0;
+        return aTime - bTime;
+      },
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      priority: "always",
+      sorter: (a: any, b: any) =>
+        (a.status || "").localeCompare(b.status || ""),
+    },
+    {
+      title: "Sales Order",
+      dataIndex: "salesOrderNumber",
+      priority: "optional",
+      render: (_: any, record: any) => (
+        <Link href={`/sales-orders/${record.salesOrderId}`}>
+          #{record.salesOrderNumber}
+        </Link>
+      ),
+      sorter: (a: any, b: any) =>
+        (a.salesOrderNumber || "").localeCompare(b.salesOrderNumber || ""),
+    },
+    {
+      title: "Customer",
+      dataIndex: "customerName",
+      priority: "always",
+      sorter: (a: any, b: any) =>
+        (a.customerName || "").localeCompare(b.customerName || ""),
+    },
+    {
+      title: "Actions",
+      dataIndex: "actions",
+      priority: "optional",
+      mobileHidden: true,
+      render: (_: any, record: any) => (
+        <div className="text-end">
+          <Link
+            href={`/shipments/${record.shipmentId}`}
+            className="btn btn-outline-primary btn-sm"
+          >
+            View
+          </Link>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="page-wrapper">
       <div className="content">
@@ -68,50 +138,8 @@ export default function ShipmentsListPage() {
             {rows.length === 0 ? (
               <p className="mb-0 text-muted">No shipments found.</p>
             ) : (
-              <div className="table-responsive">
-                <table className="table datanew mb-0">
-                  <thead>
-                    <tr>
-                      <th>Shipment #</th>
-                      <th>Date</th>
-                      <th>Status</th>
-                      <th>Sales Order</th>
-                      <th>Customer</th>
-                      <th className="text-end">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.shipmentId}>
-                        <td>
-                          <Link href={`/shipments/${row.shipmentId}`}>
-                            #{row.shipmentNumber}
-                          </Link>
-                        </td>
-                        <td>
-                          {row.shipmentDate
-                            ? new Date(row.shipmentDate).toLocaleDateString()
-                            : "-"}
-                        </td>
-                        <td>{row.status}</td>
-                        <td>
-                          <Link href={`/sales-orders/${row.salesOrderId}`}>
-                            #{row.salesOrderNumber}
-                          </Link>
-                        </td>
-                        <td>{row.customerName}</td>
-                        <td className="text-end">
-                          <Link
-                            href={`/shipments/${row.shipmentId}`}
-                            className="btn btn-outline-primary btn-sm"
-                          >
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="custom-datatable-filter table-responsive">
+                <Table columns={columns} dataSource={rows} />
               </div>
             )}
           </div>

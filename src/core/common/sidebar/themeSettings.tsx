@@ -15,12 +15,6 @@ type Color = Extract<
 >;
 
 const ThemeSettings = () => {
-  const buyNow = () => {
-    window.open(
-      "https://themeforest.net/item/dreamspos-pos-inventory-management-admin-dashboard-template/38834413?s_rank=13",
-      "_blank"
-    );
-  };
 
   // Function to get initial state from cookies or default values
   const getInitialState = () => ({
@@ -1409,7 +1403,7 @@ const ThemeSettings = () => {
                 Reset
               </Link>
             </div>
-            <div className="col-6">
+            {/* <div className="col-6">
               <Link
                 href="#"
                 className="btn btn-primary w-100"
@@ -1419,7 +1413,7 @@ const ThemeSettings = () => {
                 <i className="ti ti-shopping-cart-plus me-1" />
                 Buy Product
               </Link>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

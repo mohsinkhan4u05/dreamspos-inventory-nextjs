@@ -72,6 +72,11 @@ export async function POST(
           totalPrice: item.totalPrice,
           sourceId: receive.id,
           sourceItemId: item.id,
+          batchOverride: {
+            batchNumber: item.batchNumber,
+            manufacturingDate: item.batchMfgDate ?? undefined,
+            expiryDate: item.batchExpiryDate ?? undefined,
+          },
         })),
       });
 

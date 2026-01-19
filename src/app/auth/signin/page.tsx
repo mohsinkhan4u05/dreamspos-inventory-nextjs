@@ -161,7 +161,7 @@ export default function Login() {
               </div>
                         
               <div className="my-4 d-flex justify-content-center align-items-center copyright-text">
-                <p>Copyright 2025 Bawartchi Masala Invetory Management System</p>
+                <p>Copyright 2025 | Bawarchi Masala Invetory Management System</p>
               </div>
             </div>
           </form>

@@ -974,3 +974,30 @@ export const emailService = {
     })
   },
 }
+
+// Batch (ItemBatch) API services
+export const batchService = {
+  async getBatches(params: { storeId: string; productId: string }) {
+    const searchParams = new URLSearchParams()
+
+    searchParams.set("storeId", params.storeId)
+    searchParams.set("productId", params.productId)
+
+    const query = searchParams.toString()
+    return fetchAPI(`/inventory/batches${query ? `?${query}` : ""}`)
+  },
+
+  async getBatchMovements(batchId: string) {
+    return fetchAPI(`/inventory/batches/${batchId}/movements`)
+  },
+
+  async adjustBatch(
+    batchId: string,
+    payload: { quantityDelta: number; reason?: string | null },
+  ) {
+    return fetchAPI(`/inventory/batches/${batchId}/adjust`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  },
+}

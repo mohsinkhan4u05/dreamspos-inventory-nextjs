@@ -16,6 +16,11 @@ function normalizeNumber(value: unknown, fallback = 0): number {
 interface ReceiveItemInput {
   purchaseOrderItemId: string;
   quantity: number;
+  batch?: {
+    batchNumber?: string | null;
+    manufacturingDate?: string | null;
+    expiryDate?: string | null;
+  };
 }
 
 interface ReceiveBody {
@@ -106,6 +111,11 @@ export async function POST(
       discount: number;
       taxRate: number;
       taxAmount: number;
+      batch?: {
+        batchNumber?: string | null;
+        manufacturingDate?: string | null;
+        expiryDate?: string | null;
+      };
     };
 
     const lines: ReceiveLine[] = [];
@@ -146,6 +156,7 @@ export async function POST(
           discount: baseItem.discount,
           taxRate: baseItem.taxRate,
           taxAmount: baseItem.taxAmount,
+          batch: input.batch,
         });
       }
     } else {
@@ -162,6 +173,7 @@ export async function POST(
           discount: item.discount,
           taxRate: item.taxRate,
           taxAmount: item.taxAmount,
+          // No explicit batch info when auto-receiving remaining quantities
         });
       }
     }
@@ -216,6 +228,7 @@ export async function POST(
               discount: line.discount,
               taxRate: line.taxRate,
               taxAmount: line.taxAmount,
+              // Batch metadata is handled by stockEngine via batchOverride
             })),
           },
         },
@@ -235,6 +248,9 @@ export async function POST(
           totalPrice: item.totalPrice,
           sourceId: receive.id,
           sourceItemId: item.id,
+          batchOverride: lines.find(
+            (l) => l.purchaseOrderItemId === item.purchaseOrderItemId,
+          )?.batch,
         })),
       });
 

@@ -29,7 +29,9 @@ type StockSummary = {
 export default function ItemDetailComponent({ itemId }: ItemDetailProps) {
   const [item, setItem] = useState<any | null>(null)
   const [stockSummary, setStockSummary] = useState<StockSummary | null>(null)
-  const [activeTab, setActiveTab] = useState<"overview" | "transactions" | "history">("overview")
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "transactions" | "history" | "batches"
+  >("overview")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openingStockInput, setOpeningStockInput] = useState<string>("")
@@ -38,6 +40,20 @@ export default function ItemDetailComponent({ itemId }: ItemDetailProps) {
   const [historyEntries, setHistoryEntries] = useState<any[] | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [batches, setBatches] = useState<any[] | null>(null)
+  const [batchesLoading, setBatchesLoading] = useState(false)
+  const [batchesError, setBatchesError] = useState<string | null>(null)
+  const [batchStoreId, setBatchStoreId] = useState<string | null>(null)
+  const [selectedBatch, setSelectedBatch] = useState<any | null>(null)
+  const [batchMovements, setBatchMovements] = useState<any[] | null>(null)
+  const [batchMovementsLoading, setBatchMovementsLoading] = useState(false)
+  const [batchMovementsError, setBatchMovementsError] = useState<string | null>(
+    null,
+  )
+  const [adjustBatch, setAdjustBatch] = useState<any | null>(null)
+  const [adjustQuantityDelta, setAdjustQuantityDelta] = useState<string>("")
+  const [adjustReason, setAdjustReason] = useState<string>("")
+  const [savingAdjust, setSavingAdjust] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -150,6 +166,157 @@ export default function ItemDetailComponent({ itemId }: ItemDetailProps) {
     }
   }
 
+  const ensureBatchStoreId = async () => {
+    if (batchStoreId) {
+      return batchStoreId
+    }
+
+    try {
+      const res = await fetch("/api/stores?limit=1")
+      if (!res.ok) {
+        return null
+      }
+      const data = await res.json().catch(() => null)
+      const stores = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : []
+      const first = stores[0]
+      if (first?.id) {
+        setBatchStoreId(first.id)
+        return first.id as string
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const loadBatches = async () => {
+    if (!item) return
+
+    try {
+      setBatchesLoading(true)
+      setBatchesError(null)
+
+      const storeId = await ensureBatchStoreId()
+      if (!storeId) {
+        setBatchesError("Unable to determine store for batches.")
+        setBatchesLoading(false)
+        return
+      }
+
+      const searchParams = new URLSearchParams()
+      searchParams.set("storeId", storeId)
+      searchParams.set("productId", item.id)
+
+      const res = await fetch(
+        `/api/inventory/batches?${searchParams.toString()}`,
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "Failed to load batches")
+      }
+
+      const data = await res.json()
+      setBatches(Array.isArray(data?.data) ? data.data : [])
+    } catch (err) {
+      setBatchesError(
+        err instanceof Error ? err.message : "Failed to load batches",
+      )
+    } finally {
+      setBatchesLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab !== "batches") return
+    if (batches !== null || batchesLoading) return
+    loadBatches()
+  }, [activeTab, batches, batchesLoading])
+
+  const loadBatchMovements = async (batchId: string) => {
+    try {
+      setBatchMovementsLoading(true)
+      setBatchMovementsError(null)
+
+      const res = await fetch(`/api/inventory/batches/${batchId}/movements`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "Failed to load batch movements")
+      }
+
+      const data = await res.json()
+      setBatchMovements(Array.isArray(data?.data) ? data.data : [])
+    } catch (err) {
+      setBatchMovementsError(
+        err instanceof Error ? err.message : "Failed to load batch movements",
+      )
+    } finally {
+      setBatchMovementsLoading(false)
+    }
+  }
+
+  const handleOpenBatchHistory = (batch: any) => {
+    setSelectedBatch(batch)
+    setBatchMovements(null)
+    if (batch?.id) {
+      loadBatchMovements(batch.id)
+    }
+  }
+
+  const handleOpenAdjustBatch = (batch: any) => {
+    setAdjustBatch(batch)
+    setAdjustQuantityDelta("")
+    setAdjustReason("")
+  }
+
+  const handleSubmitAdjustBatch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!adjustBatch) return
+
+    const delta = Number(adjustQuantityDelta)
+    if (!Number.isFinite(delta) || delta === 0) {
+      return
+    }
+
+    try {
+      setSavingAdjust(true)
+
+      const res = await fetch(
+        `/api/inventory/batches/${adjustBatch.id}/adjust`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            quantityDelta: delta,
+            reason: adjustReason || null,
+          }),
+        },
+      )
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "Failed to adjust batch")
+      }
+
+      await loadBatches()
+
+      if (selectedBatch && selectedBatch.id === adjustBatch.id) {
+        loadBatchMovements(adjustBatch.id)
+      }
+    } catch (err) {
+      setBatchesError(
+        err instanceof Error ? err.message : "Failed to adjust batch",
+      )
+    } finally {
+      setSavingAdjust(false)
+    }
+  }
+
   useEffect(() => {
     const loadHistory = async () => {
       if (activeTab !== "history" || historyEntries !== null) {
@@ -178,19 +345,189 @@ export default function ItemDetailComponent({ itemId }: ItemDetailProps) {
     loadHistory()
   }, [activeTab, itemId, historyEntries])
 
-  if (loading) {
-    return (
+if (loading) {
+  return (
+    <>
       <div className="page-wrapper">
         <div className="content">
-          <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ height: "400px" }}
+          >
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
           </div>
         </div>
       </div>
-    )
-  }
+
+      {/* Batch History Modal */}
+      <div className="modal fade" id="batch-history-modal">
+        <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4>Batch History</h4>
+                {selectedBatch && (
+                  <p className="mb-0 text-muted">
+                    {selectedBatch.batchNumber} – Available:{" "}
+                    {selectedBatch.availableQuantity}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                className="close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {batchMovementsLoading && (
+                <p className="mb-0 text-muted">Loading movements...</p>
+              )}
+
+              {batchMovementsError && !batchMovementsLoading && (
+                <p className="mb-0 text-danger">{batchMovementsError}</p>
+              )}
+
+              {!batchMovementsLoading && !batchMovementsError && (
+                <>
+                  {batchMovements && batchMovements.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-striped">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Unit Cost</th>
+                            <th>Total Cost</th>
+                            <th>Source</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {batchMovements.map((mv) => (
+                            <tr key={mv.id}>
+                              <td>
+                                {mv.createdAt
+                                  ? new Date(mv.createdAt).toLocaleString()
+                                  : "-"}
+                              </td>
+                              <td>{mv.movementType}</td>
+                              <td>{mv.quantity}</td>
+                              <td>{mv.unitCost ?? "-"}</td>
+                              <td>{mv.totalCost ?? "-"}</td>
+                              <td>{mv.sourceType}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="mb-0 text-muted">
+                      No movements recorded for this batch.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Adjust Batch Modal */}
+      <div className="modal fade" id="adjust-batch-modal">
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4>Adjust Batch</h4>
+                {adjustBatch && (
+                  <p className="mb-0 text-muted">
+                    {adjustBatch.batchNumber} – Available:{" "}
+                    {adjustBatch.availableQuantity}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                className="close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitAdjustBatch}>
+              <div className="modal-body">
+                <div className="row">
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">Quantity Delta</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={adjustQuantityDelta}
+                        onChange={(e) =>
+                          setAdjustQuantityDelta(e.target.value)
+                        }
+                      />
+                      <small className="text-muted">
+                        Use positive to increase, negative to decrease.
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">Reason</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={adjustReason}
+                        onChange={(e) => setAdjustReason(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {savingAdjust && (
+                    <div className="col-lg-12">
+                      <p className="text-muted mb-0">Saving...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary me-2"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingAdjust}
+                  data-bs-dismiss={savingAdjust ? undefined : ("modal" as any)}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 
   if (error) {
     return (
@@ -282,6 +619,15 @@ export default function ItemDetailComponent({ itemId }: ItemDetailProps) {
                   onClick={() => setActiveTab("history")}
                 >
                   History
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  type="button"
+                  className={`nav-link ${activeTab === "batches" ? "active" : ""}`}
+                  onClick={() => setActiveTab("batches")}
+                >
+                  Batches
                 </button>
               </li>
             </ul>
@@ -476,6 +822,86 @@ export default function ItemDetailComponent({ itemId }: ItemDetailProps) {
                       </ul>
                     ) : (
                       <p className="mb-0 text-muted">No history yet for this item.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "batches" && (
+            <div className="card">
+              <div className="card-body">
+                {batchesLoading && (
+                  <p className="mb-0 text-muted">Loading batches...</p>
+                )}
+                {batchesError && !batchesLoading && (
+                  <p className="mb-0 text-danger">{batchesError}</p>
+                )}
+                {!batchesLoading && !batchesError && (
+                  <>
+                    {batches && batches.length > 0 ? (
+                      <div className="table-responsive">
+                        <table className="table table-striped">
+                          <thead>
+                            <tr>
+                              <th>Batch No</th>
+                              <th>Mfg Date</th>
+                              <th>Expiry</th>
+                              <th>Status</th>
+                              <th>Available</th>
+                              <th>Reserved</th>
+                              <th>Source</th>
+                              <th className="text-end">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {batches.map((batch) => (
+                              <tr key={batch.id}>
+                                <td>{batch.batchNumber}</td>
+                                <td>
+                                  {batch.manufacturingDate
+                                    ? new Date(batch.manufacturingDate).toLocaleDateString()
+                                    : "-"}
+                                </td>
+                                <td>
+                                  {batch.expiryDate
+                                    ? new Date(batch.expiryDate).toLocaleDateString()
+                                    : "-"}
+                                </td>
+                                <td>{batch.status}</td>
+                                <td>{batch.availableQuantity}</td>
+                                <td>{batch.reservedQuantity}</td>
+                                <td>{batch.sourceType}</td>
+                                <td className="text-end">
+                                  <button
+                                    type="button"
+                                    className="btn btn-link btn-sm me-2 p-0"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#batch-history-modal"
+                                    onClick={() => handleOpenBatchHistory(batch)}
+                                  >
+                                    View
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-link btn-sm p-0"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#adjust-batch-modal"
+                                    onClick={() => handleOpenAdjustBatch(batch)}
+                                  >
+                                    Adjust
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="mb-0 text-muted">
+                        No batches yet for this item.
+                      </p>
                     )}
                   </>
                 )}

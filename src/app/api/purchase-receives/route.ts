@@ -119,6 +119,11 @@ export async function GET(request: NextRequest) {
 interface CreateReceiveItemInput {
   purchaseOrderItemId: string;
   quantity: number;
+  batch?: {
+    batchNumber?: string | null;
+    manufacturingDate?: string | null;
+    expiryDate?: string | null;
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -187,6 +192,11 @@ export async function POST(request: NextRequest) {
       taxRate: number;
       taxAmount: number;
       totalPrice: number;
+      batch?: {
+        batchNumber?: string | null;
+        manufacturingDate?: string | null;
+        expiryDate?: string | null;
+      };
     };
 
     const lines: ReceiveLine[] = [];
@@ -239,6 +249,7 @@ export async function POST(request: NextRequest) {
         taxRate: baseItem.taxRate,
         taxAmount: lineTax,
         totalPrice,
+        batch: input.batch,
       });
     }
 
@@ -285,6 +296,13 @@ export async function POST(request: NextRequest) {
             discount: line.discount,
             taxRate: line.taxRate,
             taxAmount: line.taxAmount,
+            batchNumber: line.batch?.batchNumber ?? null,
+            batchMfgDate: line.batch?.manufacturingDate
+              ? new Date(line.batch.manufacturingDate)
+              : null,
+            batchExpiryDate: line.batch?.expiryDate
+              ? new Date(line.batch.expiryDate)
+              : null,
           })),
         },
       },

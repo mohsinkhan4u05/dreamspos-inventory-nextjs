@@ -482,6 +482,11 @@ thead tr{
         margin-bottom: 15px;
     }
 }
+.table-responsive{
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .max-widthauto{
     max-width: 100% !important;
 }

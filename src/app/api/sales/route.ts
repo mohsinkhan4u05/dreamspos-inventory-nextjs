@@ -538,6 +538,7 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       paymentStatus,
       notes,
+      batchOverrides,
     } = body
 
     if (!storeId || !items || !Array.isArray(items) || items.length === 0) {
@@ -570,6 +571,7 @@ export async function POST(request: NextRequest) {
         taxAmount: item.taxAmount,
         unitId: item.unitId ?? null,
       })),
+      batchOverrides: Array.isArray(batchOverrides) ? batchOverrides : undefined,
     })
 
     return NextResponse.json(result, { status: 201 })

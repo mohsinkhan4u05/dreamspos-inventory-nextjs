@@ -16,6 +16,16 @@ export default function NewPurchaseReceivePage() {
   const [receiveDate, setReceiveDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [batches, setBatches] = useState<
+    Record<
+      string,
+      {
+        batchNumber: string;
+        manufacturingDate: string;
+        expiryDate: string;
+      }
+    >
+  >({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [savingReceived, setSavingReceived] = useState(false);
@@ -57,6 +67,30 @@ export default function NewPurchaseReceivePage() {
     [],
   );
 
+  const handleBatchFieldChange = useCallback(
+    (
+      itemId: string,
+      field: "batchNumber" | "manufacturingDate" | "expiryDate",
+      value: string,
+    ) => {
+      setBatches((prev) => {
+        const existing = prev[itemId] || {
+          batchNumber: "",
+          manufacturingDate: "",
+          expiryDate: "",
+        };
+        return {
+          ...prev,
+          [itemId]: {
+            ...existing,
+            [field]: value,
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const handleSubmit = useCallback(
     async (mode: "draft" | "received") => {
       if (!order) return;
@@ -82,12 +116,36 @@ export default function NewPurchaseReceivePage() {
                 "Received quantity cannot exceed remaining quantity for any item.",
               );
             }
+
+            const batchInfo = batches[item.id];
+            const hasBatchValues =
+              batchInfo &&
+              (batchInfo.batchNumber ||
+                batchInfo.manufacturingDate ||
+                batchInfo.expiryDate);
+
             return {
               purchaseOrderItemId: item.id,
               quantity: qty,
+              batch: hasBatchValues
+                ? {
+                    batchNumber: batchInfo.batchNumber || null,
+                    manufacturingDate:
+                      batchInfo.manufacturingDate || null,
+                    expiryDate: batchInfo.expiryDate || null,
+                  }
+                : undefined,
             };
           })
-          .filter(Boolean) as { purchaseOrderItemId: string; quantity: number }[];
+          .filter(Boolean) as {
+          purchaseOrderItemId: string;
+          quantity: number;
+          batch?: {
+            batchNumber?: string | null;
+            manufacturingDate?: string | null;
+            expiryDate?: string | null;
+          };
+        }[];
 
         if (itemsPayload.length === 0) {
           setSubmitError(
@@ -261,6 +319,9 @@ export default function NewPurchaseReceivePage() {
                       <th className="text-end">Received</th>
                       <th className="text-end">Remaining</th>
                       <th className="text-end">Qty to Receive</th>
+                      <th>Batch No.</th>
+                      <th>Mfg Date</th>
+                      <th>Expiry Date</th>
                       <th className="text-end">Rate</th>
                       <th className="text-end">Amount</th>
                     </tr>
@@ -277,6 +338,11 @@ export default function NewPurchaseReceivePage() {
                         ? Math.min(parsedQty, remaining)
                         : 0;
                       const lineTotal = effectiveQty * item.rate;
+                      const batchInfo = batches[item.id] || {
+                        batchNumber: "",
+                        manufacturingDate: "",
+                        expiryDate: "",
+                      };
 
                       return (
                         <tr key={item.id}>
@@ -294,6 +360,49 @@ export default function NewPurchaseReceivePage() {
                               value={qtyValue}
                               onChange={(e) =>
                                 handleQuantityChange(item.id, e.target.value)
+                              }
+                            />
+                          </td>
+                          <td style={{ maxWidth: 180 }}>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Batch number"
+                              value={batchInfo.batchNumber}
+                              onChange={(e) =>
+                                handleBatchFieldChange(
+                                  item.id,
+                                  "batchNumber",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </td>
+                          <td style={{ maxWidth: 160 }}>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={batchInfo.manufacturingDate}
+                              onChange={(e) =>
+                                handleBatchFieldChange(
+                                  item.id,
+                                  "manufacturingDate",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </td>
+                          <td style={{ maxWidth: 160 }}>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={batchInfo.expiryDate}
+                              onChange={(e) =>
+                                handleBatchFieldChange(
+                                  item.id,
+                                  "expiryDate",
+                                  e.target.value,
+                                )
                               }
                             />
                           </td>

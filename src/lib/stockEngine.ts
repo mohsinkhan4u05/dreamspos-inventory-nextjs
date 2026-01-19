@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import {
+  BatchSourceType,
   MovementSourceType,
   MovementType,
   PaymentMethod,
@@ -162,6 +163,110 @@ export async function createStockAdjustment(input: CreateStockAdjustmentInput) {
 
     return movement
   })
+}
+
+type ConsumeBatchesForSaleItemInput = {
+  productId: string
+  quantity: number
+  batchOverrides?: {
+    batchId: string
+    quantity: number
+  }[]
+}
+
+async function consumeBatchesForSaleItem(
+  tx: Prisma.TransactionClient,
+  input: ConsumeBatchesForSaleItemInput,
+) {
+  const { productId, quantity, batchOverrides } = input
+
+  if (quantity <= 0) return
+
+  let remaining = quantity
+  const today = new Date()
+
+  // 1) Apply explicit batch overrides first (manual selection from UI)
+  if (batchOverrides && batchOverrides.length > 0) {
+    for (const override of batchOverrides) {
+      if (remaining <= 0) break
+
+      const requested = override.quantity
+      if (!Number.isFinite(requested) || requested <= 0) {
+        continue
+      }
+
+      const batch = await tx.itemBatch.findUnique({
+        where: { id: override.batchId },
+      })
+
+      if (!batch) {
+        continue
+      }
+
+      // Basic safety: ensure this batch belongs to the same product and is usable
+      if (
+        batch.productId !== productId ||
+        batch.status !== "ACTIVE" ||
+        batch.availableQuantity <= 0 ||
+        (batch.expiryDate && batch.expiryDate < today)
+      ) {
+        continue
+      }
+
+      const allocatable = Math.min(batch.availableQuantity, requested, remaining)
+      if (allocatable <= 0) continue
+
+      await tx.itemBatch.update({
+        where: { id: batch.id },
+        data: {
+          availableQuantity: {
+            decrement: allocatable,
+          },
+        },
+      })
+
+      remaining -= allocatable
+    }
+  }
+
+  // 2) Any remaining quantity falls back to normal FIFO
+  if (remaining > 0) {
+    const batches = await tx.itemBatch.findMany({
+      where: {
+        productId,
+        status: "ACTIVE",
+        availableQuantity: {
+          gt: 0,
+        },
+        OR: [{ expiryDate: null }, { expiryDate: { gte: today } }],
+      },
+      orderBy: [
+        { manufacturingDate: "asc" },
+        { createdAt: "asc" },
+      ],
+    })
+
+    for (const batch of batches) {
+      if (remaining <= 0) break
+
+      const allocatable = Math.min(batch.availableQuantity, remaining)
+      if (allocatable <= 0) continue
+
+      await tx.itemBatch.update({
+        where: { id: batch.id },
+        data: {
+          availableQuantity: {
+            decrement: allocatable,
+          },
+        },
+      })
+
+      remaining -= allocatable
+    }
+  }
+
+  // If remaining > 0 here, there was not enough batch quantity to fully cover the sale.
+  // We still allow the sale to proceed because core stock checks have already passed.
 }
 
 type AdjustOpeningStockInput = {
@@ -517,6 +622,11 @@ export type ApplyPurchaseReceiveItemInput = {
   totalPrice: number
   sourceId: string
   sourceItemId?: string
+  batchOverride?: {
+    batchNumber?: string | null
+    manufacturingDate?: string | Date | null
+    expiryDate?: string | Date | null
+  }
 }
 
 export type ApplyPurchaseReceiveInput = {
@@ -578,6 +688,47 @@ export async function applyPurchaseReceive(
       },
     })
 
+    // Create a batch per received line for traceability, allowing optional overrides
+    const bo = item.batchOverride
+
+    const batchNumber =
+      bo?.batchNumber ??
+      `${reference}-${item.productId.substring(0, 8)}-${
+        item.sourceItemId?.substring(0, 6) ?? "batch"
+      }`
+
+    const manufacturingDate = bo?.manufacturingDate
+      ? new Date(bo.manufacturingDate)
+      : null
+
+    const expiryDate = bo?.expiryDate ? new Date(bo.expiryDate) : null
+
+    const batch = await tx.itemBatch.create({
+      data: {
+        productId: item.productId,
+        batchNumber,
+        manufacturingDate,
+        expiryDate,
+        unitCost: item.unitCost,
+        openingQuantity: item.quantity,
+        availableQuantity: item.quantity,
+        reservedQuantity: 0,
+        status: "ACTIVE",
+        sourceType: BatchSourceType.PURCHASE,
+        referenceId: item.sourceId,
+      },
+    })
+
+    // Link batch to PurchaseReceiveItem if we have a sourceItemId
+    if (item.sourceItemId) {
+      await tx.purchaseReceiveItem.update({
+        where: { id: item.sourceItemId },
+        data: {
+          batchId: batch.id,
+        },
+      })
+    }
+
     await tx.stockMovement.create({
       data: {
         productId: item.productId,
@@ -587,6 +738,7 @@ export async function applyPurchaseReceive(
         unitId: stock.unitId,
         stockId: stock.id,
         stockLayerId: layer.id,
+        batchId: batch.id,
         movementType: MovementType.PURCHASE,
         quantity: item.quantity,
         unitCost: item.unitCost,
@@ -743,6 +895,13 @@ export type ApplySaleInput = {
   paymentStatus?: PaymentStatus | null
   salesOrderId?: string | null
   items: SaleItemInput[]
+  batchOverrides?: {
+    itemIndex: number
+    allocations: {
+      batchId: string
+      quantity: number
+    }[]
+  }[]
 }
 
 export async function applySale(input: ApplySaleInput) {
@@ -761,6 +920,7 @@ export async function applySale(input: ApplySaleInput) {
     paymentStatus,
     salesOrderId,
     items,
+    batchOverrides,
   } = input
 
   const subtotal = items.reduce(
@@ -904,7 +1064,23 @@ export async function applySale(input: ApplySaleInput) {
     }
 
     if (effectivePaymentStatus === PaymentStatus.PAID && !sale.stockDeducted) {
-      await applyFifoCostForSale(tx, sale)
+      const saleBatchOverrides =
+        batchOverrides && batchOverrides.length > 0
+          ? batchOverrides
+              .map((override) => {
+                const targetItem = sale.items[override.itemIndex]
+                if (!targetItem) return null
+                return {
+                  saleItemId: targetItem.id,
+                  allocations: override.allocations || [],
+                }
+              })
+              .filter((x): x is { saleItemId: string; allocations: { batchId: string; quantity: number }[] } =>
+                Boolean(x && x.saleItemId),
+              )
+          : undefined
+
+      await applyFifoCostForSale(tx, sale, saleBatchOverrides)
     }
 
     return sale
@@ -925,12 +1101,22 @@ export async function applyFifoCostForSale(
       quantity: number
     }[]
   },
+  batchOverrides?: {
+    saleItemId: string
+    allocations: {
+      batchId: string
+      quantity: number
+    }[]
+  }[],
 ) {
   if (sale.stockDeducted) {
     return
   }
 
   for (const item of sale.items) {
+    const overridesForItem = batchOverrides?.find(
+      (o) => o.saleItemId === item.id,
+    )
     let stock = await tx.stock.findFirst({
       where: {
         productId: item.productId,
@@ -1055,6 +1241,15 @@ export async function applyFifoCostForSale(
           sourceId: sale.id,
           sourceItemId: item.id,
         },
+      })
+    }
+
+    // After stock & FIFO layer deduction, consume from batches FIFO by manufacturingDate then createdAt
+    if (item.quantity > 0) {
+      await consumeBatchesForSaleItem(tx, {
+        productId: item.productId,
+        quantity: item.quantity,
+        batchOverrides: overridesForItem?.allocations,
       })
     }
   }
@@ -1366,6 +1561,12 @@ export async function completeProductionOrder(
         },
       })
 
+      // Also consume raw material batches FIFO by manufacturingDate then createdAt
+      await consumeBatchesForSaleItem(tx, {
+        productId: bom.rawMaterialId,
+        quantity: requiredQty,
+      })
+
       consumptionResults.push({
         rawMaterialId: bom.rawMaterialId,
         quantityRequired: requiredQty,
@@ -1429,6 +1630,25 @@ export async function completeProductionOrder(
       },
     })
 
+    // Create a finished-goods batch for this production run
+    const finishedBatchNumber = `PO-${order.id.slice(0, 8)}`
+
+    const finishedBatch = await tx.itemBatch.create({
+      data: {
+        productId: order.finishedProductId,
+        batchNumber: finishedBatchNumber,
+        manufacturingDate: new Date(),
+        expiryDate: null,
+        unitCost: finishedUnitCost,
+        openingQuantity: quantityProduced,
+        availableQuantity: quantityProduced,
+        reservedQuantity: 0,
+        status: "ACTIVE",
+        sourceType: BatchSourceType.MANUFACTURING,
+        referenceId: order.id,
+      },
+    })
+
     await tx.stockMovement.create({
       data: {
         productId: order.finishedProductId,
@@ -1438,6 +1658,7 @@ export async function completeProductionOrder(
         unitId: finishedStock.unitId,
         stockId: finishedStock.id,
         stockLayerId: finishedLayer.id,
+        batchId: finishedBatch.id,
         movementType: MovementType.PRODUCTION_OUTPUT,
         quantity: quantityProduced,
         unitCost: finishedUnitCost,

@@ -19,7 +19,7 @@ import {
   Minus,
   PlusCircle,
 } from "react-feather";
-import { salesService, stockService } from "@/services/api";
+import { batchService, salesService, stockService } from "@/services/api";
 import { useStores } from "@/hooks/useStores";
 import { useProducts } from "@/hooks/useProducts";
 
@@ -77,6 +77,36 @@ const OnlineorderModal = () => {
     },
   ]);
 
+  type BatchAllocation = {
+    id: string;
+    batchId: string;
+    quantity: string;
+  };
+
+  type BatchOption = {
+    value: string;
+    label: string;
+    raw: {
+      id: string;
+      productId: string;
+      batchNumber: string;
+      manufacturingDate: string | null;
+      expiryDate: string | null;
+      availableQuantity: number;
+      reservedQuantity: number;
+    };
+  };
+
+  const [batchAllocations, setBatchAllocations] = useState<
+    Record<string, BatchAllocation[]>
+  >({});
+  const [productBatches, setProductBatches] = useState<
+    Record<string, BatchOption[]>
+  >({});
+  const [batchErrors, setBatchErrors] = useState<Record<string, string | null>>(
+    {},
+  );
+
   const [submitting, setSubmitting] = useState(false);
   const [insufficientStockDetails, setInsufficientStockDetails] = useState<
     Record<string, { required: number; available: number }>
@@ -121,7 +151,7 @@ const OnlineorderModal = () => {
   });
 
   const validItems = parsedItems.filter(
-    (item) => item.productId && item.quantityNum > 0 && item.unitPriceNum >= 0
+    (item) => item.productId && item.quantityNum > 0 && item.unitPriceNum >= 0,
   );
 
   const subtotal = parsedItems.reduce((sum, item) => sum + item.lineSubtotal, 0);
@@ -157,13 +187,13 @@ const OnlineorderModal = () => {
             const stockData = stockResponse as { data?: { productId: string; quantity?: number }[] };
             const available = (stockData.data ?? []).reduce(
               (sum, stock) => sum + (stock.quantity ?? 0),
-              0
+              0,
             );
 
             if (available < requiredQty) {
               liveInsufficient[productId] = { required: requiredQty, available };
             }
-          })
+          }),
         );
 
         if (!cancelled) {
@@ -183,8 +213,158 @@ const OnlineorderModal = () => {
   }, [storeId, items]);
 
   const hasStockIssues = Object.keys(insufficientStockDetails).length > 0;
+  const hasBatchErrors = Object.values(batchErrors).some((v) => !!v);
 
-  const canSubmit = !!storeId && validItems.length > 0 && !hasStockIssues && !submitting;
+  const canSubmit =
+    !!storeId &&
+    validItems.length > 0 &&
+    !hasStockIssues &&
+    !hasBatchErrors &&
+    !submitting;
+
+  const loadBatchesForProduct = async (productId: string) => {
+    if (!storeId || !productId) return;
+    if (productBatches[productId]) return;
+
+    try {
+      const response = (await batchService.getBatches({
+        storeId,
+        productId,
+      })) as { data?: any[] };
+
+      const options: BatchOption[] = (response.data ?? [])
+        .map((b) => {
+          const available = (b.availableQuantity ?? 0) - (b.reservedQuantity ?? 0);
+          if (available <= 0) return null;
+
+          const expiryLabel = b.expiryDate
+            ? new Date(b.expiryDate).toLocaleDateString()
+            : "No expiry";
+
+          return {
+            value: b.id as string,
+            label: `${b.batchNumber} • ${available.toFixed(2)} avail • exp ${expiryLabel}`,
+            raw: {
+              id: b.id as string,
+              productId: b.productId as string,
+              batchNumber: b.batchNumber as string,
+              manufacturingDate: b.manufacturingDate ?? null,
+              expiryDate: b.expiryDate ?? null,
+              availableQuantity: Number(b.availableQuantity ?? 0),
+              reservedQuantity: Number(b.reservedQuantity ?? 0),
+            },
+          };
+        })
+        .filter(Boolean) as BatchOption[];
+
+      setProductBatches((prev) => ({
+        ...prev,
+        [productId]: options,
+      }));
+    } catch {
+      // fail silently for now; fallback is no batch selector options
+    }
+  };
+
+  const validateBatchAllocationsForItem = (itemId: string) => {
+    const item = parsedItems.find((p) => p.id === itemId);
+    if (!item) return;
+
+    const quantity = item.quantityNum;
+    const allocations = batchAllocations[itemId] ?? [];
+
+    let total = 0;
+    for (const alloc of allocations) {
+      const q = parseFloat(alloc.quantity || "0");
+      if (!Number.isFinite(q) || q < 0) continue;
+      total += q;
+    }
+
+    if (total > quantity + 1e-6) {
+      setBatchErrors((prev) => ({
+        ...prev,
+        [itemId]: `Allocated batch quantity (${total}) exceeds line quantity (${quantity}).`,
+      }));
+      return;
+    }
+
+    const currentProductId = items.find((i) => i.id === itemId)?.productId;
+    if (currentProductId && productBatches[currentProductId]) {
+      for (const alloc of allocations) {
+        if (!alloc.batchId) continue;
+        const batchOpt = productBatches[currentProductId].find(
+          (opt) => opt.value === alloc.batchId,
+        );
+        if (!batchOpt) continue;
+        const available =
+          (batchOpt.raw.availableQuantity ?? 0) -
+          (batchOpt.raw.reservedQuantity ?? 0);
+        const q = parseFloat(alloc.quantity || "0");
+        if (q > available + 1e-6) {
+          setBatchErrors((prev) => ({
+            ...prev,
+            [itemId]: `Batch ${batchOpt.raw.batchNumber} only has ${available} available.`,
+          }));
+          return;
+        }
+      }
+    }
+
+    setBatchErrors((prev) => ({
+      ...prev,
+      [itemId]: null,
+    }));
+  };
+
+  const handleAddBatchAllocationRow = (itemId: string) => {
+    setBatchAllocations((prev) => {
+      const existing = prev[itemId] ?? [];
+      const next: BatchAllocation = {
+        id: `${itemId}-batch-${existing.length + 1}`,
+        batchId: "",
+        quantity: "",
+      };
+      return {
+        ...prev,
+        [itemId]: [...existing, next],
+      };
+    });
+  };
+
+  const handleBatchAllocationChange = (
+    itemId: string,
+    allocationId: string,
+    field: keyof Omit<BatchAllocation, "id">,
+    value: string,
+  ) => {
+    setBatchAllocations((prev) => {
+      const existing = prev[itemId] ?? [];
+      const updated = existing.map((row) =>
+        row.id === allocationId ? { ...row, [field]: value } : row,
+      );
+      return {
+        ...prev,
+        [itemId]: updated,
+      };
+    });
+    validateBatchAllocationsForItem(itemId);
+  };
+
+  const handleRemoveBatchAllocationRow = (itemId: string, allocationId: string) => {
+    setBatchAllocations((prev) => {
+      const existing = prev[itemId] ?? [];
+      const updated = existing.filter((row) => row.id !== allocationId);
+      if (updated.length === 0) {
+        const { [itemId]: _removed, ...rest } = prev;
+        return rest;
+      }
+      return {
+        ...prev,
+        [itemId]: updated,
+      };
+    });
+    validateBatchAllocationsForItem(itemId);
+  };
 
   const handleAddItemRow = () => {
     setItems((prev) => [
@@ -203,11 +383,25 @@ const OnlineorderModal = () => {
   const handleItemChange = (
     id: string,
     field: keyof Omit<SaleItemRow, "id">,
-    value: string
+    value: string,
   ) => {
     setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
     );
+    if (field === "productId" && value) {
+      loadBatchesForProduct(value);
+      setBatchAllocations((prev) => ({
+        ...prev,
+        [id]: [],
+      }));
+      setBatchErrors((prev) => ({
+        ...prev,
+        [id]: null,
+      }));
+    }
+    if (field === "quantity") {
+      validateBatchAllocationsForItem(id);
+    }
   };
 
   const handleCreateSale = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -252,13 +446,13 @@ const OnlineorderModal = () => {
           const stockData = stockResponse as { data?: { quantity?: number }[] };
           const available = (stockData.data ?? []).reduce(
             (sum, stock) => sum + (stock.quantity ?? 0),
-            0
+            0,
           );
 
           if (available < requiredQty) {
             insufficientDetails[productId] = { required: requiredQty, available };
           }
-        })
+        }),
       );
     } catch {}
 
@@ -280,6 +474,32 @@ const OnlineorderModal = () => {
     try {
       setSubmitting(true);
 
+      const batchOverridesPayload = items
+        .map((row, index) => {
+          const allocations = (batchAllocations[row.id] ?? []).filter(
+            (alloc) => alloc.batchId && parseFloat(alloc.quantity || "0") > 0,
+          );
+
+          if (allocations.length === 0) {
+            return null;
+          }
+
+          return {
+            itemIndex: index,
+            allocations: allocations.map((alloc) => ({
+              batchId: alloc.batchId,
+              quantity: parseFloat(alloc.quantity || "0"),
+            })),
+          };
+        })
+        .filter(Boolean) as {
+        itemIndex: number;
+        allocations: {
+          batchId: string;
+          quantity: number;
+        }[];
+      }[];
+
       await salesService.createSale({
         storeId,
         customerName: customerName || null,
@@ -296,6 +516,8 @@ const OnlineorderModal = () => {
         discount: orderDiscount,
         tax: orderTax,
         paidAmount,
+        batchOverrides:
+          batchOverridesPayload.length > 0 ? batchOverridesPayload : undefined,
       });
 
       api.success({
@@ -405,6 +627,7 @@ const OnlineorderModal = () => {
                       <th style={{ width: 120 }}>Discount</th>
                       <th style={{ width: 120 }}>Tax %</th>
                       <th style={{ width: 140 }}>Line Total</th>
+                      <th style={{ minWidth: 220 }}>Batches (optional)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -473,6 +696,84 @@ const OnlineorderModal = () => {
                             <span>
                               {parsed ? parsed.lineTotal.toFixed(2) : "0.00"}
                             </span>
+                          </td>
+                          <td>
+                            {(batchAllocations[item.id] ?? []).map((alloc) => (
+                              <div
+                                key={alloc.id}
+                                className="d-flex align-items-center mb-1 gap-1"
+                              >
+                                <Select
+                                  classNamePrefix="react-select"
+                                  options={
+                                    item.productId
+                                      ? productBatches[item.productId] || []
+                                      : []
+                                  }
+                                  value={
+                                    item.productId
+                                      ? (productBatches[item.productId] || []).find(
+                                          (opt) => opt.value === alloc.batchId,
+                                        ) || null
+                                      : null
+                                  }
+                                  isDisabled={!item.productId}
+                                  onChange={(opt) =>
+                                    handleBatchAllocationChange(
+                                      item.id,
+                                      alloc.id,
+                                      "batchId",
+                                      opt?.value || "",
+                                    )
+                                  }
+                                  placeholder={
+                                    item.productId
+                                      ? "Select batch"
+                                      : "Select product first"
+                                  }
+                                />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="form-control form-control-sm"
+                                  style={{ maxWidth: 80 }}
+                                  placeholder="Qty"
+                                  value={alloc.quantity}
+                                  onChange={(e) =>
+                                    handleBatchAllocationChange(
+                                      item.id,
+                                      alloc.id,
+                                      "quantity",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-link text-danger p-0 ms-1"
+                                  onClick={() =>
+                                    handleRemoveBatchAllocationRow(item.id, alloc.id)
+                                  }
+                                >
+                                  <Minus size={14} />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm mt-1"
+                              onClick={() => handleAddBatchAllocationRow(item.id)}
+                            >
+                              <PlusCircle size={14} className="me-1" /> Add Batch
+                            </button>
+                            <div className="form-text">
+                              Leave empty to use default FIFO batches.
+                            </div>
+                            {batchErrors[item.id] && (
+                              <div className="text-danger small mt-1">
+                                {batchErrors[item.id]}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

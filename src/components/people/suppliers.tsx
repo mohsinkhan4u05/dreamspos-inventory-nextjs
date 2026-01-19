@@ -56,11 +56,13 @@ export default function SuppliersComponent() {
     {
       title: "Code",
       dataIndex: "code",
+      priority: "optional",
       sorter: (a: SupplierRow, b: SupplierRow) => a.code.length - b.code.length,
     },
     {
       title: "Supplier Name",
       dataIndex: "supplierName",
+      priority: "always",
       render: (text: string, record: SupplierRow) => (
         <span className="productimgname">
           <Link href="#" className="avatar avatar-md me-2">
@@ -76,23 +78,27 @@ export default function SuppliersComponent() {
     {
       title: "Email",
       dataIndex: "email",
+      priority: "optional",
       sorter: (a: SupplierRow, b: SupplierRow) => a.email.length - b.email.length,
     },
 
     {
       title: "Phone",
       dataIndex: "phone",
+      priority: "always",
       sorter: (a: SupplierRow, b: SupplierRow) => a.phone.length - b.phone.length,
     },
 
     {
       title: "Country",
       dataIndex: "country",
+      priority: "optional",
       sorter: (a: SupplierRow, b: SupplierRow) => a.country.length - b.country.length,
     },
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: string) => (
         <>
           <span className={`badge  d-inline-flex align-items-center badge-xs ${text === 'Active' ? 'badge-success' : 'badge-danger'}`}>
@@ -107,6 +113,8 @@ export default function SuppliersComponent() {
     {
       title: "",
       dataIndex: "action",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: unknown, record: SupplierRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

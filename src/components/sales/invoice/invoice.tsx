@@ -93,6 +93,7 @@ export default function InvoiceComponent() {
       {
         title: "Invoice No",
         dataIndex: "invoiceno",
+        priority: "always",
         render:(text: string, record: InvoiceRow) =>(
           <>
           <Link href={`${route.invoicedetails}?id=${record.id}`}>{text}</Link>
@@ -104,6 +105,7 @@ export default function InvoiceComponent() {
       {
         title: "Customer",
         dataIndex: "customer",
+        priority: "always",
         render: (text: string, record: InvoiceRow) => (
           <div className="d-flex align-items-center">
             <Link href="#" className="avatar avatar-md">
@@ -118,27 +120,32 @@ export default function InvoiceComponent() {
       {
         title: "Due Date",
         dataIndex: "duedate",
+        priority: "desktop",
         sorter: (a: InvoiceRow, b: InvoiceRow) => a.duedate.length - b.duedate.length,
       },
       {
         title: "Amount",
         dataIndex: "amount",
+        priority: "desktop",
         sorter: (a: InvoiceRow, b: InvoiceRow) => a.amountValue - b.amountValue,
       },
       {
         title: "Paid",
         dataIndex: "paid",
+        priority: "optional",
         sorter: (a: InvoiceRow, b: InvoiceRow) => a.paidValue - b.paidValue,
       },
       {
         title: "Amount Due",
         dataIndex: "amountdue",
+        priority: "always",
         sorter: (a: InvoiceRow, b: InvoiceRow) => a.amountdueValue - b.amountdueValue,
       },
 
       {
         title: "Status",
         dataIndex: "status",
+        priority: "always",
         render: (text: string) => (
           <div>
             {text === "Paid" && (
@@ -163,6 +170,8 @@ export default function InvoiceComponent() {
       {
         title: "",
         dataIndex: "action",
+        priority: "optional",
+        mobileHidden: true,
         render: (_: unknown, record: InvoiceRow) => (
           <div className="edit-delete-action d-flex align-items-center justify-content-center">
             <Link

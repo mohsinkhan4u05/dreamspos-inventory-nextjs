@@ -44,6 +44,7 @@ export default function SalesOrderList() {
     {
       title: "Date",
       dataIndex: "orderDate",
+      priority: "desktop",
       render: (_: unknown, record: SalesOrder) =>
         formatDate(record.orderDate || record.createdAt),
       sorter: (a: SalesOrder, b: SalesOrder) =>
@@ -52,6 +53,7 @@ export default function SalesOrderList() {
     {
       title: "Sales Order#",
       dataIndex: "orderNumber",
+      priority: "always",
       render: (text: string, record: SalesOrder) => (
         <Link href={`/sales-orders/${record.id}`}>{text}</Link>
       ),
@@ -61,6 +63,7 @@ export default function SalesOrderList() {
     {
       title: "Reference#",
       dataIndex: "referenceNumber",
+      priority: "optional",
       render: (text: string | null | undefined) => text || "-",
       sorter: (a: SalesOrder, b: SalesOrder) =>
         (a.referenceNumber || "").localeCompare(b.referenceNumber || ""),
@@ -68,6 +71,7 @@ export default function SalesOrderList() {
     {
       title: "Customer Name",
       dataIndex: "customer",
+      priority: "always",
       render: (_: unknown, record: SalesOrder) =>
         record.customer?.name || "-",
       sorter: (a: SalesOrder, b: SalesOrder) =>
@@ -76,6 +80,7 @@ export default function SalesOrderList() {
     {
       title: "Order Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: string) => (
         <span className="badge badge-soft-info badge-xs shadow-none">
           <i className="ti ti-point-filled me-1" />
@@ -88,6 +93,7 @@ export default function SalesOrderList() {
     {
       title: "Payment",
       dataIndex: "paymentStatus",
+      priority: "optional",
       render: (_: unknown, record: SalesOrder) => {
         const status = (record.status || "").toUpperCase();
         let label = "Open";
@@ -124,6 +130,7 @@ export default function SalesOrderList() {
     {
       title: "Invoiced",
       dataIndex: "invoiced",
+      priority: "optional",
       render: (_: unknown, record: SalesOrder) => {
         const hasInvoice = (record.invoices?.length ?? 0) > 0;
         const text = hasInvoice ? "Yes" : "No";
@@ -143,6 +150,7 @@ export default function SalesOrderList() {
     {
       title: "Amount",
       dataIndex: "totalAmount",
+      priority: "always",
       render: (_: unknown, record: SalesOrder) =>
         formatCurrency(record.totalAmount),
       sorter: (a: SalesOrder, b: SalesOrder) => a.totalAmount - b.totalAmount,

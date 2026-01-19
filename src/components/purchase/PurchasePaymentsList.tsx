@@ -73,11 +73,13 @@ export default function PurchasePaymentsList() {
     {
       title: "Date",
       dataIndex: "date",
+      priority: "desktop",
       sorter: (a: PaymentRow, b: PaymentRow) => a.date.localeCompare(b.date),
     },
     {
       title: "Payment #",
       dataIndex: "paymentno",
+      priority: "always",
       render: (text: string, record: PaymentRow) => (
         <Link
           href={`${route.purchasepaymentdetails || "/purchase-payment-details"}?id=${record.id}` +
@@ -95,40 +97,47 @@ export default function PurchasePaymentsList() {
     {
       title: "Reference #",
       dataIndex: "reference",
+      priority: "optional",
       sorter: (a: PaymentRow, b: PaymentRow) =>
         a.reference.localeCompare(b.reference),
     },
     {
       title: "Supplier",
       dataIndex: "supplier",
+      priority: "always",
       sorter: (a: PaymentRow, b: PaymentRow) =>
         a.supplier.localeCompare(b.supplier),
     },
     {
       title: "Bill #",
       dataIndex: "billno",
+      priority: "optional",
       sorter: (a: PaymentRow, b: PaymentRow) =>
         a.billno.localeCompare(b.billno),
     },
     {
       title: "Store",
       dataIndex: "store",
+      priority: "optional",
       sorter: (a: PaymentRow, b: PaymentRow) =>
         a.store.localeCompare(b.store),
     },
     {
       title: "Mode",
       dataIndex: "mode",
+      priority: "optional",
       sorter: (a: PaymentRow, b: PaymentRow) => a.mode.localeCompare(b.mode),
     },
     {
       title: "Amount",
       dataIndex: "amount",
+      priority: "always",
       sorter: (a: PaymentRow, b: PaymentRow) => a.amountValue - b.amountValue,
     },
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       sorter: (a: PaymentRow, b: PaymentRow) => a.status.localeCompare(b.status),
     },
   ];

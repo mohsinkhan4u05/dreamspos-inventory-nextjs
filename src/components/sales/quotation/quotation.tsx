@@ -20,6 +20,7 @@ export default function QuotationComponent(){
       {
         title: "Product Name",
         dataIndex: "Product_Name",
+        priority: "always",
         render: (text:any,record:any) => (
           <>
             <div className="d-flex align-items-center me-2">
@@ -36,6 +37,7 @@ export default function QuotationComponent(){
       {
         title: "Customer",
         dataIndex: "Custmer_Name",
+        priority: "always",
         render: (text:any,record:any) => (
           <>
             <div className="d-flex align-items-center me-2">
@@ -52,6 +54,7 @@ export default function QuotationComponent(){
       {
         title: "Status",
         dataIndex: "Status",
+        priority: "always",
         render: (text:any) => (
           <div>
             <span className={`badge  ${text==='Sent' ? "badge-success" : text=== 'Ordered' ? "badge-warning" : "badge-cyan"}`}>{text}</span>
@@ -63,6 +66,8 @@ export default function QuotationComponent(){
         title: "Actions",
         dataIndex: "actions",
         key: "actions",
+        priority: "optional",
+        mobileHidden: true,
         render: () => (
           <div className="action-table-data">
             <div className="edit-delete-action">

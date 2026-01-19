@@ -151,27 +151,32 @@ export default function UnitsComponent() {
     {
       title: "Unit",
       dataIndex: "unit",
+      priority: "always",
       sorter: (a: any, b: any) => a.unit.length - b.unit.length,
     },
     {
       title: "Short Name",
       dataIndex: "shortname",
+      priority: "always",
       sorter: (a: any, b: any) => a.shortname.length - b.shortname.length,
     },
 
     {
       title: "No of Products",
       dataIndex: "noofproducts",
+      priority: "optional",
       sorter: (a: UnitRow, b: UnitRow) => a.noofproducts - b.noofproducts,
     },
     {
       title: "Created Date",
       dataIndex: "createdon",
+      priority: "desktop",
       sorter: (a: UnitRow, b: UnitRow) => a.createdon.localeCompare(b.createdon),
     },
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: string) => (
         <span className="badge table-badge bg-success fw-medium fs-10">
           {text}
@@ -184,6 +189,8 @@ export default function UnitsComponent() {
       title: "",
       dataIndex: "actions",
       key: "actions",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: unknown, record: UnitRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

@@ -22,6 +22,7 @@ export default function SalesReturnComponent(){
     {
       title: "Product Name",
       dataIndex: "productname",
+      priority: "always",
       render: (_: unknown, record: SalesReturn) => {
         const firstItem = record.items[0]
         const name = firstItem?.product?.name || firstItem?.variant?.name || "-"
@@ -42,6 +43,7 @@ export default function SalesReturnComponent(){
     {
       title: "Date",
       dataIndex: "date",
+      priority: "desktop",
       render: (_: unknown, record: SalesReturn) => {
         const date = record.returnDate || record.createdAt
         return formatDate(date)
@@ -52,6 +54,7 @@ export default function SalesReturnComponent(){
     {
       title: "Customer",
       dataIndex: "customer",
+      priority: "always",
       render: (_: unknown, record: SalesReturn) => {
         const name = record.sale?.customer?.name || "-"
         return (
@@ -69,6 +72,7 @@ export default function SalesReturnComponent(){
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: string) => (
         <div>
           {text === "Received" && (
@@ -87,6 +91,7 @@ export default function SalesReturnComponent(){
     {
       title: "Grand Total",
       dataIndex: "grandtotal",
+      priority: "always",
       render: (_: unknown, record: SalesReturn) =>
         formatCurrency(record.totalAmount),
       sorter: (a: SalesReturn, b: SalesReturn) => a.totalAmount - b.totalAmount,
@@ -94,12 +99,14 @@ export default function SalesReturnComponent(){
     {
       title: "Paid",
       dataIndex: "paid",
+      priority: "optional",
       render: () => "0.00",
       sorter: () => 0,
     },
     {
       title: "Due",
       dataIndex: "due",
+      priority: "optional",
       render: (_: unknown, record: SalesReturn) =>
         formatCurrency(record.totalAmount),
       sorter: (a: SalesReturn, b: SalesReturn) => a.totalAmount - b.totalAmount,
@@ -107,6 +114,7 @@ export default function SalesReturnComponent(){
     {
       title: "paymentstatus",
       dataIndex: "paymentstatus",
+      priority: "optional",
       render: () => {
         const text: string = "Unpaid"
         return (
@@ -129,6 +137,8 @@ export default function SalesReturnComponent(){
       title: "Actions",
       dataIndex: "actions",
       key: "actions",
+      priority: "optional",
+      mobileHidden: true,
       render: () => (
         <div className="action-table-data">
           <div className="edit-delete-action">

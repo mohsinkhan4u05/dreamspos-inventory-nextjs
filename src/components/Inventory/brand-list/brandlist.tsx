@@ -136,12 +136,14 @@ export default function BrandListComponent() {
     {
       title: "Brand",
       dataIndex: "brand",
+      priority: "always",
       sorter: (a: any, b: any) => a.brand.length - b.brand.length,
     },
 
     {
       title: "Image",
       dataIndex: "logo",
+      priority: "optional",
       render: (text: any, record: any) => (
         <span className="productimgname">
           <Link href="#" className="product-img stock-img">
@@ -155,11 +157,13 @@ export default function BrandListComponent() {
     {
       title: "Created Date",
       dataIndex: "createdon",
+      priority: "desktop",
       sorter: (a: any, b: any) => a.createdon.length - b.createdon.length,
     },
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: any) => (
         <span className="badge table-badge bg-success fw-medium fs-10">
           {text}
@@ -171,6 +175,8 @@ export default function BrandListComponent() {
       title: "",
       dataIndex: "actions",
       key: "actions",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: any, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

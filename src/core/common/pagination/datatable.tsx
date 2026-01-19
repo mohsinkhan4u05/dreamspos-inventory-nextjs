@@ -137,7 +137,7 @@ const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey
   };
 
   const expandable =
-    hasHiddenColumns && viewport !== "desktop"
+    hasHiddenColumns
       ? {
           expandedRowRender: renderHiddenDetails,
           expandRowByClick: false,

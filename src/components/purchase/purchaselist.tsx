@@ -97,6 +97,7 @@ export default function PurchaseListComponent() {
     {
       title: "Bill #",
       dataIndex: "billno",
+      priority: "always",
       render: (text: string, record: BillRow) => (
         <Link href={`${route.billdetails}?id=${record.id}`}>{text}</Link>
       ),
@@ -105,6 +106,7 @@ export default function PurchaseListComponent() {
     {
       title: "Supplier",
       dataIndex: "supplierName",
+      priority: "always",
       render: (text: string, record: BillRow) => (
         <Link
           href={{
@@ -121,31 +123,37 @@ export default function PurchaseListComponent() {
     {
       title: "Date",
       dataIndex: "date",
+      priority: "desktop",
       sorter: (a: BillRow, b: BillRow) => a.date.localeCompare(b.date),
     },
     {
       title: "Status",
       dataIndex: "status",
+      priority: "desktop",
       sorter: (a: BillRow, b: BillRow) => a.status.localeCompare(b.status),
     },
     {
       title: "Total",
       dataIndex: "totalFormatted",
+      priority: "always",
       sorter: (a: BillRow, b: BillRow) => a.total - b.total,
     },
     {
       title: "Paid",
       dataIndex: "paidFormatted",
+      priority: "optional",
       sorter: (a: BillRow, b: BillRow) => a.paid - b.paid,
     },
     {
       title: "Due",
       dataIndex: "dueFormatted",
+      priority: "optional",
       sorter: (a: BillRow, b: BillRow) => a.due - b.due,
     },
     {
       title: "Payment Status",
       dataIndex: "paymentStatus",
+      priority: "always",
       render: (text: string) => (
         <div>
           {text === "Paid" && (
@@ -187,6 +195,8 @@ export default function PurchaseListComponent() {
       title: "Actions",
       dataIndex: "actions",
       key: "actions",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: unknown, record: BillRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

@@ -486,6 +486,49 @@ thead tr{
     width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    @include mixins.respond-below(custom767) {
+        overflow-x: visible;
+    }
+}
+.table-row-expand-btn {
+    border: none;
+    background-color: transparent;
+    padding: 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: variables.$gray-700;
+    &:hover {
+        background-color: variables.$secondary-transparent;
+        color: variables.$primary;
+    }
+}
+.responsive-row-details {
+    padding: 12px 16px;
+    background-color: variables.$default-background;
+    border-top: 1px solid variables.$secondary-transparent;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+    row-gap: 8px;
+    @include mixins.respond-below(custom575) {
+        grid-template-columns: 1fr;
+    }
+}
+.responsive-row-detail-item {
+    min-width: 0;
+}
+.responsive-row-detail-label {
+    font-size: variables.$font-size-12;
+    color: variables.$gray-600;
+    margin-bottom: 2px;
+}
+.responsive-row-detail-value {
+    font-size: variables.$font-size-14;
+    color: variables.$gray-900;
+    word-break: break-word;
 }
 .max-widthauto{
     max-width: 100% !important;

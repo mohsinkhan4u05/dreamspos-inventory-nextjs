@@ -41,6 +41,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Date",
       dataIndex: "orderDate",
+      priority: "desktop",
       render: (_: unknown, record: PurchaseOrder) =>
         new Date(record.orderDate || record.createdAt).toLocaleDateString(),
       sorter: (a: PurchaseOrder, b: PurchaseOrder) =>
@@ -49,6 +50,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Purchase Order#",
       dataIndex: "orderNumber",
+      priority: "always",
       render: (text: string, record: PurchaseOrder) => (
         <Link href={`/purchase-orders/${record.id}`}>{text}</Link>
       ),
@@ -58,6 +60,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Reference#",
       dataIndex: "referenceNumber",
+      priority: "optional",
       render: (text: string | null | undefined) => text || "-",
       sorter: (a: PurchaseOrder, b: PurchaseOrder) =>
         (a.referenceNumber || "").localeCompare(b.referenceNumber || ""),
@@ -65,6 +68,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Supplier Name",
       dataIndex: "supplier",
+      priority: "always",
       render: (_: unknown, record: PurchaseOrder) => record.supplier?.name || "-",
       sorter: (a: PurchaseOrder, b: PurchaseOrder) =>
         (a.supplier?.name || "").localeCompare(b.supplier?.name || ""),
@@ -72,6 +76,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Order Status",
       dataIndex: "status",
+      priority: "always",
       render: (text: string) => {
         const s = (text || "").toUpperCase();
         let cls = "badge badge-soft-info badge-xs shadow-none";
@@ -102,6 +107,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Received",
       dataIndex: "receivedStatus",
+      priority: "optional",
       render: (_: unknown, record: PurchaseOrder) => {
         const s = (record.status || "").toUpperCase();
         const isReceived = s === "RECEIVED" || s === "CLOSED";
@@ -113,6 +119,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Billed",
       dataIndex: "billedStatus",
+      priority: "optional",
       render: (_: unknown, record: PurchaseOrder) => {
         const s = (record.status || "").toUpperCase();
         const isBilled = s === "BILLED" || s === "CLOSED";
@@ -124,6 +131,7 @@ export default function PurchaseOrderReportComponent() {
     {
       title: "Amount",
       dataIndex: "totalAmount",
+      priority: "always",
       render: (_: unknown, record: PurchaseOrder) =>
         formatCurrencyINR(record.totalAmount),
       sorter: (a: PurchaseOrder, b: PurchaseOrder) => a.totalAmount - b.totalAmount,

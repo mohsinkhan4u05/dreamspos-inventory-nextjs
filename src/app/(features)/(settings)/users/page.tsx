@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { InviteUserModal } from "@/components/user-management/InviteUserModal";
 import { UpdatePasswordModal } from "@/components/user-management/UpdatePasswordModal";
 import { Can } from "@/components/rbac/Can";
 
 type UserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "STAFF" | "CASHIER";
+
+type Viewport = "desktop" | "tablet" | "mobile";
 
 interface CustomRole {
   id: string;
@@ -67,11 +69,32 @@ export default function UsersPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
+  const [viewport, setViewport] = useState<Viewport>("desktop");
+  const [expandedRows, setExpandedRows] = useState<string[]>([]);
 
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateViewport = () => {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setViewport("mobile");
+      } else if (width < 1024) {
+        setViewport("tablet");
+      } else {
+        setViewport("desktop");
+      }
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
   async function fetchUsers() {
@@ -144,6 +167,50 @@ export default function UsersPage() {
     setPasswordModalOpen(true);
   }
 
+  const toggleRowExpanded = (rowId: string) => {
+    setExpandedRows((prev) =>
+      prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
+    );
+  };
+
+  const isRowExpanded = (rowId: string) => expandedRows.includes(rowId);
+
+  const renderStatusBadge = (status: UserRow["status"]) => (
+    <span className={`status-badge status-${status.toLowerCase()}`}>
+      {status}
+    </span>
+  );
+
+  const renderUserActions = (user: UserRow) => (
+    <div className="actions">
+      {isSuperAdmin && (
+        <button
+          className="btn-link"
+          onClick={() => handleUpdatePassword(user)}
+          title="Update Password"
+        >
+          🔑 Password
+        </button>
+      )}
+      <Can resource="users" action="update">
+        <button
+          className="btn-link"
+          onClick={() => handleToggleStatus(user)}
+        >
+          {user.isActive ? "Deactivate" : "Activate"}
+        </button>
+      </Can>
+      <Can resource="users" action="delete">
+        <button
+          className="btn-link text-danger"
+          onClick={() => handleRemoveUser(user)}
+        >
+          Remove
+        </button>
+      </Can>
+    </div>
+  );
+
   const users = data?.users ?? [];
   const invitations = data?.pendingInvitations ?? [];
 
@@ -175,106 +242,182 @@ export default function UsersPage() {
             <thead>
               <tr>
                 <th>USER DETAILS</th>
-                <th>ROLE</th>
+                {viewport === "desktop" && <th>ROLE</th>}
                 <th>STATUS</th>
-                <th style={{ width: 160 }}>ACTIONS</th>
+                {viewport === "desktop" ? (
+                  <th style={{ width: 160 }}>ACTIONS</th>
+                ) : (
+                  <th aria-label="Row details" />
+                )}
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <div className="user-cell">
-                      <div className="avatar">
-                        {user.firstName?.[0] || user.email[0].toUpperCase()}
-                      </div>
-                      <div className="user-meta">
-                        <div className="user-name">
-                          {(user.firstName || user.lastName) ? (
-                            <>
-                              {user.firstName} {user.lastName}
-                            </>
-                          ) : (
-                            user.email
-                          )}
+              {users.map((user) => {
+                const rowId = `user-${user.id}`;
+                const expanded = isRowExpanded(rowId);
+                return (
+                  <Fragment key={rowId}>
+                    <tr>
+                      <td>
+                        <div className="user-cell">
+                          <div className="avatar">
+                            {user.firstName?.[0] || user.email[0].toUpperCase()}
+                          </div>
+                          <div className="user-meta">
+                            <div className="user-name">
+                              {user.firstName || user.lastName ? (
+                                <>
+                                  {user.firstName} {user.lastName}
+                                </>
+                              ) : (
+                                user.email
+                              )}
+                            </div>
+                            <div className="user-email">{user.email}</div>
+                          </div>
                         </div>
-                        <div className="user-email">{user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {user.customRole?.displayName || user.role}
-                  </td>
-                  <td>
-                    <span className={`status-badge status-${user.status.toLowerCase()}`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="actions">
-                      {isSuperAdmin && (
-                        <button
-                          className="btn-link"
-                          onClick={() => handleUpdatePassword(user)}
-                          title="Update Password"
-                        >
-                          🔑 Password
-                        </button>
+                      </td>
+                      {viewport === "desktop" && (
+                        <td>{user.customRole?.displayName || user.role}</td>
                       )}
-                      <Can resource="users" action="update">
-                        <button
-                          className="btn-link"
-                          onClick={() => handleToggleStatus(user)}
-                        >
-                          {user.isActive ? "Deactivate" : "Activate"}
-                        </button>
-                      </Can>
-                      <Can resource="users" action="delete">
-                        <button
-                          className="btn-link text-danger"
-                          onClick={() => handleRemoveUser(user)}
-                        >
-                          Remove
-                        </button>
-                      </Can>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      <td>{renderStatusBadge(user.status)}</td>
+                      {viewport === "desktop" ? (
+                        <td>{renderUserActions(user)}</td>
+                      ) : (
+                        <td className="details-toggle-cell">
+                          <button
+                            type="button"
+                            className="table-row-expand-btn"
+                            aria-label={
+                              expanded
+                                ? "Collapse user details"
+                                : "Expand user details"
+                            }
+                            aria-expanded={expanded}
+                            onClick={() => toggleRowExpanded(rowId)}
+                          >
+                            <i className={`ti ${expanded ? "ti-minus" : "ti-plus"}`} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                    {viewport !== "desktop" && expanded && (
+                      <tr className="details-row">
+                        <td colSpan={3}>
+                          <div className="responsive-row-details">
+                            <div className="responsive-row-detail-item">
+                              <div className="responsive-row-detail-label">Role</div>
+                              <div className="responsive-row-detail-value">
+                                {user.customRole?.displayName || user.role}
+                              </div>
+                            </div>
+                            <div className="responsive-row-detail-item">
+                              <div className="responsive-row-detail-label">Status</div>
+                              <div className="responsive-row-detail-value">
+                                {renderStatusBadge(user.status)}
+                              </div>
+                            </div>
+                            <div className="responsive-row-detail-item">
+                              <div className="responsive-row-detail-label">Actions</div>
+                              <div className="responsive-row-detail-value">
+                                {renderUserActions(user)}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
 
-              {invitations.map((inv) => (
-                <tr key={inv.id} className="pending-row">
-                  <td>
-                    <div className="user-cell">
-                      <div className="avatar avatar-pending">?</div>
-                      <div className="user-meta">
-                        <div className="user-name">
-                          {inv.firstName || inv.email}
+              {invitations.map((inv) => {
+                const rowId = `inv-${inv.id}`;
+                const expanded = isRowExpanded(rowId);
+                return (
+                  <Fragment key={rowId}>
+                    <tr className="pending-row">
+                      <td>
+                        <div className="user-cell">
+                          <div className="avatar avatar-pending">?</div>
+                          <div className="user-meta">
+                            <div className="user-name">
+                              {inv.firstName || inv.email}
+                            </div>
+                            <div className="user-email">{inv.email}</div>
+                          </div>
                         </div>
-                        <div className="user-email">{inv.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{inv.role.displayName}</td>
-                  <td>
-                    <span className="status-badge status-pending">PENDING</span>
-                  </td>
-                  <td>
-                    <Can resource="users" action="create">
-                      <button
-                        className="btn-link"
-                        onClick={() => handleResendInvitation(inv)}
-                      >
-                        Resend Invite
-                      </button>
-                    </Can>
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                      {viewport === "desktop" && <td>{inv.role.displayName}</td>}
+                      <td>
+                        <span className="status-badge status-pending">PENDING</span>
+                      </td>
+                      {viewport === "desktop" ? (
+                        <td>
+                          <Can resource="users" action="create">
+                            <button
+                              className="btn-link"
+                              onClick={() => handleResendInvitation(inv)}
+                            >
+                              Resend Invite
+                            </button>
+                          </Can>
+                        </td>
+                      ) : (
+                        <td className="details-toggle-cell">
+                          <button
+                            type="button"
+                            className="table-row-expand-btn"
+                            aria-label={
+                              expanded
+                                ? "Collapse invitation details"
+                                : "Expand invitation details"
+                            }
+                            aria-expanded={expanded}
+                            onClick={() => toggleRowExpanded(rowId)}
+                          >
+                            <i className={`ti ${expanded ? "ti-minus" : "ti-plus"}`} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                    {viewport !== "desktop" && expanded && (
+                      <tr className="pending-row details-row">
+                        <td colSpan={3}>
+                          <div className="responsive-row-details">
+                            <div className="responsive-row-detail-item">
+                              <div className="responsive-row-detail-label">Role</div>
+                              <div className="responsive-row-detail-value">
+                                {inv.role.displayName}
+                              </div>
+                            </div>
+                            <div className="responsive-row-detail-item">
+                              <div className="responsive-row-detail-label">Actions</div>
+                              <div className="responsive-row-detail-value">
+                                <Can resource="users" action="create">
+                                  <button
+                                    className="btn-link"
+                                    onClick={() => handleResendInvitation(inv)}
+                                  >
+                                    Resend Invite
+                                  </button>
+                                </Can>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
 
               {users.length === 0 && invitations.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
+                  <td
+                    colSpan={viewport === "desktop" ? 4 : 3}
+                    style={{ textAlign: "center", padding: "24px" }}
+                  >
                     No users or invitations yet.
                   </td>
                 </tr>
@@ -442,6 +585,13 @@ export default function UsersPage() {
         }
         .pending-row {
           background: #f9fafb;
+        }
+        .details-row td {
+          padding-top: 0;
+        }
+        .details-toggle-cell {
+          text-align: right;
+          width: 40px;
         }
       `}</style>
     </div>

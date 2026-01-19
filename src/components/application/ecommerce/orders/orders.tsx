@@ -21,11 +21,13 @@ export default function OrderComponents(){
         {
           title: "Order ID",
           dataIndex: "Order_ID",
+          priority: "always",
           sorter: (a:any, b:any) => a.Order_ID.length - b.Order_ID.length,
         },
         {
           title: "Customer",
           dataIndex: "Customer",
+          priority: "always",
           render: (text:any, render:any) => (
             <div className="d-flex align-items-center">
               <Link href="#" className="avatar avatar-md">
@@ -41,23 +43,27 @@ export default function OrderComponents(){
         {
           title: "Payment Type",
           dataIndex: "Payment_Type",
+          priority: "optional",
           sorter: (a:any, b:any) => a.Payment_Type.length - b.Payment_Type.length,
         },
     
         {
           title: "Amount",
           dataIndex: "Amount",
+          priority: "always",
           sorter: (a:any, b:any) => a.Amount.length - b.Amount.length,
         },
     
         {
           title: "Date & Time",
           dataIndex: "Date_Time",
+          priority: "desktop",
           sorter: (a:any, b:any) => a.Date_Time.length - b.Date_Time.length,
         },
         {
           title: "Status",
           dataIndex: "Status",
+          priority: "always",
           render: (text:any) => (
             <>
               <span className={` ${text === 'Complete' ? 'bg-success' : text === 'Pending' ? 'bg-cyan' : 'bg-purple'} fs-10 text-white p-1 rounded`}>
@@ -73,6 +79,8 @@ export default function OrderComponents(){
         {
           title: "",
           dataIndex: "action",
+          priority: "optional",
+          mobileHidden: true,
           render: () => (
             <div className="edit-delete-action d-flex align-items-center">
               <Link

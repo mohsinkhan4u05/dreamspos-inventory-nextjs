@@ -182,40 +182,48 @@ export default function CustomersComponent() {
     {
       title: "Customer Name",
       dataIndex: "Customer",
+      priority: "desktop",
       sorter: (a: CustomerRow, b: CustomerRow) => a.Customer.length - b.Customer.length,
     },
     {
       title: "Code",
       dataIndex: "Code",
+      priority: "optional",
       sorter: (a: CustomerRow, b: CustomerRow) => a.Code.length - b.Code.length,
     },
     {
       title: "Customer",
       dataIndex: "Customer",
+      priority: "always",
       sorter: (a: CustomerRow, b: CustomerRow) => a.Customer.length - b.Customer.length,
     },
 
     {
       title: "Email",
       dataIndex: "Email",
+      priority: "optional",
       sorter: (a: CustomerRow, b: CustomerRow) => a.Email.length - b.Email.length,
     },
 
     {
       title: "Phone",
       dataIndex: "Phone",
+      priority: "always",
       sorter: (a: CustomerRow, b: CustomerRow) => a.Phone.length - b.Phone.length,
     },
 
     {
       title: "Country",
       dataIndex: "Country",
+      priority: "optional",
       sorter: (a: CustomerRow, b: CustomerRow) => a.Country.length - b.Country.length,
     },
 
     {
       title: "Action",
       dataIndex: "action",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: unknown, record: CustomerRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

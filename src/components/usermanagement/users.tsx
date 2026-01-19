@@ -20,6 +20,7 @@ export default function UsersComponent (){
     {
       title: "User Name",
       dataIndex: "username",
+      priority: "always",
       render: (text:any, record:any) => (
         <span className="userimgname">
           <Link href="#" className="avatar avatar-md me-2">
@@ -36,26 +37,31 @@ export default function UsersComponent (){
     {
       title: "Phone",
       dataIndex: "phone",
+      priority: "optional",
       sorter: (a:any, b:any) => a.phone.length - b.phone.length,
     },
     {
       title: "Email",
       dataIndex: "email",
+      priority: "optional",
       sorter: (a:any, b:any) => a.email.length - b.email.length,
     },
     {
       title: "Role",
       dataIndex: "role",
+      priority: "desktop",
       sorter: (a:any, b:any) => a.role.length - b.role.length,
     },
     {
       title: "Created On",
       dataIndex: "createdon",
+      priority: "desktop",
       sorter: (a:any, b:any) => a.createdon.length - b.createdon.length,
     },
     {
       title: "Status",
       dataIndex: "status",
+      priority: "always",
       render: (text:any) => (
         <div>
 
@@ -73,6 +79,8 @@ export default function UsersComponent (){
       title: "Actions",
       dataIndex: "actions",
       key: "actions",
+      priority: "optional",
+      mobileHidden: true,
       render: () => (
         <div className="action-table-data">
           <div className="edit-delete-action">

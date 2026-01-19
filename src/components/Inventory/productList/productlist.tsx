@@ -78,11 +78,13 @@ export default function ProductListComponent() {
     {
       title: "SKU",
       dataIndex: "sku",
+      priority: "optional",
       sorter: (a: any, b: any) => a.sku.length - b.sku.length,
     },
     {
       title: "Name",
       dataIndex: "product",
+      priority: "always",
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
           <Link href={`/item/${record.id}`} className="avatar avatar-md me-2">
@@ -96,17 +98,20 @@ export default function ProductListComponent() {
     {
       title: "Price",
       dataIndex: "price",
+      priority: "always",
       sorter: (a: any, b: any) => a.price.length - b.price.length,
     },
     {
       title: "Stock On Hand",
       dataIndex: "qty",
+      priority: "always",
       sorter: (a: any, b: any) => a.qty.length - b.qty.length,
     },
 
     {
       title: "Created By",
       dataIndex: "createdby",
+      priority: "desktop",
       render: (text: any, record: any) => (
         <span className="userimgname">
           <Link href="/profile" className="product-img">
@@ -120,6 +125,8 @@ export default function ProductListComponent() {
     {
       title: "Action",
       dataIndex: "action",
+      priority: "optional",
+      mobileHidden: true,
       render: (_: unknown, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">

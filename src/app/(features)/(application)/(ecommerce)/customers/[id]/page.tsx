@@ -83,10 +83,12 @@ export default function CustomerDetailPage() {
         name: res.displayName || res.name,
         email: res.email ?? null,
         phone: res.phone ?? null,
+        mobile: res.mobile ?? null,
         language: res.language ?? null,
         type: res.type ?? null,
         currency: res.currency ?? null,
         allowPortal: res.allowPortal ?? false,
+        pan: res.pan ?? null,
         addresses: res.addresses || [],
         contactPersons: res.contactPersons || [],
       });
@@ -221,13 +223,13 @@ export default function CustomerDetailPage() {
                   className="btn btn-outline-primary me-2"
                   onClick={() => {
                     if (selectedId) {
-                      router.push(all_routes.addcustomer);
+                      router.push(`${all_routes.customer}/${selectedId}/edit`);
                     }
                   }}
                 >
                   Edit
                 </button>
-                <button
+                {/* <button
                   type="button"
                   className="btn btn-primary"
                   onClick={() => {
@@ -235,7 +237,7 @@ export default function CustomerDetailPage() {
                   }}
                 >
                   New Transaction
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -255,7 +257,7 @@ export default function CustomerDetailPage() {
                   Overview
                 </button>
               </li>
-              <li className="nav-item">
+              {/* <li className="nav-item">
                 <button
                   type="button"
                   className={`nav-link ${activeTab === "comments" ? "active" : ""}`}
@@ -263,7 +265,7 @@ export default function CustomerDetailPage() {
                 >
                   Comments
                 </button>
-              </li>
+              </li> */}
               <li className="nav-item">
                 <button
                   type="button"
@@ -273,7 +275,7 @@ export default function CustomerDetailPage() {
                   Transactions
                 </button>
               </li>
-              <li className="nav-item">
+              {/* <li className="nav-item">
                 <button
                   type="button"
                   className={`nav-link ${activeTab === "mails" ? "active" : ""}`}
@@ -290,7 +292,7 @@ export default function CustomerDetailPage() {
                 >
                   Statement
                 </button>
-              </li>
+              </li> */}
             </ul>
 
             <div className="card">

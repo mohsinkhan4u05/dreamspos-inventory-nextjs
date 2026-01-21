@@ -384,6 +384,7 @@ export async function GET(
         brand: true,
         unit: true,
         preferredVendor: true,
+        createdBy: true,
         variants: {
           include: {
             stocks: true,
@@ -442,6 +443,7 @@ export async function PUT(
         brand: true,
         unit: true,
         preferredVendor: true,
+        createdBy: true,
         variants: true,
         units: {
           include: {

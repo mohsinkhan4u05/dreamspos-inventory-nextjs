@@ -304,6 +304,7 @@ export async function GET(request: NextRequest) {
           brand: true,
           unit: true,
           preferredVendor: true,
+          createdBy: true,
           variants: true,
           units: {
             include: {
@@ -352,15 +353,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    
+
     const product = await prisma.product.create({
       data: {
         ...body,
+        createdByUserId: token.sub || undefined,
       },
       include: {
         brand: true,
         unit: true,
         preferredVendor: true,
+        createdBy: true,
         variants: true,
         units: {
           include: {

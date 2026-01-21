@@ -33,10 +33,12 @@ export interface CustomerDetail {
   name: string;
   email?: string | null;
   phone?: string | null;
+  mobile?: string | null;
   language?: string | null;
   type?: "BUSINESS" | "INDIVIDUAL" | null;
   currency?: string | null;
   allowPortal?: boolean | null;
+  pan?: string | null;
   addresses: Address[];
   contactPersons: ContactPerson[];
 }
@@ -73,7 +75,8 @@ const CustomerOverview: React.FC<CustomerOverviewProps> = ({ customer, activitie
                 <h5 className="mb-1 fw-bold">{displayName}</h5>
                 <div className="small text-muted">
                   {customer.email && <span className="me-3">{customer.email}</span>}
-                  {customer.phone && <span>{customer.phone}</span>}
+                  {customer.phone && <span className="me-3">Work: {customer.phone}</span>}
+                  {customer.mobile && <span>Mobile: {customer.mobile}</span>}
                 </div>
                 {customer.language && (
                   <div className="small text-muted mt-1">Language: {customer.language}</div>
@@ -91,6 +94,10 @@ const CustomerOverview: React.FC<CustomerOverviewProps> = ({ customer, activitie
                 <div>
                   <span className="text-dark">Portal Status: </span>
                   {customer.allowPortal ? "Enabled" : "Disabled"}
+                </div>
+                <div>
+                  <span className="text-dark">PAN: </span>
+                  {customer.pan || "N/A"}
                 </div>
               </div>
             </div>

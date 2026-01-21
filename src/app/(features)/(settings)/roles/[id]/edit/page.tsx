@@ -41,20 +41,28 @@ export default function EditRolePage() {
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading role...</p>
+      <div className="page-wrapper">
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading role...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !role) {
     return (
-      <div className="error-container">
-        <p className="error-message">Error: {error || "Role not found"}</p>
+      <div className="page-wrapper">
+        <div className="error-container">
+          <p className="error-message">Error: {error || "Role not found"}</p>
+        </div>
       </div>
     );
   }
 
-  return <RoleForm role={role} mode="edit" />;
+  return (
+    <div className="page-wrapper">
+      <RoleForm role={role} mode="edit" />
+    </div>
+  );
 }

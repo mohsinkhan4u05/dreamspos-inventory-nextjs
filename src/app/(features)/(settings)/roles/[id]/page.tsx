@@ -5,7 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Role } from "@/types/rbac";
 import { Can } from "@/components/rbac/Can";
-import { getResourceDisplayName, getActionDisplayName } from "@/types/rbac";
+import {
+  getResourceDisplayName,
+  getActionDisplayName,
+} from "@/types/rbac";
 
 /**
  * View Role Details Page
@@ -14,6 +17,7 @@ export default function ViewRolePage() {
   const params = useParams();
   const router = useRouter();
   const roleId = params.id as string;
+
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,7 @@ export default function ViewRolePage() {
       try {
         setLoading(true);
         const response = await fetch(`/api/rbac/roles/${roleId}`);
-        
+
         if (!response.ok) {
           throw new Error("Failed to fetch role");
         }
@@ -46,7 +50,7 @@ export default function ViewRolePage() {
     return (
       <div className="page-wrapper">
         <div className="loading-container">
-          <div className="spinner"></div>
+          <div className="spinner" />
           <p>Loading role...</p>
         </div>
       </div>
@@ -57,7 +61,9 @@ export default function ViewRolePage() {
     return (
       <div className="page-wrapper">
         <div className="error-container">
-          <p className="error-message">Error: {error || "Role not found"}</p>
+          <p className="error-message">
+            Error: {error || "Role not found"}
+          </p>
           <button onClick={() => router.back()} className="btn btn-primary">
             Go Back
           </button>
@@ -78,99 +84,138 @@ export default function ViewRolePage() {
 
   return (
     <div className="page-wrapper">
-      <div className="page-header">
-        <div className="header-content">
-          <div className="title-row">
-            <h1 className="page-title">{role.displayName}</h1>
-            {role.isSystemRole && (
-              <span className="badge badge-system">System Role</span>
+      <div className="role-view-page">
+        {/* HEADER */}
+        <div className="page-header">
+          <div className="header-content">
+            <div className="title-row">
+              <h1 className="page-title">{role.displayName}</h1>
+
+              {role.isSystemRole && (
+                <span className="badge badge-system">System Role</span>
+              )}
+
+              <span
+                className={`status ${
+                  role.isActive ? "status-active" : "status-inactive"
+                }`}
+              >
+                {role.isActive ? "Active" : "Inactive"}
+              </span>
+            </div>
+
+            {role.description && (
+              <p className="page-description">{role.description}</p>
             )}
-            <span className={`status ${role.isActive ? "status-active" : "status-inactive"}`}>
-              {role.isActive ? "Active" : "Inactive"}
-            </span>
           </div>
-          {role.description && (
-            <p className="page-description">{role.description}</p>
-          )}
-        </div>
-        <div className="header-actions">
-          {!role.isSystemRole && (
-            <Can resource="roles" action="update">
-              <Link href={`/roles/${role.id}/edit`} className="btn btn-primary">
-                Edit Role
-              </Link>
-            </Can>
-          )}
-          <button onClick={() => router.back()} className="btn btn-secondary">
-            Back
-          </button>
-        </div>
-      </div>
 
-      <div className="content-grid">
-        {/* Role Information */}
-        <div className="card">
-          <h2 className="card-title">Role Information</h2>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">Role Name</span>
-              <span className="info-value">{role.name}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Display Name</span>
-              <span className="info-value">{role.displayName}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Type</span>
-              <span className="info-value">
-                {role.isSystemRole ? "System Role" : "Custom Role"}
-              </span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Assigned Users</span>
-              <span className="info-value">{role._count?.users || 0}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Created</span>
-              <span className="info-value">
-                {new Date(role.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Last Updated</span>
-              <span className="info-value">
-                {new Date(role.updatedAt).toLocaleDateString()}
-              </span>
-            </div>
+          <div className="header-actions">
+            {!role.isSystemRole && (
+              <Can resource="roles" action="update">
+                <Link
+                  href={`/roles/${role.id}/edit`}
+                  className="btn btn-primary"
+                >
+                  Edit Role
+                </Link>
+              </Can>
+            )}
+
+            <button
+              onClick={() => router.back()}
+              className="btn btn-secondary"
+            >
+              Back
+            </button>
           </div>
         </div>
 
-        {/* Permissions */}
-        <div className="card">
-          <h2 className="card-title">Permissions ({role.rolePermissions?.length || 0})</h2>
-          <div className="permissions-grid">
-            {Object.entries(permissionsByResource).map(([resource, actions]) => (
-              <div key={resource} className="permission-group">
-                <h3 className="resource-name">{getResourceDisplayName(resource)}</h3>
-                <div className="actions-list">
-                  {actions.sort().map((action) => (
-                    <span key={action} className="action-badge">
-                      {getActionDisplayName(action)}
-                    </span>
-                  ))}
-                </div>
+        {/* CONTENT */}
+        <div className="content-grid">
+          {/* Role Information */}
+          <div className="card">
+            <h2 className="card-title">Role Information</h2>
+
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">Role Name</span>
+                <span className="info-value">{role.name}</span>
               </div>
-            ))}
+
+              <div className="info-item">
+                <span className="info-label">Display Name</span>
+                <span className="info-value">{role.displayName}</span>
+              </div>
+
+              <div className="info-item">
+                <span className="info-label">Type</span>
+                <span className="info-value">
+                  {role.isSystemRole ? "System Role" : "Custom Role"}
+                </span>
+              </div>
+
+              <div className="info-item">
+                <span className="info-label">Assigned Users</span>
+                <span className="info-value">
+                  {role._count?.users || 0}
+                </span>
+              </div>
+
+              <div className="info-item">
+                <span className="info-label">Created</span>
+                <span className="info-value">
+                  {new Date(role.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div className="info-item">
+                <span className="info-label">Last Updated</span>
+                <span className="info-value">
+                  {new Date(role.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {(!role.rolePermissions || role.rolePermissions.length === 0) && (
-            <p className="empty-message">No permissions assigned</p>
-          )}
+          {/* Permissions */}
+          <div className="card">
+            <h2 className="card-title">
+              Permissions ({role.rolePermissions?.length || 0})
+            </h2>
+
+            <div className="permissions-grid">
+              {Object.entries(permissionsByResource).map(
+                ([resource, actions]) => (
+                  <div key={resource} className="permission-group">
+                    <h3 className="resource-name">
+                      {getResourceDisplayName(resource)}
+                    </h3>
+
+                    <div className="actions-list">
+                      {actions.sort().map((action) => (
+                        <span key={action} className="action-badge">
+                          {getActionDisplayName(action)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            {(!role.rolePermissions ||
+              role.rolePermissions.length === 0) && (
+              <p className="empty-message">
+                No permissions assigned
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* STYLES */}
       <style jsx>{`
-        .page-wrapper {
+        .role-view-page {
           padding: 24px;
           max-width: 1200px;
           margin: 0 auto;
@@ -198,13 +243,11 @@ export default function ViewRolePage() {
           font-size: 28px;
           font-weight: 700;
           color: #111827;
-          margin: 0;
         }
 
         .page-description {
           font-size: 14px;
           color: #6b7280;
-          margin: 0;
         }
 
         .header-actions {
@@ -214,55 +257,28 @@ export default function ViewRolePage() {
 
         .btn {
           padding: 10px 20px;
-          border: none;
           border-radius: 6px;
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           text-decoration: none;
-          display: inline-block;
-          transition: all 0.2s ease;
         }
 
         .btn-primary {
           background: #6366f1;
-          color: white;
-        }
-
-        .btn-primary:hover {
-          background: #4f46e5;
+          color: #fff;
         }
 
         .btn-secondary {
-          background: white;
-          color: #374151;
+          background: #fff;
           border: 1px solid #d1d5db;
-        }
-
-        .btn-secondary:hover {
-          background: #f9fafb;
-        }
-
-        .badge {
-          display: inline-block;
-          padding: 4px 12px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 600;
         }
 
         .badge-system {
           background: #fef3c7;
           color: #92400e;
-          border: 1px solid #fbbf24;
-        }
-
-        .status {
-          display: inline-block;
           padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 600;
+          border-radius: 4px;
         }
 
         .status-active {
@@ -282,42 +298,9 @@ export default function ViewRolePage() {
 
         .card {
           background: white;
+          padding: 24px;
           border-radius: 8px;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          padding: 24px;
-        }
-
-        .card-title {
-          font-size: 18px;
-          font-weight: 600;
-          color: #111827;
-          margin: 0 0 16px 0;
-        }
-
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 16px;
-        }
-
-        .info-item {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .info-label {
-          font-size: 12px;
-          font-weight: 600;
-          color: #6b7280;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .info-value {
-          font-size: 14px;
-          color: #111827;
-          font-weight: 500;
         }
 
         .permissions-grid {
@@ -326,40 +309,22 @@ export default function ViewRolePage() {
         }
 
         .permission-group {
-          padding: 16px;
           background: #f9fafb;
+          padding: 16px;
           border-radius: 6px;
           border: 1px solid #e5e7eb;
         }
 
-        .resource-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-          margin: 0 0 12px 0;
-        }
-
         .actions-list {
           display: flex;
-          flex-wrap: wrap;
           gap: 8px;
+          flex-wrap: wrap;
         }
 
         .action-badge {
-          display: inline-block;
           padding: 4px 12px;
-          background: white;
           border: 1px solid #d1d5db;
           border-radius: 4px;
-          font-size: 13px;
-          font-weight: 500;
-          color: #374151;
-        }
-
-        .empty-message {
-          text-align: center;
-          color: #6b7280;
-          padding: 24px;
         }
 
         .loading-container,
@@ -367,9 +332,7 @@ export default function ViewRolePage() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
           padding: 48px;
-          text-align: center;
         }
 
         .spinner {
@@ -389,7 +352,6 @@ export default function ViewRolePage() {
 
         .error-message {
           color: #ef4444;
-          margin-bottom: 16px;
         }
       `}</style>
     </div>

@@ -60,6 +60,7 @@ export interface Product {
   allowOpeningStockEdit?: boolean
   createdAt: Date
   updatedAt: Date
+  createdByUserId?: string
   brand?: {
     id: string
     name: string
@@ -72,6 +73,11 @@ export interface Product {
   preferredVendor?: {
     id: string
     name: string
+  }
+  createdBy?: {
+    id: string
+    name?: string | null
+    email?: string | null
   }
 }
 
@@ -116,6 +122,7 @@ export interface ProductCreateInput {
   openingStock?: number
   openingStockRate?: number
   allowOpeningStockEdit?: boolean
+  createdByUserId?: string
 }
 
 export interface ProductUpdateInput {

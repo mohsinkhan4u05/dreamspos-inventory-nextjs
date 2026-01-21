@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, MouseEvent } from "react";
+import { useSession } from "next-auth/react";
 import Table from "@/core/common/pagination/datatable";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
@@ -15,6 +16,7 @@ import { formatCurrencyINR } from "@/lib/currency";
 
 export default function ProductListComponent() {
   const { products, loading, error, refetch } = useProducts();
+  const { data: session } = useSession();
 
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [deleteProductName, setDeleteProductName] = useState<string | null>(null);
@@ -33,6 +35,17 @@ export default function ProductListComponent() {
         )
       : 0;
 
+    const creatorName =
+      product.createdBy?.name ||
+      product.createdBy?.email ||
+      (session?.user as any | undefined)?.name ||
+      (session?.user as any | undefined)?.username ||
+      "User";
+
+    const creatorImage =
+      (session?.user as any | undefined)?.image ||
+      "assets/img/users/user-30.jpg";
+
     return {
       id: product.id,
       product: product.name,
@@ -43,8 +56,8 @@ export default function ProductListComponent() {
       price: formatCurrencyINR(product.sellingPrice),
       unit: "Pc", // Default unit, could be enhanced with unit data
       qty: totalQuantity.toString(),
-      createdby: "Admin", // This would come from user data
-      img: "assets/img/users/user-30.jpg",
+      createdby: creatorName,
+      img: creatorImage,
     };
   }) || [];
 

@@ -86,7 +86,8 @@ export default function RolesPage() {
 
   return (
     <div className="page-wrapper">
-      <div className="page-header">
+      <div className="roles-page">
+        <div className="page-header">
         <div className="header-content">
           <h1 className="page-title">Role Management</h1>
           <p className="page-description">
@@ -203,9 +204,10 @@ export default function RolesPage() {
           )}
         </div>
       </div>
+      </div>
 
       <style jsx>{`
-        .page-wrapper {
+        .roles-page {
           padding: 24px;
           max-width: 1400px;
           margin: 0 auto;

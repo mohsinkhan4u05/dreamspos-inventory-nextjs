@@ -235,10 +235,7 @@ export default function CustomersComponent() {
 
             <Link
               className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
-              onClick={() => openEditCustomer(record)}
+              href={`${route.customer}/${record.id}/edit`}
             >
               <Edit className="feather-edit" />
             </Link>

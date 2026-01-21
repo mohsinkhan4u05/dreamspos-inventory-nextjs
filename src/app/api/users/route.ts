@@ -9,6 +9,11 @@ import { withPermission } from "@/lib/rbac/middleware";
 export const GET = withPermission("users", "read", async () => {
   try {
     const users = await prisma.user.findMany({
+      where: {
+        status: {
+          not: "INACTIVE",
+        },
+      },
       select: {
         id: true,
         email: true,

@@ -79,14 +79,14 @@ export default function SigninThreeComponent () {
                                   Remember me
                                 </label>
                               </div>
-                              <div className="text-end">
+                              {/* <div className="text-end">
                                 <Link
                                   className="text-orange fs-16 fw-medium"
                                   href={route.forgotPassword}
                                 >
                                   Forgot Password?
                                 </Link>
-                              </div>
+                              </div> */}
                             </div>
                           </div>
                         </div>

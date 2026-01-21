@@ -37,6 +37,7 @@ model User {
   auditLogs               AuditLog[]
   invitationsSent         UserInvitation[]  @relation("InvitedBy")
   productionOrdersCreated ProductionOrder[]
+  productsCreated         Product[]         @relation("ProductCreatedBy")
 
   @@map("users")
 }
@@ -247,6 +248,7 @@ model Product {
   sku                   String?                  @unique
   barcode               String?                  @unique
   brandId               String?
+  createdByUserId       String?
   image                 String?
   costPrice             Float
   sellingPrice          Float
@@ -289,6 +291,7 @@ model Product {
   brand                  Brand?                  @relation(fields: [brandId], references: [id])
   unit                   Unit?                   @relation("PrimaryUnit", fields: [unitId], references: [id])
   preferredVendor        Supplier?               @relation("SupplierProducts", fields: [preferredVendorId], references: [id])
+  createdBy              User?                   @relation("ProductCreatedBy", fields: [createdByUserId], references: [id])
   variants               ProductVariant[]
   units                  ProductUnit[]
   stocks                 Stock[]
@@ -314,7 +317,7 @@ model Product {
 }
 
 model ItemBatch {
-  id                String         @id @default(cuid())
+  id                String          @id @default(cuid())
   productId         String
   batchNumber       String
   manufacturingDate DateTime?
@@ -322,18 +325,18 @@ model ItemBatch {
   unitCost          Float
   openingQuantity   Float
   availableQuantity Float
-  reservedQuantity  Float         @default(0)
-  status            BatchStatus   @default(ACTIVE)
+  reservedQuantity  Float           @default(0)
+  status            BatchStatus     @default(ACTIVE)
   sourceType        BatchSourceType
   referenceId       String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   product              Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
-  stockMovements      StockMovement[]
-  saleItems           SaleItem[]
-  salesOrderItems     SalesOrderItem[]
-  purchaseItems       PurchaseItem[]
+  stockMovements       StockMovement[]
+  saleItems            SaleItem[]
+  salesOrderItems      SalesOrderItem[]
+  purchaseItems        PurchaseItem[]
   purchaseReceiveItems PurchaseReceiveItem[]
 
   @@unique([productId, batchNumber])
@@ -999,23 +1002,23 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id         String @id @default(cuid())
+  id         String  @id @default(cuid())
   purchaseId String
   productId  String
   quantity   Float
   unitPrice  Float
   totalPrice Float
-  discount   Float  @default(0)
-  taxRate    Float  @default(0)
-  taxAmount  Float  @default(0)
+  discount   Float   @default(0)
+  taxRate    Float   @default(0)
+  taxAmount  Float   @default(0)
   batchId    String?
 
   receivedQuantity Float @default(0)
   billedQuantity   Float @default(0)
 
   // Relations
-  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id])
+  purchase Purchase   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product    @relation(fields: [productId], references: [id])
   batch    ItemBatch? @relation(fields: [batchId], references: [id])
 
   @@map("purchase_items")
@@ -1068,16 +1071,16 @@ model PurchaseReceive {
 }
 
 model PurchaseReceiveItem {
-  id                  String  @id @default(cuid())
+  id                  String    @id @default(cuid())
   purchaseReceiveId   String
   purchaseOrderItemId String?
   productId           String
   quantity            Float
   unitCost            Float
   totalPrice          Float
-  discount            Float   @default(0)
-  taxRate             Float   @default(0)
-  taxAmount           Float   @default(0)
+  discount            Float     @default(0)
+  taxRate             Float     @default(0)
+  taxAmount           Float     @default(0)
   batchId             String?
   batchNumber         String?
   batchMfgDate        DateTime?

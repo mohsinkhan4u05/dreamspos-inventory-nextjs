@@ -8,8 +8,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { all_routes } from "@/data/all_routes";
 import { customerService } from "@/services/api";
-import { UploadButton } from "@uploadthing/react";
-import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 const addressSchema = z.object({
   attention: z.string().optional(),
@@ -41,12 +39,6 @@ const customFieldSchema = z.object({
   value: z.string().optional(),
 });
 
-const documentSchema = z.object({
-  key: z.string(),
-  url: z.string(),
-  name: z.string().optional(),
-});
-
 const customerFormSchema = z.object({
   type: z.enum(["BUSINESS", "INDIVIDUAL"]).default("BUSINESS"),
   salutation: z.string().optional(),
@@ -72,43 +64,48 @@ const customerFormSchema = z.object({
   contactPersons: z.array(contactPersonSchema).default([]),
   customFields: z.array(customFieldSchema).default([]),
   reportingTags: z.array(z.string()).default([]),
-  documents: z.array(documentSchema).default([]),
 });
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 type AddressValue = z.infer<typeof addressSchema>;
 type ContactPersonValue = z.infer<typeof contactPersonSchema>;
-type DocumentValue = z.infer<typeof documentSchema>;
 
-export default function CustomerForm() {
+type CustomerFormMode = "create" | "edit";
+
+interface CustomerFormProps {
+  mode?: CustomerFormMode;
+  customerId?: string;
+  initialValues?: Partial<CustomerFormValues>;
+}
+
+export default function CustomerForm({ mode = "create", customerId, initialValues }: CustomerFormProps) {
   const router = useRouter();
   const route = all_routes;
 
   const methods = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
-      type: "BUSINESS",
-      salutation: "",
-      firstName: "",
-      lastName: "",
-      companyName: "",
-      displayName: "",
-      email: "",
-      phone: "",
-      mobile: "",
-      language: "",
-      pan: "",
-      currency: "INR",
-      paymentTerms: "Due on Receipt",
-      allowPortal: false,
-      remarks: "",
-      billingAddress: {},
-      shippingAddress: {},
-      contactPersons: [],
-      customFields: [],
-      reportingTags: [],
-      documents: [],
+      type: initialValues?.type ?? "BUSINESS",
+      salutation: initialValues?.salutation ?? "",
+      firstName: initialValues?.firstName ?? "",
+      lastName: initialValues?.lastName ?? "",
+      companyName: initialValues?.companyName ?? "",
+      displayName: initialValues?.displayName ?? "",
+      email: initialValues?.email ?? "",
+      phone: initialValues?.phone ?? "",
+      mobile: initialValues?.mobile ?? "",
+      language: initialValues?.language ?? "",
+      pan: initialValues?.pan ?? "",
+      currency: initialValues?.currency ?? "INR",
+      paymentTerms: initialValues?.paymentTerms ?? "Due on Receipt",
+      allowPortal: initialValues?.allowPortal ?? false,
+      remarks: initialValues?.remarks ?? "",
+      billingAddress: (initialValues?.billingAddress as AddressValue) ?? ({} as AddressValue),
+      shippingAddress: (initialValues?.shippingAddress as AddressValue) ?? ({} as AddressValue),
+      contactPersons: initialValues?.contactPersons ?? [],
+      customFields: initialValues?.customFields ?? [],
+      reportingTags: initialValues?.reportingTags ?? [],
     },
     mode: "onBlur",
   });
@@ -137,7 +134,6 @@ export default function CustomerForm() {
   const [activeTab, setActiveTab] = useState<string>("otherDetails");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [toastState, setToastState] = useState<{
     show: boolean;
     variant: "success" | "danger";
@@ -245,20 +241,32 @@ export default function CustomerForm() {
         name: displayName,
         addresses: addresses.length ? addresses : undefined,
         contactPersons: contactPersons.length ? contactPersons : undefined,
-        documents: values.documents || [],
       };
+      if (mode === "edit" && customerId) {
+        await customerService.updateCustomer(customerId, payload as unknown as Record<string, unknown>);
 
-      await customerService.createCustomer(payload as unknown as Record<string, unknown>);
+        setToastState({
+          show: true,
+          variant: "success",
+          message: "Customer updated successfully",
+        });
 
-      setToastState({
-        show: true,
-        variant: "success",
-        message: "Customer created successfully",
-      });
+        setTimeout(() => {
+          router.push(`${route.customer}/${customerId}`);
+        }, 1000);
+      } else {
+        await customerService.createCustomer(payload as unknown as Record<string, unknown>);
 
-      setTimeout(() => {
-        router.push(route.customer);
-      }, 1000);
+        setToastState({
+          show: true,
+          variant: "success",
+          message: "Customer created successfully",
+        });
+
+        setTimeout(() => {
+          router.push(route.customer);
+        }, 1000);
+      }
     } catch (error: any) {
       const message = error?.response?.data?.error || error?.message || "Failed to create customer";
       setSubmitError(message);
@@ -314,8 +322,8 @@ export default function CustomerForm() {
         <div className="page-header">
           <div className="add-item d-flex">
             <div className="page-title">
-              <h4>New Customer</h4>
-              <h6>Create a new customer</h6>
+              <h4>{mode === "edit" ? "Edit Customer" : "New Customer"}</h4>
+              <h6>{mode === "edit" ? "Update customer information" : "Create a new customer"}</h6>
             </div>
           </div>
           <div className="page-btn">
@@ -332,7 +340,13 @@ export default function CustomerForm() {
               form="add-customer-form"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Saving..." : "Save"}
+              {isSubmitting
+                ? mode === "edit"
+                  ? "Updating..."
+                  : "Saving..."
+                : mode === "edit"
+                  ? "Update"
+                  : "Save"}
             </button>
           </div>
         </div>
@@ -577,30 +591,6 @@ export default function CustomerForm() {
                         <label className="form-check-label" htmlFor="allow-portal">
                           Allow portal access for this customer
                         </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-12 mt-3">
-                      <label className="form-label">Documents</label>
-                      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3">
-                        <UploadButton<OurFileRouter, "customerDocuments">
-                          endpoint="customerDocuments"
-                          onClientUploadComplete={(res) => {
-                            const files =
-                              res?.map((file) => ({
-                                key: file.key,
-                                url: file.url,
-                                name: file.name,
-                              })) || [];
-                            setValue("documents", files, { shouldDirty: true });
-                            setUploadError(null);
-                          }}
-                          onUploadError={(error) => {
-                            setUploadError(error.message);}
-                          }
-                        />
-                        {uploadError && (
-                          <div className="text-danger small">{uploadError}</div>
-                        )}
                       </div>
                     </div>
                   </div>

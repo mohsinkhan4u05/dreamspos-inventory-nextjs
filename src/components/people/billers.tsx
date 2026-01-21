@@ -6,6 +6,7 @@ import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import { Edit, Eye, Trash2 } from "react-feather";
+import { Tooltip } from "antd";
 import Link from "next/link";
 import React, { useState, MouseEvent, FormEvent } from "react";
 import Table from "@/core/common/pagination/datatable";
@@ -292,29 +293,35 @@ export default function BillerComponent() {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link className="me-2 p-2" href="#">
-              <Eye className="feather-view" />
-            </Link>
+            <Tooltip title="View Biller">
+              <Link className="me-2 p-2" href="#">
+                <Eye className="feather-view" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
-              onClick={() => openEditBiller(record)}
-            >
-              <Edit className="feather-edit" />
-            </Link>
+            <Tooltip title="Edit Biller">
+              <Link
+                className="me-2 p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-units"
+                onClick={() => openEditBiller(record)}
+              >
+                <Edit className="feather-edit" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="confirm-text p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              onClick={() => openDeleteBiller(record)}
-            >
-              <Trash2 className="feather-trash-2" />
-            </Link>
+            <Tooltip title="Delete Biller">
+              <Link
+                className="confirm-text p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                onClick={() => openDeleteBiller(record)}
+              >
+                <Trash2 className="feather-trash-2" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

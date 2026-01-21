@@ -6,6 +6,7 @@ import CommonDeleteModal from "@/core/common/modal/commonDeleteModal";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import { useStocks } from "@/hooks/useStocks";
 import { useStores } from "@/hooks/useStores";
 import { useWarehouses } from "@/hooks/useWarehouses";
@@ -142,34 +143,38 @@ export default function ManageStockComponent() {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
-              onClick={() => {
-                setStockIdToEdit(record.id);
-                setQuantity(record.Quantity || 0);
-                setEditMinStock(
-                  typeof record.MinStock === "number" ? record.MinStock : null,
-                );
-                setEditMaxStock(
-                  typeof record.MaxStock === "number" ? record.MaxStock : null,
-                );
-              }}
-            >
-              <Edit className="feather-edit" />
-            </Link>
+            <Tooltip title="Edit Stock">
+              <Link
+                className="me-2 p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-units"
+                onClick={() => {
+                  setStockIdToEdit(record.id);
+                  setQuantity(record.Quantity || 0);
+                  setEditMinStock(
+                    typeof record.MinStock === "number" ? record.MinStock : null,
+                  );
+                  setEditMaxStock(
+                    typeof record.MaxStock === "number" ? record.MaxStock : null,
+                  );
+                }}
+              >
+                <Edit className="feather-edit" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="confirm-text p-2"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              href="#"
-              onClick={() => setStockIdToDelete(record.id)}
-            >
-              <Trash2 className="feather-trash-2" />
-            </Link>
+            <Tooltip title="Delete Stock">
+              <Link
+                className="confirm-text p-2"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                href="#"
+                onClick={() => setStockIdToDelete(record.id)}
+              >
+                <Trash2 className="feather-trash-2" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

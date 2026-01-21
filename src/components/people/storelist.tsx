@@ -8,6 +8,7 @@ import { Edit, Eye, PlusCircle } from "react-feather";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
+import { Tooltip } from "antd";
 import { useStores } from "@/hooks/useStores";
 import { storeService } from "@/services/api";
 
@@ -172,29 +173,35 @@ export default function StoreListComponent () {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link className="me-2 p-2" href="#">
-              <Eye className="feather-view" />
-            </Link>
+            <Tooltip title="View Store">
+              <Link className="me-2 p-2" href="#">
+                <Eye className="feather-view" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-store"
-              onClick={() => handleOpenEdit(record)}
-            >
-              <Edit className="feather-edit" />
-            </Link>
+            <Tooltip title="Edit Store">
+              <Link
+                className="me-2 p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-store"
+                onClick={() => handleOpenEdit(record)}
+              >
+                <Edit className="feather-edit" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              className="p-2 d-flex align-items-center border rounded"
-              href="#"
-              onClick={() => handleOpenDelete(record)}
-            >
-              <i data-feather="trash-2" className="feather-trash-2" />
-            </Link>
+            <Tooltip title="Delete Store">
+              <Link
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                className="p-2 d-flex align-items-center border rounded"
+                href="#"
+                onClick={() => handleOpenDelete(record)}
+              >
+                <i data-feather="trash-2" className="feather-trash-2" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

@@ -6,6 +6,7 @@ import CommonDeleteModal from "@/core/common/modal/commonDeleteModal";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import { quotationlistdata } from "@/core/json/quotationlistdata";
 import AddQuotation from "@/core/modals/sales/addquotation";
 import EditQuotation from "@/core/modals/sales/editquotation";
@@ -71,23 +72,29 @@ export default function QuotationComponent(){
         render: () => (
           <div className="action-table-data">
             <div className="edit-delete-action">
-              <Link className="me-2 p-2" href="#">
-                <Eye className="feather-view" />
-              </Link>
-              <Link
-                className="me-2 p-2"
-                href="#"
-                data-bs-toggle="modal"
-                data-bs-target="#edit-units"
-              >
-                <i data-feather="edit" className="feather-edit"></i>
-              </Link>
-              <Link
-                className="confirm-text p-2"
-                href="#" data-bs-toggle="modal" data-bs-target="#delete-modal"
-              >
-                <i data-feather="trash-2" className="feather-trash-2"></i>
-              </Link>
+              <Tooltip title="View Quotation">
+                <Link className="me-2 p-2" href="#">
+                  <Eye className="feather-view" />
+                </Link>
+              </Tooltip>
+              <Tooltip title="Edit Quotation">
+                <Link
+                  className="me-2 p-2"
+                  href="#"
+                  data-bs-toggle="modal"
+                  data-bs-target="#edit-units"
+                >
+                  <i data-feather="edit" className="feather-edit"></i>
+                </Link>
+              </Tooltip>
+              <Tooltip title="Delete Quotation">
+                <Link
+                  className="confirm-text p-2"
+                  href="#" data-bs-toggle="modal" data-bs-target="#delete-modal"
+                >
+                  <i data-feather="trash-2" className="feather-trash-2"></i>
+                </Link>
+              </Tooltip>
             </div>
           </div>
         ),

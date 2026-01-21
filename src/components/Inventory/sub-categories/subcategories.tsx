@@ -8,6 +8,7 @@ import { Category } from "@/core/common/selectOption/selectOption";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import { subcateorydata } from "@/core/json/subcategorydata";
 import { X } from "react-feather";
 import Link from "next/link";
@@ -69,20 +70,29 @@ export default function SubCategoriesComponent(){
           render: () => (
             <div className="action-table-data">
               <div className="edit-delete-action">
-                <Link
-                  className="me-2 p-2"
-                  href="#"
-                  data-bs-toggle="modal"
-                  data-bs-target="#edit-category"
-                >
-                  <i data-feather="edit" className="feather-edit"></i>
-                </Link>
-                <Link data-bs-toggle="modal" data-bs-target="#delete-modal" className="p-2" href="#">
-                  <i
-                    data-feather="trash-2"
-                    className="feather-trash-2"
-                  ></i>
-                </Link>
+                <Tooltip title="Edit Sub Category">
+                  <Link
+                    className="me-2 p-2"
+                    href="#"
+                    data-bs-toggle="modal"
+                    data-bs-target="#edit-category"
+                  >
+                    <i data-feather="edit" className="feather-edit"></i>
+                  </Link>
+                </Tooltip>
+                <Tooltip title="Delete Sub Category">
+                  <Link
+                    data-bs-toggle="modal"
+                    data-bs-target="#delete-modal"
+                    className="p-2"
+                    href="#"
+                  >
+                    <i
+                      data-feather="trash-2"
+                      className="feather-trash-2"
+                    ></i>
+                  </Link>
+                </Tooltip>
               </div>
             </div>
           ),

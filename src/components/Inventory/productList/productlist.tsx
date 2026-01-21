@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, MouseEvent } from "react";
 import { useSession } from "next-auth/react";
+import { Tooltip } from "antd";
 import Table from "@/core/common/pagination/datatable";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
@@ -143,27 +144,35 @@ export default function ProductListComponent() {
       render: (_: unknown, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link className="me-2 p-2" href={`/item/${record.id}`}>
-              <Eye className="feather-view" />
-            </Link>
-            <Link
-              className="me-2 p-2"
-              href={`${route.manufacturingBOM}?productId=${record.id}`}
-            >
-              <GitMerge className="feather-edit" />
-            </Link>
-            <Link className="me-2 p-2" href={`${route.editproduct}/${record.id}`}>
-              <Edit className="feather-edit" />
-            </Link>
-            <Link
-              className="confirm-text p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              onClick={() => handleOpenDelete(record)}
-            >
-              <Trash2 className="feather-trash-2" />
-            </Link>
+            <Tooltip title="View Item">
+              <Link className="me-2 p-2" href={`/item/${record.id}`}>
+                <Eye className="feather-view" />
+              </Link>
+            </Tooltip>
+            <Tooltip title="View Bill of Materials">
+              <Link
+                className="me-2 p-2"
+                href={`${route.manufacturingBOM}?productId=${record.id}`}
+              >
+                <GitMerge className="feather-edit" />
+              </Link>
+            </Tooltip>
+            <Tooltip title="Edit Item">
+              <Link className="me-2 p-2" href={`${route.editproduct}/${record.id}`}>
+                <Edit className="feather-edit" />
+              </Link>
+            </Tooltip>
+            <Tooltip title="Delete Item">
+              <Link
+                className="confirm-text p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                onClick={() => handleOpenDelete(record)}
+              >
+                <Trash2 className="feather-trash-2" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

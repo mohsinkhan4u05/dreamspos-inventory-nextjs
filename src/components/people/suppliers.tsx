@@ -8,6 +8,7 @@ import { Edit, Eye, Trash2 } from "react-feather";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
+import { Tooltip } from "antd";
 import SupplierModal from "@/core/modals/peoples/supplierModal";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { all_routes } from "@/data/all_routes";
@@ -120,41 +121,47 @@ export default function SuppliersComponent() {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link className="me-2 p-2" href={`${route.suppliers}/${record.id}`}>
-              <Eye className="feather-view" />
-            </Link>
+            <Tooltip title="View Supplier">
+              <Link className="me-2 p-2" href={`${route.suppliers}/${record.id}`}>
+                <Eye className="feather-view" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-supplier"
-              onClick={() =>
-                setEditingSupplier({
-                  id: record.id,
-                  supplierName: record.supplierName,
-                  email: record.email,
-                  phone: record.phone,
-                })
-              }
-            >
-              <Edit className="feather-edit" />
-            </Link>
+            <Tooltip title="Edit Supplier">
+              <Link
+                className="me-2 p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-supplier"
+                onClick={() =>
+                  setEditingSupplier({
+                    id: record.id,
+                    supplierName: record.supplierName,
+                    email: record.email,
+                    phone: record.phone,
+                  })
+                }
+              >
+                <Edit className="feather-edit" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="confirm-text p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              onClick={() =>
-                setDeletingSupplier({
-                  id: record.id,
-                  supplierName: record.supplierName,
-                })
-              }
-            >
-              <Trash2 className="feather-trash-2" />
-            </Link>
+            <Tooltip title="Delete Supplier">
+              <Link
+                className="confirm-text p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                onClick={() =>
+                  setDeletingSupplier({
+                    id: record.id,
+                    supplierName: record.supplierName,
+                  })
+                }
+              >
+                <Trash2 className="feather-trash-2" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

@@ -5,6 +5,7 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import { purchasesreturn } from "@/core/json/purchasereturn";
 import Link from "next/link";
 import  Table  from "@/core/common/pagination/datatable";
@@ -105,22 +106,26 @@ export default function PurchaseReturnComponent() {
       render: () => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link
-            href="#"
-              className="me-2 p-2"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-sales-new"
-            >
-              <i data-feather="edit" className="feather-edit"></i>
-            </Link>
-            <Link
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              className="p-2"
-              href="#"
-            >
-              <i data-feather="trash-2" className="feather-trash-2"></i>
-            </Link>
+            <Tooltip title="Edit Purchase Return">
+              <Link
+                href="#"
+                className="me-2 p-2"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-sales-new"
+              >
+                <i data-feather="edit" className="feather-edit"></i>
+              </Link>
+            </Tooltip>
+            <Tooltip title="Delete Purchase Return">
+              <Link
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                className="p-2"
+                href="#"
+              >
+                <i data-feather="trash-2" className="feather-trash-2"></i>
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

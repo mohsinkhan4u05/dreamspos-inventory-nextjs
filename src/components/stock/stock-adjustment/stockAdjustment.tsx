@@ -4,6 +4,7 @@
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import {
   Edit,
   FileText,
@@ -170,13 +171,15 @@ export default function StockAdjustmentComponent() {
       render: (_: unknown, record: StockAdjustmentRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link
-              className="me-2 p-2"
-              href={`/adjustment-details/${record.id}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <FileText className="feather-file-text" />
-            </Link>
+            <Tooltip title="View Adjustment Details">
+              <Link
+                className="me-2 p-2"
+                href={`/adjustment-details/${record.id}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <FileText className="feather-file-text" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

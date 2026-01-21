@@ -10,6 +10,7 @@ import { all_routes } from "@/data/all_routes";
 import { useProductionOrders, ProductionOrder } from "@/hooks/useProductionOrders";
 import { useOrgFormatting } from "@/hooks/useOrgFormatting";
 import { productionOrderService } from "@/services/api";
+import { Tooltip } from "antd";
 
 export default function ProductionOrderList() {
   const { orders, loading, error, refetch } = useProductionOrders();
@@ -162,22 +163,26 @@ export default function ProductionOrderList() {
 
         return (
           <div className="d-flex gap-2">
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              disabled={disabled}
-              onClick={() => handleComplete(record)}
-            >
-              Complete
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-secondary"
-              disabled={disabled}
-              onClick={() => handleCancel(record)}
-            >
-              Cancel
-            </button>
+            <Tooltip title="Mark this production order as completed">
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                disabled={disabled}
+                onClick={() => handleComplete(record)}
+              >
+                Complete
+              </button>
+            </Tooltip>
+            <Tooltip title="Cancel this production order">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                disabled={disabled}
+                onClick={() => handleCancel(record)}
+              >
+                Cancel
+              </button>
+            </Tooltip>
           </div>
         );
       },

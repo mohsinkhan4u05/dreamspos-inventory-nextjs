@@ -4,6 +4,7 @@ import CommonFooter from "@/core/common/footer/commonFooter";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import Table from "@/core/common/pagination/datatable";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -200,12 +201,14 @@ export default function PurchaseListComponent() {
       render: (_: unknown, record: BillRow) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link
-              className="me-2 p-2 d-flex align-items-center justify-content-between border rounded"
-              href={`${route.billdetails}?id=${record.id}`}
-            >
-              <Eye className="feather-eye" />
-            </Link>
+            <Tooltip title="View Bill">
+              <Link
+                className="me-2 p-2 d-flex align-items-center justify-content-between border rounded"
+                href={`${route.billdetails}?id=${record.id}`}
+              >
+                <Eye className="feather-eye" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

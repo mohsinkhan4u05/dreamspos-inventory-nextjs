@@ -5,6 +5,7 @@ import CommonDeleteModal from "@/core/common/modal/commonDeleteModal";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
+import { Tooltip } from "antd";
 import Link from "next/link";
 import Table from "@/core/common/pagination/datatable";
 import AddSalesReturns from "@/core/modals/sales/addsalesreturns";
@@ -142,20 +143,24 @@ export default function SalesReturnComponent(){
       render: () => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-sales-new"
-            >
-              <i data-feather="edit" className="feather-edit"></i>
-            </Link>
-            <Link className="confirm-text p-2" href="#">
-              <i
-                data-feather="trash-2"
-                className="feather-trash-2" data-bs-toggle="modal" data-bs-target="#delete-modal"
-              ></i>
-            </Link>
+            <Tooltip title="Edit Sales Return">
+              <Link
+                className="me-2 p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-sales-new"
+              >
+                <i data-feather="edit" className="feather-edit"></i>
+              </Link>
+            </Tooltip>
+            <Tooltip title="Delete Sales Return">
+              <Link className="confirm-text p-2" href="#">
+                <i
+                  data-feather="trash-2"
+                  className="feather-trash-2" data-bs-toggle="modal" data-bs-target="#delete-modal"
+                ></i>
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

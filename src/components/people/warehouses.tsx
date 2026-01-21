@@ -9,6 +9,7 @@ import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import CommonFooter from "@/core/common/footer/commonFooter";
+import { Tooltip } from "antd";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { warehouseService } from "@/services/api";
 
@@ -265,33 +266,39 @@ export default function WareHousesComponent  ()  {
       render: (_: unknown, record: any) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link
-              className="me-2 edit-icon p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
-              onClick={() => handleOpenEdit(record)}
-            >
-              <i data-feather="eye" className="feather-eye"></i>
-            </Link>
-            <Link
-              className="me-2 p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-units"
-              onClick={() => handleOpenEdit(record)}
-            >
-              <i data-feather="edit" className="feather-edit"></i>
-            </Link>
-            <Link
-              className="confirm-text p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              onClick={() => handleOpenDelete(record)}
-            >
-              <i data-feather="trash-2" className="feather-trash-2"></i>
-            </Link>
+            <Tooltip title="View Warehouse">
+              <Link
+                className="me-2 edit-icon p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-units"
+                onClick={() => handleOpenEdit(record)}
+              >
+                <i data-feather="eye" className="feather-eye"></i>
+              </Link>
+            </Tooltip>
+            <Tooltip title="Edit Warehouse">
+              <Link
+                className="me-2 p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#edit-units"
+                onClick={() => handleOpenEdit(record)}
+              >
+                <i data-feather="edit" className="feather-edit"></i>
+              </Link>
+            </Tooltip>
+            <Tooltip title="Delete Warehouse">
+              <Link
+                className="confirm-text p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                onClick={() => handleOpenDelete(record)}
+              >
+                <i data-feather="trash-2" className="feather-trash-2"></i>
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

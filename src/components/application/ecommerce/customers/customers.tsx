@@ -3,6 +3,7 @@
 
 import React, { useState, MouseEvent, FormEvent } from "react";
 import Select from "react-select";
+import { Tooltip } from "antd";
 import { Edit, Eye, Trash2 } from "react-feather";
 import Link from "next/link";
 import TooltipIcons from "@/core/common/tooltip-content/tooltipIcons";
@@ -229,26 +230,32 @@ export default function CustomersComponent() {
           <div className="edit-delete-action">
             <div className="input-block add-lists"></div>
 
-            <Link className="me-2 p-2" href={`${route.customer}/${record.id}`}>
-              <Eye className="feather-view" />
-            </Link>
+            <Tooltip title="View Customer">
+              <Link className="me-2 p-2" href={`${route.customer}/${record.id}`}>
+                <Eye className="feather-view" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="me-2 p-2"
-              href={`${route.customer}/${record.id}/edit`}
-            >
-              <Edit className="feather-edit" />
-            </Link>
+            <Tooltip title="Edit Customer">
+              <Link
+                className="me-2 p-2"
+                href={`${route.customer}/${record.id}/edit`}
+              >
+                <Edit className="feather-edit" />
+              </Link>
+            </Tooltip>
 
-            <Link
-              className="confirm-text p-2"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal"
-              onClick={() => openDeleteCustomer(record)}
-            >
-              <Trash2 className="feather-trash-2" />
-            </Link>
+            <Tooltip title="Delete Customer">
+              <Link
+                className="confirm-text p-2"
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal"
+                onClick={() => openDeleteCustomer(record)}
+              >
+                <Trash2 className="feather-trash-2" />
+              </Link>
+            </Tooltip>
           </div>
         </div>
       ),

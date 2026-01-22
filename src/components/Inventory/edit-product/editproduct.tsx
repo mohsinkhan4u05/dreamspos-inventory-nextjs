@@ -90,7 +90,6 @@ export default function EditProductComponent({ productId }: EditProductProps) {
         setProductName(product.name);
         setSku(product.sku ?? "");
         setBrandId(product.brandId ?? "");
-        setItemType(product.itemType ?? "GOODS");
         setReturnable(product.returnable ?? false);
 
         setLengthValue(
@@ -374,43 +373,6 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                     aria-labelledby="headingSpacingOne"
                   >
                     <div className="accordion-body border-top">
-                      <div className="row mb-3">
-                        <div className="col-lg-6 col-12">
-                          <label className="form-label">Type</label>
-                          <div className="d-flex align-items-center">
-                            <div className="form-check me-3">
-                              <input
-                                className="form-check-input"
-                                type="radio"
-                                id="item-type-goods"
-                                checked={itemType === "GOODS"}
-                                onChange={() => setItemType("GOODS")}
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="item-type-goods"
-                              >
-                                Goods
-                              </label>
-                            </div>
-                            <div className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="radio"
-                                id="item-type-service"
-                                checked={itemType === "SERVICE"}
-                                onChange={() => setItemType("SERVICE")}
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="item-type-service"
-                              >
-                                Service
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                       <div className="row">
                         <div className="col-sm-6 col-12">
                           <div className="mb-3">
@@ -874,15 +836,25 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                 </div>
               )}
               <div className="d-flex align-items-center justify-content-end mb-4">
-                <button type="button" className="btn btn-secondary me-2">
-                  Cancel
-                </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn btn-primary d-flex align-items-center"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Update Item"}
+                  {isSubmitting ? (
+                    <>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="me-2" /> Update Item
+                    </>
+                  )}
                 </button>
               </div>
             </div>

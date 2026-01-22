@@ -4,47 +4,79 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { productService } from "@/services/api";
-import { useStores } from "@/hooks/useStores";
-import { useCategories } from "@/hooks/useCategories";
 import { useBrands } from "@/hooks/useBrands";
+import { useUnits } from "@/hooks/useUnits";
+import { useSuppliers } from "@/hooks/useSuppliers";
 import { Product } from "@/types/api";
 import { all_routes } from "@/data/all_routes";
 import CommonFooter from "@/core/common/footer/commonFooter";
+import TextEditor from "@/core/common/texteditor/texteditor";
 import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
-import { ArrowLeft, Info, LifeBuoy } from "react-feather";
+import AddBrand from "@/core/modals/inventory/addbrand";
+import Addunits from "@/core/modals/inventory/addunits";
+import { ArrowLeft, Info, LifeBuoy, X, Image } from "react-feather";
 import Select from "react-select";
 import Link from "next/link";
+import { UploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 interface EditProductProps {
   productId: string;
 }
 
 type ProductWithRelations = Product & {
-  storeId?: string;
-  categoryId?: string;
   brandId?: string | null;
-  sellingPrice: number;
 };
 
 export default function EditProductComponent({ productId }: EditProductProps) {
   const route = all_routes;
   const router = useRouter();
 
-  const [storeId, setStoreId] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
   const [brandId, setBrandId] = useState<string>("");
+  const [unitId, setUnitId] = useState<string>("");
+  const [preferredVendorId, setPreferredVendorId] = useState<string>("");
+
   const [productName, setProductName] = useState<string>("");
   const [sku, setSku] = useState<string>("");
-  const [price, setPrice] = useState<string>("");
+  const [itemType, setItemType] = useState<"GOODS" | "SERVICE">("GOODS");
+  const [returnable, setReturnable] = useState<boolean>(false);
+
+  const [lengthValue, setLengthValue] = useState<string>("");
+  const [widthValue, setWidthValue] = useState<string>("");
+  const [heightValue, setHeightValue] = useState<string>("");
+  const [dimensionUnit, setDimensionUnit] = useState<string>("cm");
+
+  const [weightValue, setWeightValue] = useState<string>("");
+  const [weightUnit, setWeightUnit] = useState<string>("kg");
+
+  const [manufacturer, setManufacturer] = useState<string>("");
+
+  const [sellable, setSellable] = useState<boolean>(true);
+  const [sellingPrice, setSellingPrice] = useState<string>("");
+  const [salesAccount, setSalesAccount] = useState<string>("Sales");
+  const [salesDescription, setSalesDescription] = useState<string>("");
+
+  const [purchasable, setPurchasable] = useState<boolean>(true);
+  const [costPrice, setCostPrice] = useState<string>("");
+  const [purchaseAccount, setPurchaseAccount] = useState<string>(
+    "Cost of Goods Sold"
+  );
+  const [purchaseDescription, setPurchaseDescription] = useState<string>("");
+
+  const [trackInventory, setTrackInventory] = useState<boolean>(true);
+
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const { stores } = useStores({ page: 1, limit: 100, isActive: true });
-  const { categories } = useCategories({ page: 1, limit: 100, isActive: true });
   const { brands } = useBrands({ page: 1, limit: 100, isActive: true });
+  const { units } = useUnits({ page: 1, limit: 100, isActive: true });
+  const { suppliers } = useSuppliers({ page: 1, limit: 100, isActive: true });
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -57,10 +89,51 @@ export default function EditProductComponent({ productId }: EditProductProps) {
 
         setProductName(product.name);
         setSku(product.sku ?? "");
-        setStoreId(product.storeId ?? "");
-        setCategoryId(product.categoryId ?? "");
-        setBrandId(product.brandId || "");
-        setPrice(product.sellingPrice.toString());
+        setBrandId(product.brandId ?? "");
+        setItemType(product.itemType ?? "GOODS");
+        setReturnable(product.returnable ?? false);
+
+        setLengthValue(
+          typeof product.length === "number" ? product.length.toString() : ""
+        );
+        setWidthValue(
+          typeof product.width === "number" ? product.width.toString() : ""
+        );
+        setHeightValue(
+          typeof product.height === "number" ? product.height.toString() : ""
+        );
+        setDimensionUnit(product.dimensionUnit || "cm");
+
+        setWeightValue(
+          typeof product.weight === "number" ? product.weight.toString() : ""
+        );
+        setWeightUnit(product.weightUnit || "kg");
+
+        setManufacturer(product.manufacturer || "");
+
+        setSellable(product.sellable ?? true);
+        setSellingPrice(
+          typeof product.sellingPrice === "number"
+            ? product.sellingPrice.toString()
+            : ""
+        );
+        setSalesAccount(product.salesAccount || "Sales");
+        setSalesDescription(product.salesDescription || "");
+
+        setPurchasable(product.purchasable ?? true);
+        setCostPrice(
+          typeof product.costPrice === "number"
+            ? product.costPrice.toString()
+            : ""
+        );
+        setPurchaseAccount(product.purchaseAccount || "Cost of Goods Sold");
+        setPurchaseDescription(product.purchaseDescription || "");
+
+        setPreferredVendorId(product.preferredVendorId || "");
+        setTrackInventory(product.trackInventory ?? true);
+
+        setUnitId(product.unitId || "");
+        setImageUrl(product.image || null);
       } catch (error) {
         setLoadError(
           error instanceof Error ? error.message : "Failed to load Item"
@@ -76,15 +149,56 @@ export default function EditProductComponent({ productId }: EditProductProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!storeId || !categoryId || !productName || !sku || !price) {
+    if (!productName) {
       setSubmitError("Please fill in all required fields.");
       return;
     }
 
-    const numericPrice = parseFloat(price);
+    if (itemType === "GOODS" && !unitId) {
+      setSubmitError("Unit is required for goods items.");
+      return;
+    }
 
-    if (Number.isNaN(numericPrice)) {
-      setSubmitError("Price must be a valid number.");
+    let numericSellingPrice = 0;
+    if (sellingPrice) {
+      numericSellingPrice = parseFloat(sellingPrice);
+      if (Number.isNaN(numericSellingPrice)) {
+        setSubmitError("Selling price must be a valid number.");
+        return;
+      }
+    } else if (sellable) {
+      setSubmitError("Selling price is required when item is sellable.");
+      return;
+    }
+
+    let numericCostPrice = 0;
+    if (costPrice) {
+      numericCostPrice = parseFloat(costPrice);
+      if (Number.isNaN(numericCostPrice)) {
+        setSubmitError("Cost price must be a valid number.");
+        return;
+      }
+    } else if (purchasable) {
+      setSubmitError("Cost price is required when item is purchasable.");
+      return;
+    }
+
+    const lengthNum = lengthValue ? parseFloat(lengthValue) : undefined;
+    const widthNum = widthValue ? parseFloat(widthValue) : undefined;
+    const heightNum = heightValue ? parseFloat(heightValue) : undefined;
+    const weightNum = weightValue ? parseFloat(weightValue) : undefined;
+
+    if (
+      (lengthValue && Number.isNaN(lengthNum!)) ||
+      (widthValue && Number.isNaN(widthNum!)) ||
+      (heightValue && Number.isNaN(heightNum!))
+    ) {
+      setSubmitError("Dimensions must be valid numbers.");
+      return;
+    }
+
+    if (weightValue && Number.isNaN(weightNum!)) {
+      setSubmitError("Weight must be a valid number.");
       return;
     }
 
@@ -92,22 +206,31 @@ export default function EditProductComponent({ productId }: EditProductProps) {
       setIsSubmitting(true);
       setSubmitError(null);
 
-      type ProductUpdatePayload = Partial<Product> & {
-        storeId?: string;
-        categoryId?: string;
-        brandId?: string;
-        costPrice?: number;
-        sellingPrice?: number;
-      };
-
-      const payload: ProductUpdatePayload = {
+      const payload: Partial<Product> = {
         name: productName,
-        sku,
-        storeId,
-        categoryId,
+        sku: sku || undefined,
         brandId: brandId || undefined,
-        costPrice: numericPrice,
-        sellingPrice: numericPrice,
+        image: imageUrl || undefined,
+        costPrice: numericCostPrice,
+        sellingPrice: numericSellingPrice,
+        itemType,
+        unitId: unitId || undefined,
+        returnable,
+        length: lengthNum,
+        width: widthNum,
+        height: heightNum,
+        dimensionUnit: dimensionUnit || undefined,
+        weight: weightNum,
+        weightUnit: weightUnit || undefined,
+        manufacturer: manufacturer || undefined,
+        sellable,
+        purchasable,
+        salesDescription: salesDescription || undefined,
+        purchaseDescription: purchaseDescription || undefined,
+        preferredVendorId: preferredVendorId || undefined,
+        salesAccount: salesAccount || undefined,
+        purchaseAccount: purchaseAccount || undefined,
+        trackInventory,
       };
 
       await productService.updateProduct(productId, payload);
@@ -122,19 +245,51 @@ export default function EditProductComponent({ productId }: EditProductProps) {
     }
   };
 
-  const storeOptions = [
-    { value: "", label: "Choose" },
-    ...(stores?.data?.map((s) => ({ value: s.id, label: s.name })) || []),
-  ];
-
-  const categoryOptions = [
-    { value: "", label: "Choose" },
-    ...(categories?.data?.map((c) => ({ value: c.id, label: c.name })) || []),
-  ];
-
   const brandOptions = [
     { value: "", label: "Choose" },
     ...(brands?.data?.map((b) => ({ value: b.id, label: b.name })) || []),
+  ];
+
+  const unitOptions = [
+    { value: "", label: "Select or type to add" },
+    ...(units?.data?.map((unitItem) => ({
+      value: unitItem.id,
+      label: unitItem.name,
+    })) || []),
+  ];
+
+  const preferredVendorOptions = [
+    { value: "", label: "Select Vendor" },
+    ...(suppliers?.data?.map((supplier) => ({
+      value: supplier.id,
+      label: supplier.name,
+    })) || []),
+  ];
+
+  const salesAccountOptions = [
+    { value: "", label: "Select an account" },
+    { value: "Sales", label: "Sales" },
+    { value: "Sales - Domestic", label: "Sales - Domestic" },
+    { value: "Sales - Export", label: "Sales - Export" },
+  ];
+
+  const purchaseAccountOptions = [
+    { value: "", label: "Select an account" },
+    { value: "Cost of Goods Sold", label: "Cost of Goods Sold" },
+    { value: "Purchases", label: "Purchases" },
+    { value: "Expenses", label: "Expenses" },
+  ];
+
+  const dimensionUnitOptions = [
+    { value: "cm", label: "cm" },
+    { value: "inch", label: "inch" },
+    { value: "ft", label: "ft" },
+  ];
+
+  const weightUnitOptions = [
+    { value: "kg", label: "kg" },
+    { value: "g", label: "g" },
+    { value: "lb", label: "lb" },
   ];
 
   if (loading) {
@@ -190,7 +345,6 @@ export default function EditProductComponent({ productId }: EditProductProps) {
               </li>
             </ul>
           </div>
-
           <form className="add-product-form" onSubmit={handleSubmit}>
             <div className="add-product">
               <div
@@ -220,34 +374,48 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                     aria-labelledby="headingSpacingOne"
                   >
                     <div className="accordion-body border-top">
+                      <div className="row mb-3">
+                        <div className="col-lg-6 col-12">
+                          <label className="form-label">Type</label>
+                          <div className="d-flex align-items-center">
+                            <div className="form-check me-3">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="item-type-goods"
+                                checked={itemType === "GOODS"}
+                                onChange={() => setItemType("GOODS")}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="item-type-goods"
+                              >
+                                Goods
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="item-type-service"
+                                checked={itemType === "SERVICE"}
+                                onChange={() => setItemType("SERVICE")}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="item-type-service"
+                              >
+                                Service
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       <div className="row">
                         <div className="col-sm-6 col-12">
                           <div className="mb-3">
                             <label className="form-label">
-                              Store<span className="text-danger ms-1">*</span>
-                            </label>
-                            <Select
-                              className="react-select"
-                              options={storeOptions}
-                              placeholder="Choose"
-                              value={
-                                storeOptions.find((o) => o.value === storeId) ||
-                                storeOptions[0]
-                              }
-                              onChange={(option) =>
-                                setStoreId(
-                                  (option as { value: string; label: string } | null)
-                                    ?.value || ""
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="col-sm-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Item Name
-                              <span className="text-danger ms-1">*</span>
+                              Name<span className="text-danger ms-1">*</span>
                             </label>
                             <input
                               type="text"
@@ -257,77 +425,181 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                             />
                           </div>
                         </div>
-                      </div>
-                      <div className="row">
                         <div className="col-sm-6 col-12">
-                          <div className="mb-3 list position-relative">
-                            <label className="form-label">
-                              SKU<span className="text-danger ms-1">*</span>
-                            </label>
+                          <div className="mb-3 list">
+                            <label className="form-label">SKU</label>
                             <input
                               type="text"
-                              className="form-control list"
+                              className="form-control"
                               value={sku}
                               onChange={(e) => setSku(e.target.value)}
                             />
                           </div>
                         </div>
                       </div>
-                      <div className="addservice-info">
-                        <div className="row">
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Category
+                      <div className="row">
+                        <div className="col-sm-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Unit
+                              {itemType === "GOODS" && (
                                 <span className="text-danger ms-1">*</span>
-                              </label>
-                              <Select
-                                className="react-select"
-                                options={categoryOptions}
-                                placeholder="Choose"
-                                value={
-                                  categoryOptions.find(
-                                    (o) => o.value === categoryId
-                                  ) || categoryOptions[0]
-                                }
-                                onChange={(option) =>
-                                  setCategoryId(
-                                    (option as { value: string; label: string } | null)
-                                      ?.value || ""
-                                  )
-                                }
+                              )}
+                            </label>
+                            <Select
+                              className="react-select"
+                              options={unitOptions}
+                              placeholder="Select or type to add"
+                              value={
+                                unitOptions.find(
+                                  (option) => option.value === unitId
+                                ) || unitOptions[0]
+                              }
+                              onChange={(option) =>
+                                setUnitId(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="col-sm-6 col-12">
+                          <div className="form-check mt-4">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="returnableItem"
+                              checked={returnable}
+                              onChange={(e) => setReturnable(e.target.checked)}
+                            />
+                            <label
+                              className="form-check-label"
+                              htmlFor="returnableItem"
+                            >
+                              Returnable Item
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="row">
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Dimensions (Length x Width x Height)
+                            </label>
+                            <div className="d-flex align-items-center">
+                              <input
+                                type="text"
+                                className="form-control me-1"
+                                value={lengthValue}
+                                onChange={(e) => setLengthValue(e.target.value)}
                               />
+                              <span className="mx-1">x</span>
+                              <input
+                                type="text"
+                                className="form-control me-1"
+                                value={widthValue}
+                                onChange={(e) => setWidthValue(e.target.value)}
+                              />
+                              <span className="mx-1">x</span>
+                              <input
+                                type="text"
+                                className="form-control me-2"
+                                value={heightValue}
+                                onChange={(e) => setHeightValue(e.target.value)}
+                              />
+                              <select
+                                className="form-select w-auto"
+                                value={dimensionUnit}
+                                onChange={(e) => setDimensionUnit(e.target.value)}
+                              >
+                                {dimensionUnitOptions.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
-                          <div className="col-sm-6 col-12">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Brand
-                                <span className="text-danger ms-1">*</span>
-                              </label>
-                              <Select
-                                className="react-select"
-                                options={brandOptions}
-                                placeholder="Choose"
-                                value={
-                                  brandOptions.find((o) => o.value === brandId) ||
-                                  brandOptions[0]
-                                }
-                                onChange={(option) =>
-                                  setBrandId(
-                                    (option as { value: string; label: string } | null)
-                                      ?.value || ""
-                                  )
-                                }
+                        </div>
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">Weight</label>
+                            <div className="d-flex align-items-center">
+                              <input
+                                type="text"
+                                className="form-control me-2"
+                                value={weightValue}
+                                onChange={(e) => setWeightValue(e.target.value)}
                               />
+                              <select
+                                className="form-select w-auto"
+                                value={weightUnit}
+                                onChange={(e) => setWeightUnit(e.target.value)}
+                              >
+                                {weightUnitOptions.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
+                        </div>
+                      </div>
+                      <div className="row">
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">Manufacturer</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={manufacturer}
+                              onChange={(e) => setManufacturer(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-6 col-12">
+                          <div className="mb-3">
+                            <div className="add-newplus">
+                              <label className="form-label">Brand</label>
+                            </div>
+                            <Select
+                              className="react-select"
+                              options={brandOptions}
+                              placeholder="Choose"
+                              value={
+                                brandOptions.find(
+                                  (option) => option.value === brandId
+                                ) || brandOptions[0]
+                              }
+                              onChange={(option) =>
+                                setBrandId(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-lg-12">
+                        <div className="summer-description-box">
+                          <label className="form-label">Description</label>
+                          <TextEditor />
+                          <p className="fs-14 mt-1">Maximum 60 Words</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-
                 <div className="accordion-item border mb-4">
                   <h2 className="accordion-header" id="headingSpacingTwo">
                     <div
@@ -340,7 +612,7 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                       <div className="d-flex align-items-center justify-content-between flex-fill">
                         <h5 className="d-flex align-items-center">
                           <LifeBuoy className="text-primary me-2" />
-                          <span>Pricing</span>
+                          <span>Sales &amp; Purchase Information</span>
                         </h5>
                       </div>
                     </div>
@@ -352,18 +624,241 @@ export default function EditProductComponent({ productId }: EditProductProps) {
                   >
                     <div className="accordion-body border-top">
                       <div className="row">
-                        <div className="col-lg-4 col-sm-6 col-12">
+                        <div className="col-lg-6 col-12 border-end">
+                          <h6 className="mb-3 d-flex align-items-center">
+                            <span className="me-2">Sales Information</span>
+                            <div className="form-check ms-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="sellable"
+                                checked={sellable}
+                                onChange={(e) => setSellable(e.target.checked)}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="sellable"
+                              >
+                                Sellable
+                              </label>
+                            </div>
+                          </h6>
                           <div className="mb-3">
                             <label className="form-label">
-                              Price
-                              <span className="text-danger ms-1">*</span>
+                              Selling Price
+                              {sellable && (
+                                <span className="text-danger ms-1">*</span>
+                              )}
                             </label>
                             <input
                               type="text"
                               className="form-control"
-                              value={price}
-                              onChange={(e) => setPrice(e.target.value)}
+                              value={sellingPrice}
+                              onChange={(e) => setSellingPrice(e.target.value)}
                             />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Account</label>
+                            <Select
+                              className="react-select"
+                              options={salesAccountOptions}
+                              placeholder="Select an account"
+                              value={
+                                salesAccountOptions.find(
+                                  (option) => option.value === salesAccount
+                                ) || salesAccountOptions[0]
+                              }
+                              onChange={(option) =>
+                                setSalesAccount(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Description</label>
+                            <textarea
+                              className="form-control"
+                              rows={3}
+                              value={salesDescription}
+                              onChange={(e) => setSalesDescription(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-6 col-12">
+                          <h6 className="mb-3 d-flex align-items-center">
+                            <span className="me-2">Purchase Information</span>
+                            <div className="form-check ms-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="purchasable"
+                                checked={purchasable}
+                                onChange={(e) => setPurchasable(e.target.checked)}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="purchasable"
+                              >
+                                Purchasable
+                              </label>
+                            </div>
+                          </h6>
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Cost Price
+                              {purchasable && (
+                                <span className="text-danger ms-1">*</span>
+                              )}
+                            </label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={costPrice}
+                              onChange={(e) => setCostPrice(e.target.value)}
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Account</label>
+                            <Select
+                              className="react-select"
+                              options={purchaseAccountOptions}
+                              placeholder="Select an account"
+                              value={
+                                purchaseAccountOptions.find(
+                                  (option) => option.value === purchaseAccount
+                                ) || purchaseAccountOptions[0]
+                              }
+                              onChange={(option) =>
+                                setPurchaseAccount(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Description</label>
+                            <textarea
+                              className="form-control"
+                              rows={3}
+                              value={purchaseDescription}
+                              onChange={(e) =>
+                                setPurchaseDescription(e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Preferred Vendor</label>
+                            <Select
+                              className="react-select"
+                              options={preferredVendorOptions}
+                              placeholder="Select Vendor"
+                              value={
+                                preferredVendorOptions.find(
+                                  (option) => option.value === preferredVendorId
+                                ) || preferredVendorOptions[0]
+                              }
+                              onChange={(option) =>
+                                setPreferredVendorId(
+                                  (option as { value: string; label: string } | null)
+                                    ?.value || ""
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <hr className="my-4" />
+                      <div className="row">
+                        <div className="col-12">
+                          <div className="form-check mb-2">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="trackInventory"
+                              checked={trackInventory}
+                              onChange={(e) => setTrackInventory(e.target.checked)}
+                            />
+                            <label
+                              className="form-check-label fw-semibold"
+                              htmlFor="trackInventory"
+                            >
+                              Track Inventory for this item
+                            </label>
+                          </div>
+                          <p className="text-muted fs-12 mb-3">
+                            You cannot enable/disable inventory tracking once you
+                            have created transactions for this item.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="accordion-item border mb-4">
+                  <h2 className="accordion-header" id="headingSpacingThree">
+                    <div
+                      className="accordion-button collapsed bg-white"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#SpacingThree"
+                      aria-expanded="true"
+                      aria-controls="SpacingThree"
+                    >
+                      <div className="d-flex align-items-center justify-content-between flex-fill">
+                        <h5 className="d-flex align-items-center">
+                          <Image className="text-primary me-2" />
+                          <span>Images</span>
+                        </h5>
+                      </div>
+                    </div>
+                  </h2>
+                  <div
+                    id="SpacingThree"
+                    className="accordion-collapse collapse show"
+                    aria-labelledby="headingSpacingThree"
+                  >
+                    <div className="accordion-body border-top">
+                      <div className="text-editor add-list add">
+                        <div className="col-lg-12">
+                          <div className="add-choosen">
+                            <div className="mb-3">
+                              <div className="image-upload d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3">
+                                <UploadButton<OurFileRouter, "productImages">
+                                  endpoint="productImages"
+                                  onClientUploadComplete={(res) => {
+                                    const file = res?.[0];
+                                    if (file?.url) {
+                                      setImageUrl(file.url);
+                                      setImageUploadError(null);
+                                    }
+                                  }}
+                                  onUploadError={(error) => {
+                                    setImageUploadError(error.message);
+                                  }}
+                                />
+                                {imageUploadError && (
+                                  <div className="text-danger small mt-2 mt-sm-0">
+                                    {imageUploadError}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {imageUrl && (
+                              <div className="phone-img">
+                                <img src={imageUrl} alt="Product" />
+                                <Link href="#">
+                                  <X
+                                    className="x-square-add remove-product"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setImageUrl(null);
+                                    }}
+                                  />
+                                </Link>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -395,6 +890,8 @@ export default function EditProductComponent({ productId }: EditProductProps) {
         </div>
         <CommonFooter />
       </div>
+      <Addunits />
+      <AddBrand />
     </>
   );
 }

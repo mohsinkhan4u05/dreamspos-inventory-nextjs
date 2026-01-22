@@ -37,7 +37,7 @@ export default function ProductListComponent() {
       : 0;
 
     const creatorName =
-      product.createdBy?.name ||
+      product.createdBy?.username ||
       product.createdBy?.email ||
       (session?.user as any | undefined)?.name ||
       (session?.user as any | undefined)?.username ||
@@ -61,6 +61,10 @@ export default function ProductListComponent() {
       img: creatorImage,
     };
   }) || [];
+
+  const creatorOptions = Array.from(
+    new Set((dataSource || []).map((item: any) => item.createdby).filter(Boolean))
+  ) as string[];
 
   const handleOpenDelete = (record: any) => {
     setDeleteProductId(record.id);
@@ -93,7 +97,8 @@ export default function ProductListComponent() {
       title: "SKU",
       dataIndex: "sku",
       priority: "optional",
-      sorter: (a: any, b: any) => a.sku.length - b.sku.length,
+      sorter: (a: any, b: any) =>
+        String(a.sku ?? "").length - String(b.sku ?? "").length,
     },
     {
       title: "Name",
@@ -107,19 +112,22 @@ export default function ProductListComponent() {
           <Link href={`/item/${record.id}`}>{text}</Link>
         </div>
       ),
-      sorter: (a: any, b: any) => a.product.length - b.product.length,
+      sorter: (a: any, b: any) =>
+        String(a.product ?? "").length - String(b.product ?? "").length,
     },
     {
       title: "Price",
       dataIndex: "price",
       priority: "always",
-      sorter: (a: any, b: any) => a.price.length - b.price.length,
+      sorter: (a: any, b: any) =>
+        String(a.price ?? "").length - String(b.price ?? "").length,
     },
     {
       title: "Stock On Hand",
       dataIndex: "qty",
       priority: "always",
-      sorter: (a: any, b: any) => a.qty.length - b.qty.length,
+      sorter: (a: any, b: any) =>
+        String(a.qty ?? "").length - String(b.qty ?? "").length,
     },
 
     {
@@ -134,7 +142,8 @@ export default function ProductListComponent() {
           <Link href="/profile">{text}</Link>
         </span>
       ),
-      sorter: (a: any, b: any) => a.createdby.length - b.createdby.length,
+      sorter: (a: any, b: any) =>
+        String(a.createdby ?? "").length - String(b.createdby ?? "").length,
     },
     {
       title: "Action",
@@ -176,7 +185,8 @@ export default function ProductListComponent() {
           </div>
         </div>
       ),
-      sorter: (a: any, b: any) => a.createdby.length - b.createdby.length,
+      sorter: (a: any, b: any) =>
+        String(a.createdby ?? "").length - String(b.createdby ?? "").length,
     },
   ];
 
@@ -231,7 +241,7 @@ export default function ProductListComponent() {
                 Add New Item
               </Link>
             </div>
-            <div className="page-btn import">
+            {/* <div className="page-btn import">
               <Link
                 href="#"
                 className="btn btn-secondary color"
@@ -241,14 +251,14 @@ export default function ProductListComponent() {
                 <Download className="feather me-2" />
                 Import Item
               </Link>
-            </div>
+            </div> */}
           </div>
           {/* /product list */}
           <div className="card table-list-card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
               <div className="search-set"></div>
               <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                <div className="dropdown me-2">
+                {/* <div className="dropdown me-2">
                   <Link
                     href="#"
                     className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
@@ -278,7 +288,7 @@ export default function ProductListComponent() {
                       </Link>
                     </li>
                   </ul>
-                </div>
+                </div> */}
                 <div className="dropdown me-2">
                   <Link
                     href="#"
@@ -288,29 +298,23 @@ export default function ProductListComponent() {
                     Created By
                   </Link>
                   <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        James Kirwin
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Francis Chang
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Antonio Engle
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Leo Kelly
-                      </Link>
-                    </li>
+                    {creatorOptions.length === 0 && (
+                      <li>
+                        <span className="dropdown-item rounded-1 text-muted">
+                          No creators
+                        </span>
+                      </li>
+                    )}
+                    {creatorOptions.map((name) => (
+                      <li key={name}>
+                        <Link href="#" className="dropdown-item rounded-1">
+                          {name}
+                        </Link>
+                      </li>
+                    ))}
                   </ul>
                 </div>
-                <div className="dropdown me-2">
+                {/* <div className="dropdown me-2">
                   <Link
                     href="#"
                     className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
@@ -407,7 +411,7 @@ export default function ProductListComponent() {
                       </Link>
                     </li>
                   </ul>
-                </div>
+                </div> */}
               </div>
             </div>
             <div className="card-body">

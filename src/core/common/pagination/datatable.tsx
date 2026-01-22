@@ -62,8 +62,7 @@ const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey
     if (typeof rowKey === "string") {
       return (record: any) => (record ? record[rowKey] : undefined);
     }
-    return (record: any, index: number) =>
-      record && record.id != null ? record.id : index;
+    return (record: any) => (record && record.id != null ? record.id : undefined);
   }, [rowKey]);
 
   const resolvePriority = (col: any): "always" | "desktop" | "optional" => {

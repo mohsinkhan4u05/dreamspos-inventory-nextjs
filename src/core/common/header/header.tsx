@@ -243,67 +243,11 @@ export default function Header() {
               <div className="dropdown-menu dropdown-xl dropdown-menu-center">
                 <div className="row g-2">
                   <div className="col-md-2">
-                    <Link href={route.categorylist} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-brand-codepen" />
-                      </span>
-                      <p>Category</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
                     <Link href={route.addproduct} className="link-item">
                       <span className="link-icon">
                         <i className="ti ti-square-plus" />
                       </span>
                       <p>Product</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
-                    <Link href={route.categorylist} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-shopping-bag" />
-                      </span>
-                      <p>Purchase</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
-                    <Link href="{route.online}" className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-shopping-cart" />
-                      </span>
-                      <p>Sale</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
-                    <Link href={route.expenselist} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-file-text" />
-                      </span>
-                      <p>Expense</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
-                    <Link href={route.quotationlist} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-device-floppy" />
-                      </span>
-                      <p>Quotation</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
-                    <Link href={route.salesreturn} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-copy" />
-                      </span>
-                      <p>Return</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
-                    <Link href={route.users} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-user" />
-                      </span>
-                      <p>User</p>
                     </Link>
                   </div>
                   <div className="col-md-2">
@@ -315,27 +259,27 @@ export default function Header() {
                     </Link>
                   </div>
                   <div className="col-md-2">
-                    <Link href={route.salesreport} className="link-item">
-                      <span className="link-icon">
-                        <i className="ti ti-shield" />
-                      </span>
-                      <p>Biller</p>
-                    </Link>
-                  </div>
-                  <div className="col-md-2">
                     <Link href={route.suppliers} className="link-item">
                       <span className="link-icon">
                         <i className="ti ti-user-check" />
                       </span>
-                      <p>Supplier</p>
+                      <p>Vendor</p>
                     </Link>
                   </div>
                   <div className="col-md-2">
-                    <Link href={route.stocktransfer} className="link-item">
+                    <Link href={route.salesorderadd2} className="link-item">
                       <span className="link-icon">
-                        <i className="ti ti-truck" />
+                        <i className="ti ti-shopping-cart" />
                       </span>
-                      <p>Transfer</p>
+                      <p>Sales</p>
+                    </Link>
+                  </div>
+                  <div className="col-md-2">
+                    <Link href={route.purchaseorderadd2} className="link-item">
+                      <span className="link-icon">
+                        <i className="ti ti-shopping-bag" />
+                      </span>
+                      <p>Purchase</p>
                     </Link>
                   </div>
                 </div>

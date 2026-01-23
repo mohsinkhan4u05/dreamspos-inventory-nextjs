@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { hasPermission, PermissionAction, PermissionResource } from "@/lib/rbac/permissions";
-import { UserRole } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +28,6 @@ export async function POST(request: NextRequest) {
 
     const user = {
       id: token.sub,
-      role: token.role as UserRole,
       roleId: token.roleId as string | null | undefined,
     };
 

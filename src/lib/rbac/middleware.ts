@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { hasPermission, PermissionAction, PermissionResource } from "./permissions";
-import { UserRole } from "@prisma/client";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: UserRole;
+  role?: string | null;
   roleId?: string | null;
 }
 
@@ -36,7 +35,7 @@ export async function requirePermission(
     const user: AuthenticatedUser = {
       id: token.sub,
       email: token.email as string,
-      role: token.role as UserRole,
+      role: token.role as string | null | undefined,
       roleId: token.roleId as string | null | undefined,
     };
 
@@ -117,7 +116,7 @@ export async function requireAllPermissions(
   const user: AuthenticatedUser = {
     id: token.sub,
     email: token.email as string,
-    role: token.role as UserRole,
+    role: token.role as string | null | undefined,
     roleId: token.roleId as string | null | undefined,
   };
 

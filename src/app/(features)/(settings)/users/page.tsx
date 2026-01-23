@@ -180,6 +180,7 @@ export default function UsersPage() {
 
   async function handleChangeRole(user: UserRow, newRoleId: string) {
     if (!isSuperAdmin) return;
+    if (!confirm(`Are you sure you want to change the role of ${user.email} to ${newRoleId}?`)) return;
     try {
       const res = await fetch(`/api/users/${user.id}/role`, {
         method: "PATCH",
@@ -295,7 +296,16 @@ export default function UsersPage() {
                       <td>
                         <div className="user-cell">
                           <div className="avatar">
-                            {user.firstName?.[0] || user.email[0].toUpperCase()}
+                            {user.avatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={user.avatar}
+                                alt={user.firstName || user.email}
+                                style={{ width: "100%", height: "100%", borderRadius: "9999px", objectFit: "cover" }}
+                              />
+                            ) : (
+                              user.firstName?.[0] || user.email[0].toUpperCase()
+                            )}
                           </div>
                           <div className="user-meta">
                             <div className="user-name">

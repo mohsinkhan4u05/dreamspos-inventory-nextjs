@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         firstName: firstName || null,
         lastName: lastName || null,
-        role: "STAFF", // Default role
       },
       select: {
         id: true,
@@ -140,7 +139,6 @@ export async function POST(request: NextRequest) {
         username: true,
         firstName: true,
         lastName: true,
-        role: true,
         createdAt: true,
       }
     })

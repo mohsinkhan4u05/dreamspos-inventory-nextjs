@@ -159,7 +159,7 @@ export async function requireAnyPermission(
   const user: AuthenticatedUser = {
     id: token.sub,
     email: token.email as string,
-    role: token.role as UserRole,
+    role: token.role as string | null | undefined,
     roleId: token.roleId as string | null | undefined,
   };
 

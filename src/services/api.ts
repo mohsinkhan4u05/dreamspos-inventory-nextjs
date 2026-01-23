@@ -543,6 +543,12 @@ export const salesOrderService = {
       body: JSON.stringify(orderData),
     })
   },
+  async bulkCancelSalesOrders(ids: string[]) {
+    return fetchAPI('/sales-orders/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    })
+  },
   async getSalesOrderPackages(id: string) {
     return fetchAPI(`/sales-orders/${id}/packages`)
   },

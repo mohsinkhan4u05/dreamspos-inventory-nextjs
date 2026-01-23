@@ -11,10 +11,13 @@ import { all_routes } from "@/data/all_routes";
 import Link from "next/link";
 import { useSalesOrders, SalesOrder } from "@/hooks/useSalesOrders";
 import { useOrgFormatting } from "@/hooks/useOrgFormatting";
+import { useRole } from "@/hooks/usePermission";
+import { salesOrderService } from "@/services/api";
 
 export default function SalesOrderList() {
   const { orders, loading, error, refetch } = useSalesOrders();
   const { formatCurrency, formatDate } = useOrgFormatting();
+  const { isSuperAdmin } = useRole();
 
   const data: SalesOrder[] = orders?.data ?? [];
 
@@ -27,18 +30,42 @@ export default function SalesOrderList() {
       data.filter((order) => {
         const s = (order.status || "").toUpperCase();
 
+        // Hide soft-deleted / cancelled orders from this list
+        if (s === "CANCELLED") {
+          return false;
+        }
+
         if (statusFilter === "OPEN") {
-          return s !== "CLOSED" && s !== "CANCELLED";
+          return s !== "CLOSED";
         }
 
         if (statusFilter === "CLOSED") {
-          return s === "CLOSED" || s === "CANCELLED";
+          return s === "CLOSED";
         }
 
         return true;
       }),
     [data, statusFilter],
   );
+
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+
+  const handleSelectionChange = (keys: any[]) => {
+    setSelectedRowKeys((Array.isArray(keys) ? keys : []).map(String));
+  };
+
+  const handleBulkRemove = async () => {
+    if (!isSuperAdmin) return;
+    if (selectedRowKeys.length === 0) return;
+
+    try {
+      await salesOrderService.bulkCancelSalesOrders(selectedRowKeys);
+      setSelectedRowKeys([]);
+      await refetch();
+    } catch (e) {
+      console.error("Failed to bulk cancel sales orders", e);
+    }
+  };
 
   const columns = [
     {
@@ -196,7 +223,7 @@ export default function SalesOrderList() {
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
               <div className="search-set" />
               <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                <div className="d-flex align-items-center">
+                <div className="d-flex align-items-center me-3">
                   <span className="me-2">Status:</span>
                   <select
                     className="form-select"
@@ -211,6 +238,17 @@ export default function SalesOrderList() {
                     <option value="CLOSED">Closed</option>
                   </select>
                 </div>
+                {isSuperAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm d-flex align-items-center"
+                    disabled={selectedRowKeys.length === 0}
+                    onClick={handleBulkRemove}
+                  >
+                    <i className="ti ti-trash me-1" />
+                    Remove ({selectedRowKeys.length})
+                  </button>
+                )}
               </div>
             </div>
             <div className="card-body">
@@ -220,7 +258,11 @@ export default function SalesOrderList() {
                 ) : error ? (
                   <p className="text-danger">{error}</p>
                 ) : (
-                  <Table columns={columns} dataSource={filteredData} />
+                  <Table
+                    columns={columns}
+                    dataSource={filteredData}
+                    onSelectionChange={handleSelectionChange}
+                  />
                 )}
               </div>
             </div>

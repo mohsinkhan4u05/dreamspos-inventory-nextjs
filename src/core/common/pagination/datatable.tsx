@@ -5,7 +5,7 @@ import { Table } from "antd";
 
 type Viewport = "desktop" | "tablet" | "mobile";
 
-const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey }: any) => {
+const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey, onSelectionChange }: any) => {
   const [searchText, setSearchText] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [filteredDataSource, setFilteredDataSource] = useState(dataSource);
@@ -36,6 +36,14 @@ const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey
 
   const onSelectChange = (newSelectedRowKeys: any[]) => {
     setSelectedRowKeys(newSelectedRowKeys);
+    if (typeof onSelectionChange === "function") {
+      try {
+        onSelectionChange(newSelectedRowKeys);
+      } catch (e) {
+        // swallow errors from parent callbacks to avoid breaking table selection
+        console.error("Error in onSelectionChange callback", e);
+      }
+    }
   };
 
   const handleSearch = (value: any) => {

@@ -105,6 +105,14 @@ export default function SalesOrderList() {
         (a.customer?.name || "").localeCompare(b.customer?.name || ""),
     },
     {
+      title: "Sales Person",
+      dataIndex: "salesperson",
+      priority: "always",
+      render: (_: unknown, record: SalesOrder) => record.salesperson || "-",
+      sorter: (a: SalesOrder, b: SalesOrder) =>
+        (a.salesperson || "").localeCompare(b.salesperson || ""),
+    },
+    {
       title: "Order Status",
       dataIndex: "status",
       priority: "always",

@@ -192,6 +192,17 @@ export async function POST(request: NextRequest) {
       ? new Date(body.expectedShipmentDate)
       : null;
 
+    const salesPersonName =
+      (typeof body.salesperson === "string" && body.salesperson.trim().length > 0
+        ? body.salesperson.trim()
+        : null) ||
+      (typeof token?.name === "string" && token.name.trim().length > 0
+        ? token.name.trim()
+        : null) ||
+      (typeof token?.email === "string" && token.email.trim().length > 0
+        ? token.email.trim()
+        : null);
+
     const salesOrder = await prisma.salesOrder.create({
       data: {
         orderNumber,
@@ -202,7 +213,7 @@ export async function POST(request: NextRequest) {
         expectedShipmentDate,
         paymentTerms: body.paymentTerms ?? null,
         deliveryMethod: body.deliveryMethod ?? null,
-        salesperson: body.salesperson ?? null,
+        salesperson: salesPersonName,
         subtotal,
         discount,
         taxAmount,

@@ -15,7 +15,7 @@ import CollapesIcon from "@/core/common/tooltip-content/collapes";
 import RefreshIcon from "@/core/common/tooltip-content/refresh";
 import AddBrand from "@/core/modals/inventory/addbrand";
 import Addunits from "@/core/modals/inventory/addunits";
-import { ArrowLeft, Info, LifeBuoy, X, Image } from "react-feather";
+import { ArrowLeft, Info, LifeBuoy, X, Image, PlusCircle } from "react-feather";
 import Select from "react-select";
 import Link from "next/link";
 import { UploadButton } from "@uploadthing/react";

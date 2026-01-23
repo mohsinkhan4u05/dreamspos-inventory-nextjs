@@ -73,6 +73,11 @@ export default function UsersPage() {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [expandedRows, setExpandedRows] = useState<string[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
 
@@ -165,36 +170,63 @@ export default function UsersPage() {
   }
 
   async function handleRemoveUser(user: UserRow) {
-    if (!confirm("Are you sure you want to remove this user?")) return;
-    try {
-      const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to remove user");
-      }
-      fetchUsers();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to remove user");
-    }
+    const displayName =
+      (user.firstName || "") || (user.lastName || "")
+        ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+        : user.email;
+
+    setConfirmModal({
+      title: "Remove User",
+      message: `Are you sure you want to remove ${displayName}?`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+          const json = await res.json();
+          if (!res.ok) {
+            throw new Error(json.error || "Failed to remove user");
+          }
+          fetchUsers();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : "Failed to remove user");
+        }
+      },
+    });
   }
 
   async function handleChangeRole(user: UserRow, newRoleId: string) {
     if (!isSuperAdmin) return;
-    if (!confirm(`Are you sure you want to change the role of ${user.email} to ${newRoleId}?`)) return;
-    try {
-      const res = await fetch(`/api/users/${user.id}/role`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roleId: newRoleId }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to update role");
-      }
-      fetchUsers();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update role");
+    if (!newRoleId || newRoleId === user.roleId) {
+      return;
     }
+
+    const currentRoleLabel = user.customRole?.displayName || user.role;
+    const newRole = roles.find((r) => r.id === newRoleId);
+    const newRoleLabel = newRole?.displayName || "this role";
+    const targetName =
+      (user.firstName || "") || (user.lastName || "")
+        ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+        : user.email;
+
+    setConfirmModal({
+      title: "Change Role",
+      message: `Are you sure you want to change the role for ${targetName} from ${currentRoleLabel} to ${newRoleLabel}?`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users/${user.id}/role`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roleId: newRoleId }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            throw new Error(json.error || "Failed to update role");
+          }
+          fetchUsers();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : "Failed to update role");
+        }
+      },
+    });
   }
 
   function handleUpdatePassword(user: UserRow) {
@@ -301,7 +333,12 @@ export default function UsersPage() {
                               <img
                                 src={user.avatar}
                                 alt={user.firstName || user.email}
-                                style={{ width: "100%", height: "100%", borderRadius: "9999px", objectFit: "cover" }}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  borderRadius: "9999px",
+                                  objectFit: "cover",
+                                }}
                               />
                             ) : (
                               user.firstName?.[0] || user.email[0].toUpperCase()
@@ -501,6 +538,35 @@ export default function UsersPage() {
         </div>
       )}
 
+      {confirmModal && (
+        <div className="confirm-modal-backdrop">
+          <div className="confirm-modal">
+            <h4 className="confirm-modal-title">{confirmModal.title}</h4>
+            <p className="confirm-modal-message">{confirmModal.message}</p>
+            <div className="confirm-modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setConfirmModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const action = confirmModal.onConfirm;
+                  setConfirmModal(null);
+                  action();
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <InviteUserModal
         isOpen={inviteOpen}
         onClose={() => setInviteOpen(false)}
@@ -552,7 +618,7 @@ export default function UsersPage() {
           background: #ffffff;
           border-radius: 8px;
           padding: 16px 20px;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
         }
         .error-card {
           border: 1px solid #fecaca;
@@ -666,6 +732,38 @@ export default function UsersPage() {
         .details-toggle-cell {
           text-align: right;
           width: 40px;
+        }
+        .confirm-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 50;
+        }
+        .confirm-modal {
+          background: #ffffff;
+          border-radius: 8px;
+          padding: 20px 24px;
+          max-width: 400px;
+          width: 100%;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .confirm-modal-title {
+          margin: 0 0 8px;
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .confirm-modal-message {
+          margin: 0 0 16px;
+          font-size: 14px;
+          color: #4b5563;
+        }
+        .confirm-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
         }
       `}</style>
     </div>

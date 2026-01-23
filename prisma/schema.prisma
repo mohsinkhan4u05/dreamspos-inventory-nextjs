@@ -245,7 +245,7 @@ model Product {
   id                    String                   @id @default(cuid())
   name                  String
   description           String?
-  sku                   String?                  @unique
+  sku                   String?
   barcode               String?                  @unique
   brandId               String?
   createdByUserId       String?
@@ -348,7 +348,7 @@ model ProductVariant {
   id           String   @id @default(cuid())
   productId    String
   name         String
-  sku          String?  @unique
+  sku          String?
   barcode      String?  @unique
   costPrice    Float?
   sellingPrice Float?

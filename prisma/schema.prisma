@@ -20,7 +20,6 @@ model User {
   firstName String?
   lastName  String?
   phone     String?
-  role      UserRole   @default(STAFF) // Legacy enum role - kept for backward compatibility
   roleId    String? // New granular role system
   avatar    String?
   status    UserStatus @default(PENDING)
@@ -77,14 +76,6 @@ enum InvitationStatus {
   ACCEPTED
   EXPIRED
   REVOKED
-}
-
-enum UserRole {
-  SUPER_ADMIN
-  ADMIN
-  MANAGER
-  STAFF
-  CASHIER
 }
 
 // Password Update OTP

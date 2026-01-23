@@ -53,9 +53,10 @@ export const authOptions = {
           email: user.email,
           name: `${user.firstName} ${user.lastName}`.trim() || safeUsername,
           username: safeUsername,
-          role: user.role,
+          // Role information comes from the Role model, not the legacy enum
           roleId: user.roleId,
-          customRoleName: user.customRole?.displayName ?? null,
+          roleKey: user.customRole?.name ?? null,
+          roleName: user.customRole?.displayName ?? null,
           avatar: user.avatar ?? null,
         } as any;
 
@@ -70,9 +71,9 @@ export const authOptions = {
     async jwt({ token, user, trigger, session }: any) {
       // On initial sign-in, seed token from the authenticated user
       if (user) {
-        token.role = user.role
+        token.roleKey = user.roleKey || null
         token.roleId = user.roleId || null
-        token.roleName = user.customRoleName || null
+        token.roleName = user.roleName || null
         token.avatar = user.avatar ?? null
       }
 
@@ -84,7 +85,7 @@ export const authOptions = {
         })
 
         if (dbUser) {
-          token.role = dbUser.role
+          token.roleKey = dbUser.customRole?.name ?? null
           token.roleId = dbUser.roleId || null
           token.roleName = dbUser.customRole?.displayName ?? null
           token.avatar = dbUser.avatar ?? null
@@ -96,10 +97,14 @@ export const authOptions = {
     async session({ session, token }: { session: any; token: any }) {
       if (token) {
         session.user.id = token.sub!
-        session.user.role = token.role as string
+        // New canonical fields
+        session.user.roleKey = (token.roleKey as string | null) ?? null
         session.user.roleId = (token.roleId as string | null) ?? null
         session.user.roleName = (token.roleName as string | null) ?? null
         session.user.image = (token.avatar as string | null) ?? null
+
+        // Backward-compatible alias: many places may still read session.user.role
+        session.user.role = session.user.roleKey
       }
       return session
     },

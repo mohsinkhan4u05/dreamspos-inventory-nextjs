@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withPermission } from "@/lib/rbac/middleware";
-import { UserRole } from "@prisma/client";
 
 /**
  * PATCH /api/users/[id]/role
@@ -44,17 +43,9 @@ export const PATCH = withPermission(
         return NextResponse.json({ error: "Role not found or inactive" }, { status: 400 });
       }
 
-      let enumRoleUpdate: Partial<{ role: UserRole }> = {};
-      if (existingRole.isSystemRole) {
-        const systemName = existingRole.name as keyof typeof UserRole;
-        if (UserRole[systemName]) {
-          enumRoleUpdate = { role: UserRole[systemName] };
-        }
-      }
-
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: { roleId, ...enumRoleUpdate },
+        data: { roleId },
         select: {
           id: true,
           email: true,

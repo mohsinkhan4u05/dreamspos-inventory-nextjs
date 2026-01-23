@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { InviteUserModal } from "@/components/user-management/InviteUserModal";
 import { UpdatePasswordModal } from "@/components/user-management/UpdatePasswordModal";
 import { Can } from "@/components/rbac/Can";
+import type { Role } from "@/types/rbac";
 
 type UserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "STAFF" | "CASHIER";
 
@@ -71,11 +72,13 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [expandedRows, setExpandedRows] = useState<string[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
 
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
 
   useEffect(() => {
@@ -111,6 +114,19 @@ export default function UsersPage() {
       setError(err instanceof Error ? err.message : "Failed to fetch users");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchRoles() {
+    try {
+      const res = await fetch("/api/rbac/roles", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to fetch roles");
+      }
+      setRoles(json.roles || []);
+    } catch (err) {
+      console.error("Failed to fetch roles:", err);
     }
   }
 
@@ -159,6 +175,24 @@ export default function UsersPage() {
       fetchUsers();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to remove user");
+    }
+  }
+
+  async function handleChangeRole(user: UserRow, newRoleId: string) {
+    if (!isSuperAdmin) return;
+    try {
+      const res = await fetch(`/api/users/${user.id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleId: newRoleId }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to update role");
+      }
+      fetchUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update role");
     }
   }
 
@@ -278,7 +312,23 @@ export default function UsersPage() {
                         </div>
                       </td>
                       {viewport === "desktop" && (
-                        <td>{user.customRole?.displayName || user.role}</td>
+                        <td>
+                          {isSuperAdmin ? (
+                            <select
+                              value={user.roleId || ""}
+                              onChange={(e) => handleChangeRole(user, e.target.value)}
+                            >
+                              <option value="">Select role</option>
+                              {roles.map((role) => (
+                                <option key={role.id} value={role.id}>
+                                  {role.displayName}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            user.customRole?.displayName || user.role
+                          )}
+                        </td>
                       )}
                       <td>{renderStatusBadge(user.status)}</td>
                       {viewport === "desktop" ? (
@@ -308,7 +358,21 @@ export default function UsersPage() {
                             <div className="responsive-row-detail-item">
                               <div className="responsive-row-detail-label">Role</div>
                               <div className="responsive-row-detail-value">
-                                {user.customRole?.displayName || user.role}
+                                {isSuperAdmin ? (
+                                  <select
+                                    value={user.roleId || ""}
+                                    onChange={(e) => handleChangeRole(user, e.target.value)}
+                                  >
+                                    <option value="">Select role</option>
+                                    {roles.map((role) => (
+                                      <option key={role.id} value={role.id}>
+                                        {role.displayName}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  user.customRole?.displayName || user.role
+                                )}
                               </div>
                             </div>
                             <div className="responsive-row-detail-item">

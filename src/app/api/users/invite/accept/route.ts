@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { validateInvitationToken, revokePendingInvitations } from "@/lib/invitation-token";
 
@@ -56,6 +57,15 @@ export async function POST(request: NextRequest) {
     // Generate username from email
     const username = invitation.email.split("@")[0] + "_" + Math.random().toString(36).substring(7);
 
+    // Determine legacy enum role based on invited role (for system roles)
+    let enumRole: UserRole = UserRole.STAFF;
+    if (invitation.role?.isSystemRole) {
+      const systemName = invitation.role.name as keyof typeof UserRole;
+      if (UserRole[systemName]) {
+        enumRole = UserRole[systemName];
+      }
+    }
+
     // Create user and update invitation in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create user
@@ -66,6 +76,7 @@ export async function POST(request: NextRequest) {
           password: hashedPassword,
           firstName: firstName || invitation.firstName || "",
           lastName: lastName || invitation.lastName || "",
+          role: enumRole,
           roleId: invitation.roleId,
           status: "ACTIVE",
           isActive: true,

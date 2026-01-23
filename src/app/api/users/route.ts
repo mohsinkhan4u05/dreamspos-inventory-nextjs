@@ -24,7 +24,6 @@ export const GET = withPermission("users", "read", async () => {
         avatar: true,
         status: true,
         isActive: true,
-        role: true,
         roleId: true,
         invitedAt: true,
         joinedAt: true,

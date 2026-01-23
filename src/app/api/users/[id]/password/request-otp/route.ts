@@ -27,7 +27,6 @@ export const POST = withPermission(
           email: true,
           firstName: true,
           lastName: true,
-          role: true,
         },
       });
 

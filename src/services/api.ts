@@ -74,7 +74,18 @@ export const productService = {
   },
 
   // Create new product
-  async createProduct(productData: Partial<Product>) {
+  async createProduct(
+    productData: Partial<Product> & {
+      variantOptions?: { name: string; values: string[]; position?: number }[]
+      baseSkuPrefix?: string
+      variantDetails?: {
+        title: string
+        costPrice: number
+        sellingPrice: number
+        quantity: number
+      }[]
+    },
+  ) {
     return fetchAPI('/inventory/products', {
       method: 'POST',
       body: JSON.stringify(productData),
@@ -82,7 +93,18 @@ export const productService = {
   },
 
   // Update product
-  async updateProduct(id: string, productData: Partial<Product>) {
+  async updateProduct(
+    id: string,
+    productData: Partial<Product> & {
+      variantUpdates?: {
+        id?: string
+        name?: string
+        costPrice?: number
+        sellingPrice?: number
+        quantity?: number
+      }[]
+    },
+  ) {
     return fetchAPI(`/inventory/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(productData),

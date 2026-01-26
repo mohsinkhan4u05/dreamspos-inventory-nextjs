@@ -35,6 +35,7 @@ interface ProductOption extends Option {
 interface ItemRow {
   id: string;
   productId?: string;
+  variantId?: string;
   description?: string;
   quantity: string;
   rate: string;
@@ -91,6 +92,8 @@ export default function SalesOrderAddPos() {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
+
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
@@ -107,6 +110,36 @@ export default function SalesOrderAddPos() {
   useEffect(() => {
     // no-op
   }, []);
+
+  const getVariantStockForStore = (
+    productId?: string,
+    variantId?: string,
+  ): number | null => {
+    if (!productId || !variantId) return null;
+
+    const product = rawProducts.find((p: any) => p.id === productId);
+    if (!product) return null;
+
+    // In the product list payload, stocks are attached at product level with variantId
+    const allStocks = Array.isArray((product as any).stocks)
+      ? (product as any).stocks
+      : [];
+
+    const stockForVariantAndStore = allStocks.filter((s: any) => {
+      if (!s) return false;
+      if (s.variantId !== variantId) return false;
+      if (storeId && s.storeId !== storeId) return false;
+      return true;
+    });
+
+    const qty = stockForVariantAndStore.reduce(
+      (sum: number, s: any) =>
+        sum + (typeof s.quantity === "number" ? s.quantity : 0),
+      0,
+    );
+
+    return qty;
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -252,6 +285,76 @@ export default function SalesOrderAddPos() {
     return customerDetailsById[customerId] || null;
   }, [customerId, customerDetailsById]);
 
+  const getVariantLineQuantity = (productId: string, variantId: string): number => {
+    return items
+      .filter((row) => row.productId === productId && row.variantId === variantId)
+      .reduce((sum, row) => sum + parseNumber(row.quantity), 0);
+  };
+
+  const setVariantLineQuantity = (
+    productId: string,
+    variantId: string,
+    quantity: number,
+  ) => {
+    setItems((prev) => {
+      const existingIndex = prev.findIndex(
+        (row) => row.productId === productId && row.variantId === variantId,
+      );
+
+      if (quantity <= 0) {
+        if (existingIndex === -1) return prev;
+        const next = [...prev];
+        next.splice(existingIndex, 1);
+        return next;
+      }
+
+      const product = rawProducts.find((p: any) => p.id === productId);
+      const variants = Array.isArray(product?.variants) ? product.variants : [];
+      const variant = variants.find((v: any) => v && v.id === variantId);
+      const variantPrice =
+        typeof variant?.sellingPrice === "number"
+          ? variant.sellingPrice
+          : typeof variant?.price === "number"
+          ? variant.price
+          : typeof variant?.costPrice === "number"
+          ? variant.costPrice
+          : typeof product?.sellingPrice === "number"
+          ? product.sellingPrice
+          : typeof product?.price === "number"
+          ? product.price
+          : typeof product?.costPrice === "number"
+          ? product.costPrice
+          : 0;
+
+      if (existingIndex === -1) {
+        return [
+          ...prev,
+          {
+            id: `row-${prev.length + 1}`,
+            productId,
+            variantId,
+            description: "",
+            quantity: String(quantity),
+            rate: String(variantPrice),
+            discount: "0",
+            taxRate: "0",
+          },
+        ];
+      }
+
+      const next = [...prev];
+      next[existingIndex] = {
+        ...next[existingIndex],
+        quantity: String(quantity),
+        rate:
+          next[existingIndex].rate && next[existingIndex].rate !== "0"
+            ? next[existingIndex].rate
+            : String(variantPrice),
+      };
+      return next;
+    });
+  };
+
   const handleItemChange = (id: string, field: keyof ItemRow, value: string) => {
     setItems((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
@@ -259,20 +362,36 @@ export default function SalesOrderAddPos() {
   };
 
   const handleProductChange = (id: string, option: ProductOption | null) => {
-    setItems((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              productId: option?.value,
-              rate:
-                option && typeof option.unitPrice === "number"
-                  ? String(option.unitPrice)
-                  : row.rate,
-            }
-          : row,
-      ),
-    );
+    setItems((prev) => {
+      const next = prev.map((row) => {
+        if (row.id !== id) return row;
+
+        const productId = option?.value;
+        let variantId: string | undefined = undefined;
+
+        if (productId) {
+          const product = rawProducts.find((p: any) => p.id === productId);
+          const variants = Array.isArray(product?.variants) ? product.variants : [];
+          const activeVariants = variants.filter((v: any) => v && v.isActive !== false);
+
+          if (activeVariants.length === 1 && typeof activeVariants[0].id === "string") {
+            variantId = activeVariants[0].id as string;
+          }
+        }
+
+        return {
+          ...row,
+          productId,
+          variantId,
+          rate:
+            option && typeof option.unitPrice === "number"
+              ? String(option.unitPrice)
+              : row.rate,
+        };
+      });
+
+      return next;
+    });
   };
 
   const addProductToOrder = (product: ProductOption) => {
@@ -321,11 +440,21 @@ export default function SalesOrderAddPos() {
 
       const initialQty = Math.min(1, maxStock);
 
+      // Auto-select single variant if this product has exactly one active variant
+      let variantId: string | undefined = undefined;
+      const rawProduct = rawProducts.find((p: any) => p.id === product.value);
+      const variants = Array.isArray(rawProduct?.variants) ? rawProduct.variants : [];
+      const activeVariants = variants.filter((v: any) => v && v.isActive !== false);
+      if (activeVariants.length === 1 && typeof activeVariants[0].id === "string") {
+        variantId = activeVariants[0].id as string;
+      }
+
       return [
         ...prev,
         {
           id: `row-${prev.length + 1}`,
           productId: product.value,
+          variantId,
           description: product.label,
           quantity: String(initialQty),
           rate: initialRate,
@@ -444,6 +573,7 @@ export default function SalesOrderAddPos() {
       {
         id: `row-${prev.length + 1}`,
         productId: undefined,
+        variantId: undefined,
         description: "",
         quantity: "1",
         rate: "0",
@@ -479,7 +609,7 @@ export default function SalesOrderAddPos() {
 
       return {
         productId: row.productId as string,
-        variantId: null,
+        variantId: row.variantId || null,
         description: row.description || null,
         quantity,
         rate,
@@ -620,134 +750,278 @@ export default function SalesOrderAddPos() {
                         </div>
                       </div>
                       <div className="pos-products">
-                        <div className="tabs_container">
-                          <div className="row g-3">
-                            {filteredProducts.map((product, index) => {
-                              const productImages = [
-                                "/assets/img/products/pos-product-01.png",
-                                "/assets/img/products/pos-product-02.png",
-                                "/assets/img/products/pos-product-03.png",
-                                "/assets/img/products/pos-product-04.png",
-                                "/assets/img/products/pos-product-05.png",
-                                "/assets/img/products/pos-product-06.png",
-                                "/assets/img/products/pos-product-07.png",
-                                "/assets/img/products/pos-product-08.png",
-                                "/assets/img/products/pos-product-09.png",
-                                "/assets/img/products/pos-product-10.png",
-                                "/assets/img/products/pos-product-11.png",
-                                "/assets/img/products/pos-product-12.png",
-                              ];
+                        <div className="table-responsive">
+                          <table className="table table-striped align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Product</th>
+                                {/* Master price column hidden; prices shown per variant */}
+                                <th style={{ width: 120 }} className="d-none">
+                                  Price
+                                </th>
+                                <th style={{ width: 140 }}>Available Qty</th>
+                                <th style={{ width: 80 }} className="text-center">
+                                  Variants
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredProducts.map((product, index) => {
+                                const rawProduct = rawProducts.find(
+                                  (p: any) => p.id === product.value,
+                                );
+                                const variants = Array.isArray(rawProduct?.variants)
+                                  ? rawProduct.variants
+                                  : [];
+                                const activeVariants = variants.filter(
+                                  (v: any) => v && v.isActive !== false,
+                                );
 
-                              const imgSrc =
-                                product.image && product.image.trim().length > 0
-                                  ? product.image
-                                  : productImages[index % productImages.length];
+                                const totalVariantStock = activeVariants.reduce(
+                                  (sum: number, v: any) => {
+                                    const stocks = Array.isArray(v.stocks) ? v.stocks : [];
+                                    const stockForStore = storeId
+                                      ? stocks.filter((s: any) => s.storeId === storeId)
+                                      : stocks;
+                                    const qty = stockForStore.reduce(
+                                      (inner: number, s: any) =>
+                                        inner +
+                                        (typeof s.quantity === "number" ? s.quantity : 0),
+                                      0,
+                                    );
+                                    return sum + qty;
+                                  },
+                                  0,
+                                );
 
-                              const price =
-                                typeof product.unitPrice === "number"
-                                  ? formatCurrencyINR(product.unitPrice)
-                                  : "";
+                                const priceLabel =
+                                  typeof product.unitPrice === "number"
+                                    ? formatCurrencyINR(product.unitPrice)
+                                    : "-";
 
-                              const existingRow = items.find(
-                                (row) => row.productId === product.value,
-                              );
-                              const currentQty = parseNumber(
-                                existingRow?.quantity || "0",
-                                0,
-                              );
+                                const productImages = [
+                                  "/assets/img/products/pos-product-01.png",
+                                  "/assets/img/products/pos-product-02.png",
+                                  "/assets/img/products/pos-product-03.png",
+                                  "/assets/img/products/pos-product-04.png",
+                                  "/assets/img/products/pos-product-05.png",
+                                  "/assets/img/products/pos-product-06.png",
+                                  "/assets/img/products/pos-product-07.png",
+                                  "/assets/img/products/pos-product-08.png",
+                                  "/assets/img/products/pos-product-09.png",
+                                  "/assets/img/products/pos-product-10.png",
+                                  "/assets/img/products/pos-product-11.png",
+                                  "/assets/img/products/pos-product-12.png",
+                                ];
 
-                              const stockOnHand =
-                                typeof product.stockOnHand === "number"
-                                  ? product.stockOnHand
-                                  : 0;
-                              const remaining = stockOnHand - currentQty;
-                              const isOutOfStock = stockOnHand <= 0;
-                              const canAddMore = !isOutOfStock && remaining > 0;
+                                const imgSrc =
+                                  rawProduct?.image && rawProduct.image.trim().length > 0
+                                    ? rawProduct.image
+                                    : productImages[index % productImages.length];
 
-                              return (
-                                <div
-                                  className="col-sm-6 col-md-6 col-lg-6 col-xl-4 col-xxl-3"
-                                  key={product.value}
-                                >
-                                  <div
-                                    className={`product-info card mb-0 ${
-                                      isOutOfStock ? "opacity-50" : ""
-                                    }`}
-                                    style={
-                                      isOutOfStock
-                                        ? { cursor: "not-allowed" }
-                                        : undefined
-                                    }
-                                    onClick={() => {
-                                      if (canAddMore) {
-                                        addProductToOrder(product);
-                                      }
-                                    }}
-                                    tabIndex={0}
-                                  >
-                                    <div className="pro-img">
-                                      <img src={imgSrc} alt={product.label} />
-                                      <span>
-                                        <i className="ti ti-circle-check-filled" />
-                                      </span>
-                                    </div>
-                                    <h6 className="product-name">
-                                      <span>{product.label}</span>
-                                    </h6>
-                                    <div className="d-flex align-items-center justify-content-between price">
-                                      <div>
-                                        <p className="text-gray-9 mb-0">
-                                          {price || "-"}
-                                        </p>
-                                        <p className="mb-0 small text-muted">
-                                          {isOutOfStock
-                                            ? "Out of stock"
-                                            : `Stock: ${stockOnHand}`}
-                                        </p>
-                                      </div>
-                                      <div className="qty-item m-0 d-flex align-items-center">
-                                        <a
-                                          href="#"
-                                          className="dec d-flex justify-content-center align-items-center"
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            decrementProductInOrder(product);
-                                          }}
-                                        >
-                                          <i className="ti ti-minus" />
-                                        </a>
-                                        <input
-                                          type="text"
-                                          className="form-control text-center mx-1"
-                                          readOnly
-                                          value={String(currentQty)}
-                                        />
-                                        <a
-                                          href="#"
-                                          className="inc d-flex justify-content-center align-items-center"
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            if (canAddMore) {
-                                              addProductToOrder(product);
+                                const isExpanded = !!expandedProducts[product.value];
+
+                                return (
+                                  <React.Fragment key={product.value}>
+                                    <tr>
+                                      <td>
+                                        <div className="d-flex align-items-center">
+                                          <div className="me-2">
+                                            <img
+                                              src={imgSrc}
+                                              alt={product.label}
+                                              style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4 }}
+                                            />
+                                          </div>
+                                          <div className="d-flex flex-column">
+                                            <span className="fw-semibold">{product.label}</span>
+                                            {rawProduct?.sku && (
+                                              <small className="text-muted">
+                                                SKU: {rawProduct.sku}
+                                              </small>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                      {/* Hide master price cell; price shown on variant rows */}
+                                      <td className="d-none">{priceLabel}</td>
+                                      <td>
+                                        {activeVariants.length > 0
+                                          ? totalVariantStock ||
+                                            (typeof product.stockOnHand === "number"
+                                              ? product.stockOnHand
+                                              : 0)
+                                          : typeof product.stockOnHand === "number"
+                                          ? product.stockOnHand
+                                          : 0}
+                                      </td>
+                                      <td className="text-center">
+                                        {activeVariants.length > 0 ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm btn-outline-primary"
+                                            onClick={() =>
+                                              setExpandedProducts((prev) => ({
+                                                ...prev,
+                                                [product.value]: !prev[product.value],
+                                              }))
                                             }
-                                          }}
-                                        >
-                                          <i className="ti ti-plus" />
-                                        </a>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {filteredProducts.length === 0 && (
-                              <div className="col-12">
-                                <p className="text-muted mb-0">No products found.</p>
-                              </div>
-                            )}
-                          </div>
+                                          >
+                                            {isExpanded ? "Hide" : "View"}
+                                          </button>
+                                        ) : (
+                                          <span className="text-muted fs-12">No variants</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {isExpanded && activeVariants.length > 0 && (
+                                      <tr>
+                                        <td colSpan={4}>
+                                          <div className="table-responsive border rounded bg-light p-2">
+                                            <table className="table table-sm mb-0 align-middle">
+                                              <thead>
+                                                <tr>
+                                                  <th>Variant</th>
+                                                  <th style={{ width: 120 }}>Price</th>
+                                                  <th style={{ width: 140 }}>Available</th>
+                                                  <th style={{ width: 180 }}>Qty to Add</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {activeVariants.map((v: any) => {
+                                                  const vStock = getVariantStockForStore(
+                                                    product.value,
+                                                    v.id as string,
+                                                  );
+                                                  const currentQty = getVariantLineQuantity(
+                                                    product.value,
+                                                    v.id as string,
+                                                  );
+                                                  const variantPrice =
+                                                    typeof v.sellingPrice === "number"
+                                                      ? v.sellingPrice
+                                                      : typeof v.price === "number"
+                                                      ? v.price
+                                                      : typeof v.costPrice === "number"
+                                                      ? v.costPrice
+                                                      : product.unitPrice ?? 0;
+
+                                                  const maxQty =
+                                                    typeof vStock === "number" && vStock >= 0
+                                                      ? vStock
+                                                      : Infinity;
+
+                                                  return (
+                                                    <tr key={v.id as string}>
+                                                      <td>
+                                                        <div className="d-flex flex-column">
+                                                          <span>
+                                                            {v.name || v.sku || "Variant"}
+                                                          </span>
+                                                          {v.sku && (
+                                                            <small className="text-muted">
+                                                              SKU: {v.sku}
+                                                            </small>
+                                                          )}
+                                                        </div>
+                                                      </td>
+                                                      <td>
+                                                        {formatCurrencyINR(variantPrice)}
+                                                      </td>
+                                                      <td>
+                                                        {typeof vStock === "number"
+                                                          ? vStock
+                                                          : "-"}
+                                                      </td>
+                                                      <td>
+                                                        <div className="d-flex align-items-center">
+                                                          <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm me-1"
+                                                            onClick={() =>
+                                                              setVariantLineQuantity(
+                                                                product.value,
+                                                                v.id as string,
+                                                                Math.max(currentQty - 1, 0),
+                                                              )
+                                                            }
+                                                          >
+                                                            -
+                                                          </button>
+                                                          <input
+                                                            type="number"
+                                                            className="form-control form-control-sm text-center mx-1"
+                                                            style={{ maxWidth: 70 }}
+                                                            min={0}
+                                                            max={
+                                                              Number.isFinite(maxQty)
+                                                                ? (maxQty as number)
+                                                                : undefined
+                                                            }
+                                                            value={String(currentQty)}
+                                                            onChange={(e) => {
+                                                              const numeric = parseFloat(
+                                                                e.target.value,
+                                                              );
+                                                              if (!Number.isFinite(numeric)) {
+                                                                setVariantLineQuantity(
+                                                                  product.value,
+                                                                  v.id as string,
+                                                                  0,
+                                                                );
+                                                                return;
+                                                              }
+                                                              const clamped = Math.min(
+                                                                Math.max(numeric, 0),
+                                                                maxQty,
+                                                              );
+                                                              setVariantLineQuantity(
+                                                                product.value,
+                                                                v.id as string,
+                                                                clamped,
+                                                              );
+                                                            }}
+                                                          />
+                                                          <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm ms-1"
+                                                            onClick={() => {
+                                                              const next = Math.min(
+                                                                currentQty + 1,
+                                                                maxQty,
+                                                              );
+                                                              setVariantLineQuantity(
+                                                                product.value,
+                                                                v.id as string,
+                                                                next,
+                                                              );
+                                                            }}
+                                                          >
+                                                            +
+                                                          </button>
+                                                        </div>
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                })}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                              {filteredProducts.length === 0 && (
+                                <tr>
+                                  <td colSpan={4} className="text-muted">
+                                    No products found.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
@@ -888,6 +1162,25 @@ export default function SalesOrderAddPos() {
                                       const tax = base * (taxRate / 100);
                                       const lineTotal = base + tax;
 
+                                      const selectedVariantStock = getVariantStockForStore(
+                                        row.productId,
+                                        row.variantId,
+                                      );
+
+                                      const rawProduct = rawProducts.find(
+                                        (p: any) => p.id === row.productId,
+                                      );
+                                      const variant =
+                                        row.variantId &&
+                                        Array.isArray(rawProduct?.variants)
+                                          ? (rawProduct.variants as any[]).find(
+                                              (v) => v && v.id === row.variantId,
+                                            )
+                                          : null;
+                                      const variantLabel = variant
+                                        ? variant.name || variant.sku || "Variant"
+                                        : null;
+
                                       return (
                                         <tr key={row.id}>
                                           <td>
@@ -903,11 +1196,20 @@ export default function SalesOrderAddPos() {
                                               >
                                                 <i className="ti ti-trash-x-filled" />
                                               </button>
-                                              <h6 className="fs-13 fw-normal mb-0">
-                                                <span className="link-default">
-                                                  {product.label}
-                                                </span>
-                                              </h6>
+                                              <div className="d-flex flex-column">
+                                                <h6 className="fs-13 fw-normal mb-0">
+                                                  <span className="link-default">
+                                                    {product.label}
+                                                  </span>
+                                                </h6>
+                                                {variantLabel && (
+                                                  <small className="text-muted">
+                                                    {variantLabel}
+                                                    {typeof selectedVariantStock === "number" &&
+                                                      ` • Available: ${selectedVariantStock}`}
+                                                  </small>
+                                                )}
+                                              </div>
                                             </div>
                                           </td>
                                           <td>
@@ -928,12 +1230,21 @@ export default function SalesOrderAddPos() {
                                                 type="number"
                                                 className="form-control text-center mx-1"
                                                 min={0}
-                                                max={
-                                                  typeof product.stockOnHand === "number" &&
-                                                  product.stockOnHand >= 0
-                                                    ? product.stockOnHand
-                                                    : undefined
-                                                }
+                                                max={(() => {
+                                                  if (
+                                                    row.variantId &&
+                                                    typeof selectedVariantStock === "number" &&
+                                                    selectedVariantStock >= 0
+                                                  ) {
+                                                    return selectedVariantStock;
+                                                  }
+
+                                                  return
+                                                    typeof product.stockOnHand === "number" &&
+                                                    product.stockOnHand >= 0
+                                                      ? product.stockOnHand
+                                                      : undefined;
+                                                })()}
                                                 value={String(qty)}
                                                 onChange={(e) => {
                                                   const raw = e.target.value;
@@ -944,11 +1255,21 @@ export default function SalesOrderAddPos() {
                                                     return;
                                                   }
 
-                                                  const maxStock =
-                                                    typeof product.stockOnHand === "number" &&
-                                                    product.stockOnHand >= 0
-                                                      ? product.stockOnHand
-                                                      : Infinity;
+                                                  const maxStock = (() => {
+                                                    if (
+                                                      row.variantId &&
+                                                      typeof selectedVariantStock === "number" &&
+                                                      selectedVariantStock >= 0
+                                                    ) {
+                                                      return selectedVariantStock;
+                                                    }
+
+                                                    return
+                                                      typeof product.stockOnHand === "number" &&
+                                                      product.stockOnHand >= 0
+                                                        ? product.stockOnHand
+                                                        : Infinity;
+                                                  })();
 
                                                   const clamped = Math.min(
                                                     Math.max(numeric, 0),

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
+import { buildVariantCreateManyInputs, generateVariantCombos } from "@/lib/products/variantGenerator"
 
 export const dynamic = "force-dynamic"
 
@@ -354,31 +355,231 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    const product = await prisma.product.create({
-      data: {
-        ...body,
-        createdByUserId: token.sub || undefined,
-      },
-      include: {
-        brand: true,
-        unit: true,
-        preferredVendor: true,
-        createdBy: true,
-        variants: true,
-        units: {
-          include: {
-            unit: true
+    const {
+      isVariant,
+      variantOptions,
+      baseSkuPrefix,
+      variantDetails,
+      unitId,
+      ...productData
+    } = body || {}
+
+    let optionInputs: { name: string; values: string[]; position: number }[] = []
+    let combos: ReturnType<typeof generateVariantCombos> = []
+    const variantDetailMap = new Map<string, { costPrice: number; sellingPrice: number; quantity: number }>()
+
+    if (isVariant && Array.isArray(variantOptions)) {
+      optionInputs = (variantOptions as any[])
+        .map((opt, index) => ({
+          name: String(opt?.name ?? "").trim(),
+          values: Array.isArray(opt?.values) ? opt.values.map((v: any) => String(v)) : [],
+          position: typeof opt?.position === "number" ? opt.position : index,
+        }))
+        .filter((opt) => opt.name && opt.values.length > 0)
+
+      if (optionInputs.length > 0) {
+        try {
+          combos = generateVariantCombos(optionInputs)
+        } catch (error) {
+          return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Invalid variant options" },
+            { status: 400 },
+          )
+        }
+
+        if (!Array.isArray(variantDetails) || variantDetails.length === 0) {
+          return NextResponse.json(
+            { error: "Variant cost price, selling price and quantity are required for all variants" },
+            { status: 400 },
+          )
+        }
+
+        for (const detail of variantDetails as any[]) {
+          const title = String(detail?.title ?? "").trim()
+          const cost = Number(detail?.costPrice)
+          const sell = Number(detail?.sellingPrice)
+          const qty = Number(detail?.quantity)
+
+          if (!title || Number.isNaN(cost) || Number.isNaN(sell) || Number.isNaN(qty)) {
+            return NextResponse.json(
+              { error: "Each variant must have a title, cost price, selling price and quantity" },
+              { status: 400 },
+            )
+          }
+
+          variantDetailMap.set(title, {
+            costPrice: cost,
+            sellingPrice: sell,
+            quantity: qty,
+          })
+        }
+
+        for (const combo of combos) {
+          if (!variantDetailMap.has(combo.title)) {
+            return NextResponse.json(
+              { error: `Missing pricing or quantity for variant \"${combo.title}\"` },
+              { status: 400 },
+            )
           }
         }
       }
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          ...(productData as any),
+          ...(typeof isVariant === "boolean" ? { isVariant } : {}),
+          ...(unitId ? { unit: { connect: { id: String(unitId) } } } : {}),
+          createdByUserId: token.sub || undefined,
+        },
+      })
+
+      if (!isVariant || optionInputs.length === 0 || combos.length === 0) {
+        return tx.product.findUnique({
+          where: { id: created.id },
+          include: {
+            brand: true,
+            unit: true,
+            preferredVendor: true,
+            createdBy: true,
+            variants: true,
+            units: {
+              include: {
+                unit: true,
+              },
+            },
+          },
+        })
+      }
+
+      for (const option of optionInputs) {
+        const createdOption = await tx.productOption.create({
+          data: {
+            productId: created.id,
+            name: option.name,
+            position: option.position,
+          },
+        })
+
+        for (const value of option.values) {
+          await tx.productOptionValue.create({
+            data: {
+              optionId: createdOption.id,
+              value,
+            },
+          })
+        }
+      }
+
+      const variantRows = buildVariantCreateManyInputs(
+        created.id,
+        (baseSkuPrefix ?? (productData as any)?.sku ?? null) as string | null,
+        combos,
+        variantDetailMap,
+      )
+
+      let createdVariants: { id: string; name: string }[] = []
+
+      if (variantRows.length > 0) {
+        const manyResult = await tx.productVariant.createMany({
+          data: variantRows,
+        })
+
+        if (manyResult.count > 0) {
+          createdVariants = await tx.productVariant.findMany({
+            where: { productId: created.id },
+            select: { id: true, name: true },
+          })
+        }
+      }
+
+      if (createdVariants.length > 0 && variantDetailMap.size > 0) {
+        const stockInserts: any[] = []
+        const batchInserts: any[] = []
+
+        let defaultStoreId: string | null = (token as any)?.storeId ?? null
+
+        // Fallback: if the user/session does not have a storeId, use the first store
+        if (!defaultStoreId) {
+          const firstStore = await tx.store.findFirst({
+            select: { id: true },
+          })
+          defaultStoreId = firstStore?.id ?? null
+        }
+        const defaultUnitId = unitId ? String(unitId) : null
+
+        for (const variant of createdVariants) {
+          const detail = variantDetailMap.get(variant.name)
+          if (!detail) continue
+
+          if (detail.quantity <= 0) {
+            continue
+          }
+
+          batchInserts.push({
+            productId: created.id,
+            variantId: variant.id,
+            batchNumber: `${created.id}-${variant.id}-OPENING`,
+            manufacturingDate: null,
+            expiryDate: null,
+            unitCost: detail.costPrice,
+            openingQuantity: detail.quantity,
+            availableQuantity: detail.quantity,
+            reservedQuantity: 0,
+            status: "ACTIVE",
+            sourceType: "OPENING_STOCK",
+            referenceId: null,
+          })
+
+          if (defaultStoreId) {
+            stockInserts.push({
+              productId: created.id,
+              variantId: variant.id,
+              storeId: defaultStoreId,
+              warehouseId: null,
+              unitId: defaultUnitId,
+              quantity: detail.quantity,
+              minStock: 0,
+              maxStock: null,
+              batchNumber: null,
+              expiryDate: null,
+            })
+          }
+        }
+
+        if (batchInserts.length > 0) {
+          await tx.itemBatch.createMany({ data: batchInserts })
+        }
+
+        if (stockInserts.length > 0) {
+          await tx.stock.createMany({ data: stockInserts })
+        }
+      }
+
+      return tx.product.findUnique({
+        where: { id: created.id },
+        include: {
+          brand: true,
+          unit: true,
+          preferredVendor: true,
+          createdBy: true,
+          variants: true,
+          units: {
+            include: {
+              unit: true,
+            },
+          },
+        },
+      })
     })
 
-    return NextResponse.json(product, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error("Create Product Error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

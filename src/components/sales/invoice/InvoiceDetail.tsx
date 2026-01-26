@@ -176,15 +176,24 @@ export default function InvoiceDetail({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {(sale.items || []).map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.product?.name || item.productId}</td>
-                        <td className="text-end">{item.quantity}</td>
-                        <td className="text-end">{formatCurrency(item.unitPrice)}</td>
-                        <td className="text-end">{formatCurrency(item.taxAmount)}</td>
-                        <td className="text-end">{formatCurrency(item.totalPrice)}</td>
-                      </tr>
-                    ))}
+                    {(sale.items || []).map((item) => {
+                      const baseName = item.product?.name || item.productId;
+                      const variantLabel =
+                        item.variant?.name || item.variant?.sku || "";
+                      const displayName = variantLabel
+                        ? `${baseName} - ${variantLabel}`
+                        : baseName;
+
+                      return (
+                        <tr key={item.id}>
+                          <td>{displayName}</td>
+                          <td className="text-end">{item.quantity}</td>
+                          <td className="text-end">{formatCurrency(item.unitPrice)}</td>
+                          <td className="text-end">{formatCurrency(item.taxAmount)}</td>
+                          <td className="text-end">{formatCurrency(item.totalPrice)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

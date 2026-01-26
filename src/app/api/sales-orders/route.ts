@@ -171,6 +171,57 @@ export async function POST(request: NextRequest) {
       0,
     );
 
+    // Validate variant usage: products with variants must have variantId, and it must belong
+    const productIds = Array.from(
+      new Set(normalizedItems.map((item) => item.productId)),
+    );
+
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        isVariant: true,
+        variants: {
+          select: { id: true },
+        },
+      },
+    });
+
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    for (const item of normalizedItems) {
+      const product = productById.get(item.productId);
+      if (!product) continue;
+
+      const hasVariants =
+        product.isVariant === true || (product.variants?.length ?? 0) > 0;
+
+      if (hasVariants && !item.variantId) {
+        return NextResponse.json(
+          {
+            error:
+              "variantId is required for products that have variants in sales orders",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (item.variantId) {
+        const belongsToProduct = product.variants?.some(
+          (v) => v.id === item.variantId,
+        );
+        if (!belongsToProduct) {
+          return NextResponse.json(
+            {
+              error:
+                "variantId does not belong to the specified product for one of the sales order lines",
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const discount = normalizeNumber(body.discount);
     const taxAmount = normalizeNumber(body.taxAmount);
     const adjustment = normalizeNumber(body.adjustment);

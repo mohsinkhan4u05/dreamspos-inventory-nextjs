@@ -5,7 +5,17 @@ import { Table } from "antd";
 
 type Viewport = "desktop" | "tablet" | "mobile";
 
-const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey, onSelectionChange }: any) => {
+const Datatable = ({
+  props,
+  columns,
+  dataSource,
+  disableSelection,
+  onRow,
+  rowKey,
+  onSelectionChange,
+  pagination,
+  onChange,
+}: any) => {
   const [searchText, setSearchText] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [filteredDataSource, setFilteredDataSource] = useState(dataSource);
@@ -197,22 +207,25 @@ const Datatable = ({ props, columns, dataSource, disableSelection, onRow, rowKey
         rowKey={internalRowKey}
         onRow={onRow}
         expandable={expandable}
-        pagination={{
-          locale: { items_per_page: "" },
-          nextIcon: (
-            <span>
-              <i className="fa fa-angle-right" />
-            </span>
-          ),
-          prevIcon: (
-            <span>
-              <i className="fa fa-angle-left" />
-            </span>
-          ),
-          defaultPageSize: 10,
-          showSizeChanger: true,
-          pageSizeOptions: ["10", "20", "30"],
-        }}
+        onChange={onChange}
+        pagination={
+          pagination || {
+            locale: { items_per_page: "" },
+            nextIcon: (
+              <span>
+                <i className="fa fa-angle-right" />
+              </span>
+            ),
+            prevIcon: (
+              <span>
+                <i className="fa fa-angle-left" />
+              </span>
+            ),
+            defaultPageSize: 10,
+            showSizeChanger: true,
+            pageSizeOptions: ["10", "20", "30"],
+          }
+        }
       />
     </>
   );

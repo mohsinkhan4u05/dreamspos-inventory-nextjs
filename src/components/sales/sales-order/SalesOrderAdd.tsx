@@ -29,6 +29,7 @@ interface ProductOption extends Option {
 interface ItemRow {
   id: string;
   productId?: string;
+  variantId?: string;
   description?: string;
   quantity: string;
   rate: string;
@@ -191,20 +192,39 @@ export default function SalesOrderAdd() {
   };
 
   const handleProductChange = (id: string, option: ProductOption | null) => {
-    setItems((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              productId: option?.value,
-              rate:
-                option && typeof option.unitPrice === "number"
-                  ? String(option.unitPrice)
-                  : row.rate,
-            }
-          : row,
-      ),
-    );
+    setItems((prev) => {
+      const next = prev.map((row) => {
+        if (row.id !== id) return row;
+
+        const productId = option?.value;
+
+        // Default: clear variant selection when product changes
+        let variantId: string | undefined = undefined;
+
+        if (productId) {
+          const product = rawProducts.find((p: any) => p.id === productId);
+          const variants = Array.isArray(product?.variants) ? product.variants : [];
+          const activeVariants = variants.filter((v: any) => v && v.isActive !== false);
+
+          // Auto-select single variant when only one is available
+          if (activeVariants.length === 1 && typeof activeVariants[0].id === "string") {
+            variantId = activeVariants[0].id as string;
+          }
+        }
+
+        return {
+          ...row,
+          productId,
+          variantId,
+          rate:
+            option && typeof option.unitPrice === "number"
+              ? String(option.unitPrice)
+              : row.rate,
+        };
+      });
+
+      return next;
+    });
   };
 
   const addRow = () => {
@@ -213,6 +233,7 @@ export default function SalesOrderAdd() {
       {
         id: `row-${prev.length + 1}`,
         productId: undefined,
+        variantId: undefined,
         description: "",
         quantity: "1",
         rate: "0",
@@ -247,7 +268,7 @@ export default function SalesOrderAdd() {
 
       return {
         productId: row.productId as string,
-        variantId: null,
+        variantId: row.variantId || null,
         description: row.description || null,
         quantity,
         rate,
@@ -487,6 +508,48 @@ export default function SalesOrderAdd() {
                                 placeholder="Select item"
                               />
                             </div>
+                            {(() => {
+                              const product = rawProducts.find(
+                                (p: any) => p.id === row.productId,
+                              );
+                              const variants = Array.isArray(product?.variants)
+                                ? product.variants
+                                : [];
+                              const activeVariants = variants.filter(
+                                (v: any) => v && v.isActive !== false,
+                              );
+
+                              if (!product || activeVariants.length === 0) {
+                                return null;
+                              }
+
+                              const variantOptions = activeVariants.map((v: any) => ({
+                                value: v.id as string,
+                                label: v.name || v.sku || "Variant",
+                              }));
+
+                              return (
+                                <div className="mb-2">
+                                  <Select
+                                    classNamePrefix="react-select"
+                                    options={variantOptions}
+                                    value={
+                                      variantOptions.find(
+                                        (opt) => opt.value === row.variantId,
+                                      ) || null
+                                    }
+                                    onChange={(opt) =>
+                                      handleItemChange(
+                                        row.id,
+                                        "variantId",
+                                        (opt as any)?.value || "",
+                                      )
+                                    }
+                                    placeholder="Select variant"
+                                  />
+                                </div>
+                              );
+                            })()}
                             <input
                               type="text"
                               className="form-control"

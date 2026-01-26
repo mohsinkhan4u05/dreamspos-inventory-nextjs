@@ -758,6 +758,46 @@ if (loading) {
                     </div>
                   </div>
 
+                  {Array.isArray(item.variants) && item.variants.length > 0 && (
+                    <div className="card">
+                      <div className="card-header">
+                        <h4 className="card-title mb-0">Variant Stock Breakdown</h4>
+                      </div>
+                      <div className="card-body">
+                        <div className="table-responsive">
+                          <table className="table mb-0">
+                            <thead>
+                              <tr>
+                                <th>Variant</th>
+                                <th>SKU</th>
+                                <th className="text-end">Stock on Hand</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {item.variants.map((variant: any) => {
+                                const qty = Array.isArray(variant.stocks)
+                                  ? variant.stocks.reduce(
+                                      (sum: number, s: any) =>
+                                        sum + (typeof s.quantity === "number" ? s.quantity : 0),
+                                      0,
+                                    )
+                                  : 0
+
+                                return (
+                                  <tr key={variant.id}>
+                                    <td>{variant.name}</td>
+                                    <td>{variant.sku || "-"}</td>
+                                    <td className="text-end">{qty}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="card">
                     <div className="card-header">
                       <h4 className="card-title mb-0">Physical Stock</h4>

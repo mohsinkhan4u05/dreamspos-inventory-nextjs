@@ -46,23 +46,31 @@ export default function ManageStockComponent() {
 
   // Transform API data to match the expected format for the table
   const data =
-    stocks?.data?.map((stock) => ({
-      id: stock.id,
-      Warehouse: stock.warehouse?.name || "N/A",
-      Shop: stock.store
-        ? `${stock.store.name}${stock.store.code ? ` (${stock.store.code})` : ""}`
-        : "N/A",
-      Product: {
-        Name: stock.product?.name || "N/A",
-        Image: stock.product?.image || "/assets/img/products/product-1.jpg",
-        SKU: stock.product?.sku || "N/A",
-      },
-      Date: new Date(stock.createdAt).toLocaleDateString(),
-      Quantity: stock.quantity,
-      MinStock: stock.minStock,
-      MaxStock: stock.maxStock ?? null,
-      Status: stock.quantity <= stock.minStock ? "Low Stock" : "In Stock",
-    })) || [];
+    stocks?.data?.map((stock) => {
+      const rawImage = stock.product?.image;
+      const hasCustomImage =
+        typeof rawImage === "string" && rawImage.trim().length > 0;
+
+      const fallbackImage = "assets/img/products/stock-img-01.png";
+
+      return {
+        id: stock.id,
+        Warehouse: stock.warehouse?.name || "N/A",
+        Shop: stock.store
+          ? `${stock.store.name}${stock.store.code ? ` (${stock.store.code})` : ""}`
+          : "N/A",
+        Product: {
+          Name: stock.product?.name || "N/A",
+          Image: hasCustomImage ? rawImage : fallbackImage,
+          SKU: stock.product?.sku || "N/A",
+        },
+        Date: new Date(stock.createdAt).toLocaleDateString(),
+        Quantity: stock.quantity,
+        MinStock: stock.minStock,
+        MaxStock: stock.maxStock ?? null,
+        Status: stock.quantity <= stock.minStock ? "Low Stock" : "In Stock",
+      };
+    }) || [];
 
   const storeOptions = [
     { value: "", label: "Choose" },

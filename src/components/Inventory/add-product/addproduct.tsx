@@ -17,7 +17,7 @@ import {
   Image,
 } from "react-feather";
 import Link from "next/link";
-import { useState, FormEvent } from "react";
+import { useState, useMemo, useEffect, FormEvent } from "react";
 import Select from "react-select";
 import { useRouter } from "next/navigation";
 import { productService } from "@/services/api";
@@ -63,6 +63,15 @@ export default function AddProductComponent() {
 
   const [trackInventory, setTrackInventory] = useState<boolean>(true);
 
+  const [isVariantProduct, setIsVariantProduct] = useState<boolean>(false);
+  const [variantOptions, setVariantOptions] = useState<
+    { id: string; name: string; values: string[]; position: number; newValue: string }[]
+  >([]);
+
+  const [variantRows, setVariantRows] = useState<
+    Record<string, { costPrice: string; sellingPrice: string; quantity: string }>
+  >({});
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -72,6 +81,14 @@ export default function AddProductComponent() {
   const { units } = useUnits({ page: 1, limit: 100, isActive: true });
   const { suppliers } = useSuppliers({ page: 1, limit: 100, isActive: true });
 
+  const forcedVariantGoods = itemType === "GOODS" && trackInventory;
+
+  useEffect(() => {
+    if (forcedVariantGoods) {
+      setIsVariantProduct(true);
+    }
+  }, [forcedVariantGoods]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -80,35 +97,10 @@ export default function AddProductComponent() {
       return;
     }
 
-    if (itemType === "GOODS" && !unitId) {
-      setSubmitError("Unit is required for goods items.");
-      return;
-    }
+    const shouldUseVariants = forcedVariantGoods;
 
     let numericSellingPrice = 0;
-    if (sellingPrice) {
-      numericSellingPrice = parseFloat(sellingPrice);
-      if (Number.isNaN(numericSellingPrice)) {
-        setSubmitError("Selling price must be a valid number.");
-        return;
-      }
-    } else if (sellable) {
-      setSubmitError("Selling price is required when item is sellable.");
-      return;
-    }
-
     let numericCostPrice = 0;
-    if (costPrice) {
-      numericCostPrice = parseFloat(costPrice);
-      if (Number.isNaN(numericCostPrice)) {
-        setSubmitError("Cost price must be a valid number.");
-        return;
-      }
-    } else if (purchasable) {
-      setSubmitError("Cost price is required when item is purchasable.");
-      return;
-    }
-
 
     const lengthNum = lengthValue ? parseFloat(lengthValue) : undefined;
     const widthNum = widthValue ? parseFloat(widthValue) : undefined;
@@ -127,6 +119,82 @@ export default function AddProductComponent() {
     if (weightValue && Number.isNaN(weightNum!)) {
       setSubmitError("Weight must be a valid number.");
       return;
+    }
+
+    let preparedVariantOptions:
+      | { name: string; values: string[]; position: number }[]
+      | undefined;
+    let variantDetails:
+      | { title: string; costPrice: number; sellingPrice: number; quantity: number }[]
+      | undefined;
+
+    if (shouldUseVariants) {
+      preparedVariantOptions = variantOptions
+        .map((option, index) => ({
+          name: option.name.trim(),
+          values: option.values.map((v) => v.trim()).filter(Boolean),
+          position: index,
+        }))
+        .filter((option) => option.name && option.values.length > 0);
+
+      if (!preparedVariantOptions.length) {
+        setSubmitError("Add at least one option and value for variant items.");
+        return;
+      }
+
+      if (!variantPreviewTitles.length) {
+        setSubmitError("Add at least one variant to this item.");
+        return;
+      }
+
+      const details: {
+        title: string;
+        costPrice: number;
+        sellingPrice: number;
+        quantity: number;
+      }[] = [];
+
+      for (const title of variantPreviewTitles) {
+        const row = variantRows[title];
+
+        if (!row || !row.costPrice || !row.sellingPrice || !row.quantity) {
+          setSubmitError(
+            "Enter cost price, selling price, and available quantity for all variants.",
+          );
+          return;
+        }
+
+        const variantCost = parseFloat(row.costPrice);
+        const variantSell = parseFloat(row.sellingPrice);
+        const variantQty = parseFloat(row.quantity);
+
+        if (
+          Number.isNaN(variantCost) ||
+          Number.isNaN(variantSell) ||
+          Number.isNaN(variantQty)
+        ) {
+          setSubmitError("Variant prices and quantities must be valid numbers.");
+          return;
+        }
+
+        details.push({
+          title,
+          costPrice: variantCost,
+          sellingPrice: variantSell,
+          quantity: variantQty,
+        });
+      }
+
+      if (!details.length) {
+        setSubmitError("Add at least one variant with pricing and quantity.");
+        return;
+      }
+
+      variantDetails = details;
+
+      // Use the first variant's pricing as the base product price to satisfy schema
+      numericCostPrice = details[0].costPrice;
+      numericSellingPrice = details[0].sellingPrice;
     }
 
     try {
@@ -159,6 +227,14 @@ export default function AddProductComponent() {
         salesAccount: salesAccount || undefined,
         purchaseAccount: purchaseAccount || undefined,
         trackInventory,
+        ...(shouldUseVariants && preparedVariantOptions && variantDetails
+          ? {
+              isVariant: true,
+              variantOptions: preparedVariantOptions,
+              baseSkuPrefix: sku || productName || undefined,
+              variantDetails,
+            }
+          : {}),
       });
 
       router.push(route.productlist);
@@ -232,6 +308,140 @@ export default function AddProductComponent() {
   const handleRemoveProduct1 = () => {
     setIsImageVisible1(false);
   };
+
+  const handleAddVariantOption = () => {
+    setVariantOptions((previous) => {
+      if (previous.length >= 3) {
+        return previous;
+      }
+      const index = previous.length;
+      return [
+        ...previous,
+        {
+          id: `${Date.now()}-${index}`,
+          name: index === 0 ? "Size" : "",
+          values: [],
+          position: index,
+          newValue: "",
+        },
+      ];
+    });
+  };
+
+  const handleVariantOptionNameChange = (id: string, value: string) => {
+    setVariantOptions((previous) =>
+      previous.map((option) =>
+        option.id === id ? { ...option, name: value } : option
+      )
+    );
+  };
+
+  const handleVariantNewValueChange = (id: string, value: string) => {
+    setVariantOptions((previous) =>
+      previous.map((option) =>
+        option.id === id ? { ...option, newValue: value } : option
+      )
+    );
+  };
+
+  const handleVariantAddValue = (id: string) => {
+    setVariantOptions((previous) =>
+      previous.map((option) => {
+        if (option.id !== id) {
+          return option;
+        }
+        const value = option.newValue.trim();
+        if (!value || option.values.includes(value)) {
+          return option;
+        }
+        return {
+          ...option,
+          values: [...option.values, value],
+          newValue: "",
+        };
+      })
+    );
+  };
+
+  const handleVariantRemoveValue = (id: string, valueToRemove: string) => {
+    setVariantOptions((previous) =>
+      previous.map((option) =>
+        option.id === id
+          ? {
+              ...option,
+              values: option.values.filter((value) => value !== valueToRemove),
+            }
+          : option
+      )
+    );
+  };
+
+  const handleRemoveVariantOption = (id: string) => {
+    setVariantOptions((previous) =>
+      previous
+        .filter((option) => option.id !== id)
+        .map((option, index) => ({ ...option, position: index }))
+    );
+  };
+
+  const variantPreviewTitles = useMemo(() => {
+    if (!isVariantProduct || itemType !== "GOODS" || !trackInventory) {
+      return [] as string[];
+    }
+
+    const cleaned = variantOptions
+      .map((option) => ({
+        name: option.name.trim(),
+        values: option.values.map((value) => value.trim()).filter(Boolean),
+      }))
+      .filter((option) => option.name && option.values.length > 0);
+
+    if (!cleaned.length) {
+      return [] as string[];
+    }
+
+    let combos: string[][] = [[]];
+
+    for (const option of cleaned) {
+      const next: string[][] = [];
+      for (const prefix of combos) {
+        for (const value of option.values) {
+          next.push([...prefix, value]);
+        }
+      }
+      combos = next;
+      if (combos.length > 2048) {
+        return [] as string[];
+      }
+    }
+
+    return combos.map((combo) => combo.join(" / "));
+  }, [isVariantProduct, itemType, trackInventory, variantOptions]);
+
+  useEffect(() => {
+    if (!isVariantProduct || itemType !== "GOODS" || !trackInventory) {
+      setVariantRows({});
+      return;
+    }
+
+    setVariantRows((previous) => {
+      const next: Record<
+        string,
+        { costPrice: string; sellingPrice: string; quantity: string }
+      > = {};
+
+      for (const title of variantPreviewTitles) {
+        const existing = previous[title];
+        next[title] = existing || {
+          costPrice: "",
+          sellingPrice: "",
+          quantity: "",
+        };
+      }
+
+      return next;
+    });
+  }, [isVariantProduct, itemType, trackInventory, variantPreviewTitles]);
   return (
     <>
       <div className="page-wrapper">
@@ -314,30 +524,32 @@ export default function AddProductComponent() {
                       </div>
                       <div className="row">
                         <div className="col-sm-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Unit
-                              {itemType === "GOODS" && (
-                                <span className="text-danger ms-1">*</span>
-                              )}
-                            </label>
-                            <Select
-                              className="react-select"
-                              options={unitOptions}
-                              placeholder="Select or type to add"
-                              value={
-                                unitOptions.find(
-                                  (option) => option.value === unitId
-                                ) || unitOptions[0]
-                              }
-                              onChange={(option) =>
-                                setUnitId(
-                                  (option as { value: string; label: string } | null)
-                                    ?.value || ""
-                                )
-                              }
-                            />
-                          </div>
+                          {false && (
+                            <div className="mb-3">
+                              <label className="form-label">
+                                Unit
+                                {itemType === "GOODS" && (
+                                  <span className="text-danger ms-1">*</span>
+                                )}
+                              </label>
+                              <Select
+                                className="react-select"
+                                options={unitOptions}
+                                placeholder="Select or type to add"
+                                value={
+                                  unitOptions.find(
+                                    (option) => option.value === unitId
+                                  ) || unitOptions[0]
+                                }
+                                onChange={(option) =>
+                                  setUnitId(
+                                    (option as { value: string; label: string } | null)
+                                      ?.value || ""
+                                  )
+                                }
+                              />
+                            </div>
+                          )}
                         </div>
                         <div className="col-sm-6 col-12">
                           <div className="form-check mt-4">
@@ -357,78 +569,80 @@ export default function AddProductComponent() {
                           </div>
                         </div>
                       </div>
-                      <div className="row">
-                        <div className="col-lg-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Dimensions (Length x Width x Height)
-                            </label>
-                            <div className="d-flex align-items-center">
-                              <input
-                                type="text"
-                                className="form-control me-1"
-                                value={lengthValue}
-                                onChange={(e) => setLengthValue(e.target.value)}
-                              />
-                              <span className="mx-1">x</span>
-                              <input
-                                type="text"
-                                className="form-control me-1"
-                                value={widthValue}
-                                onChange={(e) => setWidthValue(e.target.value)}
-                              />
-                              <span className="mx-1">x</span>
-                              <input
-                                type="text"
-                                className="form-control me-2"
-                                value={heightValue}
-                                onChange={(e) => setHeightValue(e.target.value)}
-                              />
-                              <select
-                                className="form-select w-auto"
-                                value={dimensionUnit}
-                                onChange={(e) => setDimensionUnit(e.target.value)}
-                              >
-                                {dimensionUnitOptions.map((option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
+                      {false && (
+                        <div className="row">
+                          <div className="col-lg-6 col-12">
+                            <div className="mb-3">
+                              <label className="form-label">
+                                Dimensions (Length x Width x Height)
+                              </label>
+                              <div className="d-flex align-items-center">
+                                <input
+                                  type="text"
+                                  className="form-control me-1"
+                                  value={lengthValue}
+                                  onChange={(e) => setLengthValue(e.target.value)}
+                                />
+                                <span className="mx-1">x</span>
+                                <input
+                                  type="text"
+                                  className="form-control me-1"
+                                  value={widthValue}
+                                  onChange={(e) => setWidthValue(e.target.value)}
+                                />
+                                <span className="mx-1">x</span>
+                                <input
+                                  type="text"
+                                  className="form-control me-2"
+                                  value={heightValue}
+                                  onChange={(e) => setHeightValue(e.target.value)}
+                                />
+                                <select
+                                  className="form-select w-auto"
+                                  value={dimensionUnit}
+                                  onChange={(e) => setDimensionUnit(e.target.value)}
+                                >
+                                  {dimensionUnitOptions.map((option) => (
+                                    <option
+                                      key={option.value}
+                                      value={option.value}
+                                    >
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-lg-6 col-12">
+                            <div className="mb-3">
+                              <label className="form-label">Weight</label>
+                              <div className="d-flex align-items-center">
+                                <input
+                                  type="text"
+                                  className="form-control me-2"
+                                  value={weightValue}
+                                  onChange={(e) => setWeightValue(e.target.value)}
+                                />
+                                <select
+                                  className="form-select w-auto"
+                                  value={weightUnit}
+                                  onChange={(e) => setWeightUnit(e.target.value)}
+                                >
+                                  {weightUnitOptions.map((option) => (
+                                    <option
+                                      key={option.value}
+                                      value={option.value}
+                                    >
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                             </div>
                           </div>
                         </div>
-                        <div className="col-lg-6 col-12">
-                          <div className="mb-3">
-                            <label className="form-label">Weight</label>
-                            <div className="d-flex align-items-center">
-                              <input
-                                type="text"
-                                className="form-control me-2"
-                                value={weightValue}
-                                onChange={(e) => setWeightValue(e.target.value)}
-                              />
-                              <select
-                                className="form-select w-auto"
-                                value={weightUnit}
-                                onChange={(e) => setWeightUnit(e.target.value)}
-                              >
-                                {weightUnitOptions.map((option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      )}
                       <div className="row">
                         <div className="col-lg-6 col-12">
                           <div className="mb-3">
@@ -476,203 +690,308 @@ export default function AddProductComponent() {
                     </div>
                   </div>
                 </div>
+                {false && (
+                  <div className="accordion-item border mb-4">
+                    <h2 className="accordion-header" id="headingSpacingTwo">
+                      <div
+                        className="accordion-button collapsed bg-white"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#SpacingTwo"
+                        aria-expanded="true"
+                        aria-controls="SpacingTwo"
+                      >
+                        <div className="d-flex align-items-center justify-content-between flex-fill">
+                          <h5 className="d-flex align-items-center">
+                            <LifeBuoy
+                              data-feather="life-buoy"
+                              className="text-primary me-2"
+                            />
+                            <span>Sales &amp; Purchase Information</span>
+                          </h5>
+                        </div>
+                      </div>
+                    </h2>
+                    <div
+                      id="SpacingTwo"
+                      className="accordion-collapse collapse show"
+                      aria-labelledby="headingSpacingTwo"
+                    >
+                      <div className="accordion-body border-top">
+                        {/* Sales & Purchase content hidden */}
+                        <hr className="my-4" />
+                        <div className="row">
+                          <div className="col-12">
+                            <div className="form-check mb-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="trackInventory"
+                                checked={trackInventory}
+                                onChange={(e) => setTrackInventory(e.target.checked)}
+                              />
+                              <label
+                                className="form-check-label fw-semibold"
+                                htmlFor="trackInventory"
+                              >
+                                Track Inventory for this item
+                              </label>
+                            </div>
+                            <p className="text-muted fs-12 mb-3">
+                              You cannot enable/disable inventory tracking once you
+                              have created transactions for this item.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="accordion-item border mb-4">
-                  <h2 className="accordion-header" id="headingSpacingTwo">
+                  <h2 className="accordion-header" id="headingVariants">
                     <div
                       className="accordion-button collapsed bg-white"
                       data-bs-toggle="collapse"
-                      data-bs-target="#SpacingTwo"
+                      data-bs-target="#SpacingVariants"
                       aria-expanded="true"
-                      aria-controls="SpacingTwo"
+                      aria-controls="SpacingVariants"
                     >
                       <div className="d-flex align-items-center justify-content-between flex-fill">
                         <h5 className="d-flex align-items-center">
-                          <LifeBuoy
-                            data-feather="life-buoy"
-                            className="text-primary me-2"
-                          />
-                          <span>Sales &amp; Purchase Information</span>
+                          <span className="me-2">Variants</span>
                         </h5>
                       </div>
                     </div>
                   </h2>
                   <div
-                    id="SpacingTwo"
+                    id="SpacingVariants"
                     className="accordion-collapse collapse show"
-                    aria-labelledby="headingSpacingTwo"
+                    aria-labelledby="headingVariants"
                   >
                     <div className="accordion-body border-top">
                       <div className="row">
-                        <div className="col-lg-6 col-12 border-end">
-                          <h6 className="mb-3 d-flex align-items-center">
-                            <span className="me-2">Sales Information</span>
-                            <div className="form-check ms-2">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id="sellable"
-                                checked={sellable}
-                                onChange={(e) => setSellable(e.target.checked)}
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="sellable"
-                              >
-                                Sellable
-                              </label>
-                            </div>
-                          </h6>
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Selling Price
-                              {sellable && (
-                                <span className="text-danger ms-1">*</span>
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={sellingPrice}
-                              onChange={(e) => setSellingPrice(e.target.value)}
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label">Account</label>
-                            <Select
-                              className="react-select"
-                              options={salesAccountOptions}
-                              placeholder="Select an account"
-                              value={
-                                salesAccountOptions.find(
-                                  (option) => option.value === salesAccount
-                                ) || salesAccountOptions[0]
-                              }
-                              onChange={(option) =>
-                                setSalesAccount(
-                                  (option as { value: string; label: string } | null)
-                                    ?.value || ""
-                                )
-                              }
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label">Description</label>
-                            <textarea
-                              className="form-control"
-                              rows={3}
-                              value={salesDescription}
-                              onChange={(e) => setSalesDescription(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="col-lg-6 col-12">
-                          <h6 className="mb-3 d-flex align-items-center">
-                            <span className="me-2">Purchase Information</span>
-                            <div className="form-check ms-2">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id="purchasable"
-                                checked={purchasable}
-                                onChange={(e) => setPurchasable(e.target.checked)}
-                              />
-                              <label
-                                className="form-check-label"
-                                htmlFor="purchasable"
-                              >
-                                Purchasable
-                              </label>
-                            </div>
-                          </h6>
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Cost Price
-                              {purchasable && (
-                                <span className="text-danger ms-1">*</span>
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={costPrice}
-                              onChange={(e) => setCostPrice(e.target.value)}
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label">Account</label>
-                            <Select
-                              className="react-select"
-                              options={purchaseAccountOptions}
-                              placeholder="Select an account"
-                              value={
-                                purchaseAccountOptions.find(
-                                  (option) => option.value === purchaseAccount
-                                ) || purchaseAccountOptions[0]
-                              }
-                              onChange={(option) =>
-                                setPurchaseAccount(
-                                  (option as { value: string; label: string } | null)
-                                    ?.value || ""
-                                )
-                              }
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label">Description</label>
-                            <textarea
-                              className="form-control"
-                              rows={3}
-                              value={purchaseDescription}
-                              onChange={(e) =>
-                                setPurchaseDescription(e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label">Preferred Vendor</label>
-                            <Select
-                              className="react-select"
-                              options={preferredVendorOptions}
-                              placeholder="Select Vendor"
-                              value={
-                                preferredVendorOptions.find(
-                                  (option) => option.value === preferredVendorId
-                                ) || preferredVendorOptions[0]
-                              }
-                              onChange={(option) =>
-                                setPreferredVendorId(
-                                  (option as { value: string; label: string } | null)
-                                    ?.value || ""
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <hr className="my-4" />
-                      <div className="row">
                         <div className="col-12">
-                          <div className="form-check mb-2">
+                          <div className="form-check mb-3">
                             <input
                               className="form-check-input"
                               type="checkbox"
-                              id="trackInventory"
-                              checked={trackInventory}
-                              onChange={(e) => setTrackInventory(e.target.checked)}
+                              id="isVariantProduct"
+                              checked={forcedVariantGoods ? true : isVariantProduct}
+                              disabled={
+                                forcedVariantGoods || itemType !== "GOODS" || !trackInventory
+                              }
+                              onChange={(e) => {
+                                if (forcedVariantGoods) {
+                                  return;
+                                }
+                                const checked = e.target.checked;
+                                setIsVariantProduct(checked);
+                                if (checked) {
+                                  setVariantOptions((previous) => {
+                                    if (previous.length > 0) {
+                                      return previous;
+                                    }
+                                    return [
+                                      {
+                                        id: `${Date.now()}-0`,
+                                        name: "Size",
+                                        values: [],
+                                        position: 0,
+                                        newValue: "",
+                                      },
+                                    ];
+                                  });
+                                }
+                              }}
                             />
                             <label
-                              className="form-check-label fw-semibold"
-                              htmlFor="trackInventory"
+                              className="form-check-label"
+                              htmlFor="isVariantProduct"
                             >
-                              Track Inventory for this item
+                              This item has multiple options, like size or color
                             </label>
                           </div>
-                          <p className="text-muted fs-12 mb-3">
-                            You cannot enable/disable inventory tracking once you
-                            have created transactions for this item.
-                          </p>
                         </div>
                       </div>
+                      {isVariantProduct && itemType === "GOODS" && trackInventory && (
+                        <>
+                          <div className="mb-3 d-flex justify-content-between align-items-center">
+                            <span className="fw-semibold">Options</span>
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={handleAddVariantOption}
+                              disabled={variantOptions.length >= 3}
+                            >
+                              Add another option
+                            </button>
+                          </div>
+                          {variantOptions.length === 0 && (
+                            <p className="text-muted fs-12 mb-3">
+                              Add at least one option with values to generate variants.
+                            </p>
+                          )}
+                          {variantOptions.map((option, index) => (
+                            <div key={option.id} className="mb-3">
+                              <div className="d-flex align-items-center mb-2">
+                                <div className="me-2">
+                                  <span className="badge bg-light text-dark">Option {index + 1}</span>
+                                </div>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  style={{ maxWidth: "240px" }}
+                                  placeholder="Option name (e.g. Size)"
+                                  value={option.name}
+                                  onChange={(e) =>
+                                    handleVariantOptionNameChange(option.id, e.target.value)
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-link text-danger ms-2 p-0"
+                                  onClick={() => handleRemoveVariantOption(option.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                {option.values.map((value) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+                                    onClick={() => handleVariantRemoveValue(option.id, value)}
+                                  >
+                                    <span className="me-1">{value}</span>
+                                    <span aria-hidden="true">×</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="d-flex align-items-center" style={{ maxWidth: "360px" }}>
+                                <input
+                                  type="text"
+                                  className="form-control me-2"
+                                  placeholder="Add a value (e.g. 10 gms)"
+                                  value={option.newValue}
+                                  onChange={(e) =>
+                                    handleVariantNewValueChange(option.id, e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleVariantAddValue(option.id);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-primary btn-sm"
+                                  onClick={() => handleVariantAddValue(option.id)}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {variantPreviewTitles.length > 0 && (
+                            <div className="mt-3">
+                              <span className="fw-semibold d-block mb-2">Variants</span>
+                              <div className="table-responsive">
+                                <table className="table table-bordered align-middle">
+                                  <thead>
+                                    <tr>
+                                      <th style={{ width: "40%" }}>Variant</th>
+                                      <th style={{ width: "20%" }}>Cost Price</th>
+                                      <th style={{ width: "20%" }}>Selling Price</th>
+                                      <th style={{ width: "20%" }}>Available Qty</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {variantPreviewTitles.slice(0, 50).map((title) => {
+                                      const row = variantRows[title] || {
+                                        costPrice: "",
+                                        sellingPrice: "",
+                                        quantity: "",
+                                      };
+
+                                      return (
+                                        <tr key={title}>
+                                          <td>{title}</td>
+                                          <td>
+                                            <input
+                                              type="text"
+                                              className="form-control form-control-sm"
+                                              value={row.costPrice}
+                                              onChange={(e) =>
+                                                setVariantRows((previous) => ({
+                                                  ...previous,
+                                                  [title]: {
+                                                    ...previous[title],
+                                                    costPrice: e.target.value,
+                                                    sellingPrice:
+                                                      previous[title]?.sellingPrice || "",
+                                                    quantity:
+                                                      previous[title]?.quantity || "",
+                                                  },
+                                                }))
+                                              }
+                                            />
+                                          </td>
+                                          <td>
+                                            <input
+                                              type="text"
+                                              className="form-control form-control-sm"
+                                              value={row.sellingPrice}
+                                              onChange={(e) =>
+                                                setVariantRows((previous) => ({
+                                                  ...previous,
+                                                  [title]: {
+                                                    ...previous[title],
+                                                    costPrice:
+                                                      previous[title]?.costPrice || "",
+                                                    sellingPrice: e.target.value,
+                                                    quantity:
+                                                      previous[title]?.quantity || "",
+                                                  },
+                                                }))
+                                              }
+                                            />
+                                          </td>
+                                          <td>
+                                            <input
+                                              type="text"
+                                              className="form-control form-control-sm"
+                                              value={row.quantity}
+                                              onChange={(e) =>
+                                                setVariantRows((previous) => ({
+                                                  ...previous,
+                                                  [title]: {
+                                                    ...previous[title],
+                                                    costPrice:
+                                                      previous[title]?.costPrice || "",
+                                                    sellingPrice:
+                                                      previous[title]?.sellingPrice || "",
+                                                    quantity: e.target.value,
+                                                  },
+                                                }))
+                                              }
+                                            />
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {variantPreviewTitles.length > 50 && (
+                                <p className="text-muted fs-12 mb-0">
+                                  {variantPreviewTitles.length - 50} more variants will be created.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

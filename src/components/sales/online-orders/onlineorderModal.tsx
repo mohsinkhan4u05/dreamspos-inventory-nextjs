@@ -46,6 +46,7 @@ const OnlineorderModal = () => {
   type SaleItemRow = {
     id: string;
     productId: string;
+    variantId?: string;
     quantity: string;
     unitPrice: string;
     discount: string;
@@ -385,11 +386,36 @@ const OnlineorderModal = () => {
     field: keyof Omit<SaleItemRow, "id">,
     value: string,
   ) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+    let next = items.map((item) =>
+      item.id === id ? { ...item, [field]: value } : item,
     );
-    if (field === "productId" && value) {
-      loadBatchesForProduct(value);
+
+    if (field === "productId") {
+      const productId = value;
+      if (productId) {
+        const product = (products?.data ?? []).find((p: any) => p.id === productId);
+        const variants = Array.isArray(product?.variants)
+          ? product.variants
+          : [];
+        const activeVariants = variants.filter(
+          (v: any) => v && v.isActive !== false,
+        );
+
+        // Reset variantId by default when product changes
+        next = next.map((item) =>
+          item.id === id ? { ...item, variantId: undefined } : item,
+        );
+
+        if (activeVariants.length === 1 && typeof activeVariants[0].id === "string") {
+          const singleVariantId = activeVariants[0].id as string;
+          next = next.map((item) =>
+            item.id === id ? { ...item, variantId: singleVariantId } : item,
+          );
+        }
+
+        loadBatchesForProduct(productId);
+      }
+
       setBatchAllocations((prev) => ({
         ...prev,
         [id]: [],
@@ -399,9 +425,12 @@ const OnlineorderModal = () => {
         [id]: null,
       }));
     }
+
     if (field === "quantity") {
       validateBatchAllocationsForItem(id);
     }
+
+    setItems(next);
   };
 
   const handleCreateSale = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -507,6 +536,7 @@ const OnlineorderModal = () => {
         customerPhone: customerPhone || null,
         items: validItems.map((item) => ({
           productId: item.productId,
+          variantId: item.variantId || null,
           quantity: item.quantityNum,
           unitPrice: item.unitPriceNum,
           discount: item.discountNum,
@@ -647,6 +677,48 @@ const OnlineorderModal = () => {
                               }
                               placeholder="Select product"
                             />
+                            {(() => {
+                              const product = (products?.data ?? []).find(
+                                (p: any) => p.id === item.productId,
+                              );
+                              const variants = Array.isArray(product?.variants)
+                                ? product.variants
+                                : [];
+                              const activeVariants = variants.filter(
+                                (v: any) => v && v.isActive !== false,
+                              );
+
+                              if (!product || activeVariants.length === 0) {
+                                return null;
+                              }
+
+                              const variantOptions = activeVariants.map((v: any) => ({
+                                value: v.id as string,
+                                label: v.name || v.sku || "Variant",
+                              }));
+
+                              return (
+                                <div className="mt-2">
+                                  <Select
+                                    classNamePrefix="react-select"
+                                    options={variantOptions}
+                                    value={
+                                      variantOptions.find(
+                                        (opt) => opt.value === item.variantId,
+                                      ) || null
+                                    }
+                                    onChange={(opt) =>
+                                      handleItemChange(
+                                        item.id,
+                                        "variantId",
+                                        (opt as any)?.value || "",
+                                      )
+                                    }
+                                    placeholder="Select variant"
+                                  />
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td>
                             <input

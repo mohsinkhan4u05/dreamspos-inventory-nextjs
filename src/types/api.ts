@@ -55,6 +55,7 @@ export interface Product {
   inventoryAccount?: string
   inventoryValuation?: "FIFO"
   trackInventory?: boolean
+  isVariant?: boolean
   openingStock?: number
   openingStockRate?: number
   allowOpeningStockEdit?: boolean

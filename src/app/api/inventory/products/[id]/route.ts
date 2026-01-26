@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
+import { buildVariantCreateManyInputs, generateVariantCombos } from "@/lib/products/variantGenerator"
 
 export const dynamic = "force-dynamic"
 
@@ -436,29 +437,236 @@ export async function PUT(
     const body = await request.json()
     const { id } = await context.params
 
-    const product = await prisma.product.update({
+    const {
+      isVariant,
+      variantOptions,
+      baseSkuPrefix,
+      variantUpdates,
+      ...updateData
+    } = body || {}
+
+    let optionInputs: { name: string; values: string[]; position: number }[] = []
+    let combos: ReturnType<typeof generateVariantCombos> = []
+
+    if (isVariant && Array.isArray(variantOptions)) {
+      optionInputs = (variantOptions as any[])
+        .map((opt, index) => ({
+          name: String(opt?.name ?? "").trim(),
+          values: Array.isArray(opt?.values) ? opt.values.map((v: any) => String(v)) : [],
+          position: typeof opt?.position === "number" ? opt.position : index,
+        }))
+        .filter((opt) => opt.name && opt.values.length > 0)
+
+      if (optionInputs.length > 0) {
+        try {
+          combos = generateVariantCombos(optionInputs)
+        } catch (error) {
+          return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Invalid variant options" },
+            { status: 400 },
+          )
+        }
+      }
+    }
+
+    const existing = await prisma.product.findUnique({
       where: { id },
-      data: body,
       include: {
-        brand: true,
-        unit: true,
-        preferredVendor: true,
-        createdBy: true,
         variants: true,
-        units: {
-          include: {
-            unit: true,
-          },
-        },
       },
     })
 
-    return NextResponse.json(product)
+    if (!existing) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id },
+        data: {
+          ...(updateData as any),
+          ...(typeof isVariant === "boolean" ? { isVariant } : {}),
+        },
+      })
+
+      const canGenerateVariants =
+        Boolean(isVariant) &&
+        optionInputs.length > 0 &&
+        combos.length > 0 &&
+        existing.variants.length === 0
+
+      if (canGenerateVariants) {
+        for (const option of optionInputs) {
+          const createdOption = await tx.productOption.create({
+            data: {
+              productId: id,
+              name: option.name,
+              position: option.position,
+            },
+          })
+
+          for (const value of option.values) {
+            await tx.productOptionValue.create({
+              data: {
+                optionId: createdOption.id,
+                value,
+              },
+            })
+          }
+        }
+
+        const variantRows = buildVariantCreateManyInputs(
+          id,
+          (baseSkuPrefix ?? (updateData as any)?.sku ?? existing.sku ?? null) as string | null,
+          combos,
+        )
+
+        if (variantRows.length > 0) {
+          await tx.productVariant.createMany({
+            data: variantRows,
+          })
+        }
+      }
+
+      // Handle variant updates (edit prices / quantities, add simple new variants)
+      if (Array.isArray(variantUpdates) && variantUpdates.length > 0) {
+        // Determine a default store for stock rows
+        let defaultStoreId: string | null = (token as any)?.storeId ?? null
+        if (!defaultStoreId) {
+          const firstStore = await tx.store.findFirst({ select: { id: true } })
+          defaultStoreId = firstStore?.id ?? null
+        }
+
+        for (const v of variantUpdates as any[]) {
+          const variantId = v.id as string | undefined
+          const name = typeof v.name === "string" ? v.name.trim() : null
+          const costPrice =
+            v.costPrice !== undefined && v.costPrice !== null
+              ? Number(v.costPrice)
+              : null
+          const sellingPrice =
+            v.sellingPrice !== undefined && v.sellingPrice !== null
+              ? Number(v.sellingPrice)
+              : null
+          const quantity =
+            v.quantity !== undefined && v.quantity !== null
+              ? Number(v.quantity)
+              : null
+
+          if (!variantId && !name) {
+            continue
+          }
+
+          // Existing variant: update prices and stock quantity
+          if (variantId) {
+            await tx.productVariant.update({
+              where: { id: variantId },
+              data: {
+                ...(name ? { name } : {}),
+                costPrice,
+                sellingPrice,
+              },
+            })
+
+            if (quantity !== null && Number.isFinite(quantity)) {
+              const existingStock = await tx.stock.findFirst({
+                where: {
+                  productId: id,
+                  variantId,
+                },
+              })
+
+              if (existingStock) {
+                await tx.stock.update({
+                  where: { id: existingStock.id },
+                  data: { quantity },
+                })
+              } else if (defaultStoreId && quantity > 0) {
+                await tx.stock.create({
+                  data: {
+                    productId: id,
+                    variantId,
+                    storeId: defaultStoreId,
+                    warehouseId: null,
+                    unitId: null,
+                    quantity,
+                    minStock: 0,
+                    maxStock: null,
+                    batchNumber: null,
+                    expiryDate: null,
+                  },
+                })
+              }
+            }
+
+            continue
+          }
+
+          // New simple variant: create ProductVariant and a Stock row
+          if (!name) continue
+
+          const createdVariant = await tx.productVariant.create({
+            data: {
+              productId: id,
+              name,
+              sku: null,
+              costPrice,
+              sellingPrice,
+              isActive: true,
+            },
+          })
+
+          if (
+            defaultStoreId &&
+            quantity !== null &&
+            Number.isFinite(quantity) &&
+            quantity > 0
+          ) {
+            await tx.stock.create({
+              data: {
+                productId: id,
+                variantId: createdVariant.id,
+                storeId: defaultStoreId,
+                warehouseId: null,
+                unitId: null,
+                quantity,
+                minStock: 0,
+                maxStock: null,
+                batchNumber: null,
+                expiryDate: null,
+              },
+            })
+          }
+        }
+      }
+
+      return tx.product.findUnique({
+        where: { id },
+        include: {
+          brand: true,
+          unit: true,
+          preferredVendor: true,
+          createdBy: true,
+          variants: {
+            include: {
+              stocks: true,
+            },
+          },
+          units: {
+            include: {
+              unit: true,
+            },
+          },
+        },
+      })
+    })
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error("Update Product Error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

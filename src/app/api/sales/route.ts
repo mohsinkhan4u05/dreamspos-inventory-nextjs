@@ -548,6 +548,57 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate variant usage for direct sales: products with variants must have variantId
+    const productIds = Array.from(
+      new Set((items as any[]).map((item) => String(item.productId))),
+    );
+
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        isVariant: true,
+        variants: {
+          select: { id: true },
+        },
+      },
+    });
+
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    for (const item of items as any[]) {
+      const productId = String(item.productId);
+      const product = productById.get(productId);
+      if (!product) continue;
+
+      const hasVariants =
+        product.isVariant === true || (product.variants?.length ?? 0) > 0;
+      const variantId = item.variantId ? String(item.variantId) : null;
+
+      if (hasVariants && !variantId) {
+        return NextResponse.json(
+          {
+            error:
+              "variantId is required for products that have variants in sales",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (variantId) {
+        const belongsToProduct = product.variants?.some((v) => v.id === variantId);
+        if (!belongsToProduct) {
+          return NextResponse.json(
+            {
+              error:
+                "variantId does not belong to the specified product for one of the sale lines",
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const result = await applySale({
       storeId,
       userId: token.sub as string,

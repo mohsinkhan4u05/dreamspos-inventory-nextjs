@@ -16,13 +16,29 @@ import { productService } from "@/services/api";
 import { formatCurrencyINR } from "@/lib/currency";
 
 export default function ProductListComponent() {
-  const { products, loading, error, refetch } = useProducts();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const { products, loading, error, refetch } = useProducts({
+    page,
+    limit: pageSize,
+    isActive: true,
+  });
   const { data: session } = useSession();
 
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [deleteProductName, setDeleteProductName] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [variantModalProductId, setVariantModalProductId] = useState<string | null>(null);
+  const [variantModalProductName, setVariantModalProductName] = useState<string | null>(null);
+  const [variantRows, setVariantRows] = useState<
+    { id?: string; name: string; sku?: string | null; costPrice: string; sellingPrice: string; quantity: string }[]
+  >([]);
+  const [variantModalLoading, setVariantModalLoading] = useState(false);
+  const [variantModalError, setVariantModalError] = useState<string | null>(null);
+  const [variantModalSaving, setVariantModalSaving] = useState(false);
 
   const route = all_routes;
   
@@ -38,14 +54,13 @@ export default function ProductListComponent() {
 
     const creatorName =
       product.createdBy?.username ||
+      product.createdBy?.name ||
       product.createdBy?.email ||
-      (session?.user as any | undefined)?.name ||
-      (session?.user as any | undefined)?.username ||
       "User";
 
     const creatorImage =
-      (session?.user as any | undefined)?.image ||
-      "assets/img/users/user-30.jpg";
+      (product.createdBy as any | undefined)?.image ||
+      "/assets/img/users/default-user.png";
 
     return {
       id: product.id,
@@ -54,7 +69,6 @@ export default function ProductListComponent() {
       sku: product.sku,
       category: product.category?.name || "N/A",
       brand: product.brand?.name || "N/A",
-      price: formatCurrencyINR(product.sellingPrice),
       unit: "Pc", // Default unit, could be enhanced with unit data
       qty: totalQuantity.toString(),
       createdby: creatorName,
@@ -65,6 +79,142 @@ export default function ProductListComponent() {
   const creatorOptions = Array.from(
     new Set((dataSource || []).map((item: any) => item.createdby).filter(Boolean))
   ) as string[];
+
+  const paginationConfig = {
+    current: products?.page ?? page,
+    pageSize: products?.limit ?? pageSize,
+    total: products?.total ?? dataSource.length,
+    showSizeChanger: true,
+    pageSizeOptions: ["10", "20", "30"],
+    locale: { items_per_page: "" },
+    nextIcon: (
+      <span>
+        <i className="fa fa-angle-right" />
+      </span>
+    ),
+    prevIcon: (
+      <span>
+        <i className="fa fa-angle-left" />
+      </span>
+    ),
+  };
+
+  const openVariantModal = async (record: any) => {
+    setVariantModalProductId(record.id);
+    setVariantModalProductName(record.product);
+    setVariantModalError(null);
+    setVariantRows([]);
+    setVariantModalLoading(true);
+
+    try {
+      const fullProduct = await productService.getProduct(record.id);
+      const variants = Array.isArray(fullProduct?.variants) ? fullProduct.variants : [];
+
+      const rows = variants.map((v: any) => {
+        const qty = Array.isArray(v.stocks)
+          ? v.stocks.reduce(
+              (sum: number, s: any) =>
+                sum + (typeof s.quantity === "number" ? s.quantity : 0),
+              0,
+            )
+          : 0;
+
+        return {
+          id: v.id as string,
+          name: String(v.name ?? ""),
+          sku: v.sku ?? null,
+          costPrice: v.costPrice != null ? String(v.costPrice) : "",
+          sellingPrice: v.sellingPrice != null ? String(v.sellingPrice) : "",
+          quantity: String(qty),
+        };
+      });
+
+      setVariantRows(rows);
+    } catch (err) {
+      setVariantModalError(
+        err instanceof Error ? err.message : "Failed to load variant details",
+      );
+    } finally {
+      setVariantModalLoading(false);
+    }
+  };
+
+  const closeVariantModal = () => {
+    setVariantModalProductId(null);
+    setVariantModalProductName(null);
+    setVariantRows([]);
+    setVariantModalError(null);
+    setVariantModalLoading(false);
+    setVariantModalSaving(false);
+  };
+
+  const handleVariantRowChange = (
+    index: number,
+    field: "name" | "costPrice" | "sellingPrice" | "quantity",
+    value: string,
+  ) => {
+    setVariantRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleAddVariantRow = () => {
+    setVariantRows((prev) => [
+      ...prev,
+      { id: undefined, name: "", sku: null, costPrice: "", sellingPrice: "", quantity: "" },
+    ]);
+  };
+
+  const handleSaveVariants = async () => {
+    if (!variantModalProductId) return;
+
+    try {
+      setVariantModalSaving(true);
+      setVariantModalError(null);
+
+      const variantUpdates = variantRows
+        .map((row) => {
+          const name = row.name.trim();
+          const cost = row.costPrice.trim() === "" ? undefined : Number(row.costPrice);
+          const sell = row.sellingPrice.trim() === "" ? undefined : Number(row.sellingPrice);
+          const qty = row.quantity.trim() === "" ? undefined : Number(row.quantity);
+
+          if (!row.id && !name) {
+            return null;
+          }
+
+          return {
+            id: row.id,
+            name: name || undefined,
+            costPrice: Number.isFinite(cost as number) ? (cost as number) : undefined,
+            sellingPrice: Number.isFinite(sell as number) ? (sell as number) : undefined,
+            quantity: Number.isFinite(qty as number) ? (qty as number) : undefined,
+          };
+        })
+        .filter((v) => v !== null) as {
+        id?: string;
+        name?: string;
+        costPrice?: number;
+        sellingPrice?: number;
+        quantity?: number;
+      }[];
+
+      await productService.updateProduct(variantModalProductId, {
+        variantUpdates,
+      });
+
+      await refetch();
+      closeVariantModal();
+    } catch (err) {
+      setVariantModalError(
+        err instanceof Error ? err.message : "Failed to save variant changes",
+      );
+    } finally {
+      setVariantModalSaving(false);
+    }
+  };
 
   const handleOpenDelete = (record: any) => {
     setDeleteProductId(record.id);
@@ -106,21 +256,24 @@ export default function ProductListComponent() {
       priority: "always",
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
-          <Link href={`/item/${record.id}`} className="avatar avatar-md me-2">
+          <button
+            type="button"
+            className="avatar avatar-md me-2 btn btn-link p-0 border-0"
+            onClick={() => openVariantModal(record)}
+          >
             <img alt="" src={record.productImage} />
-          </Link>
-          <Link href={`/item/${record.id}`}>{text}</Link>
+          </button>
+          <button
+            type="button"
+            className="btn btn-link p-0 text-start"
+            onClick={() => openVariantModal(record)}
+          >
+            {text}
+          </button>
         </div>
       ),
       sorter: (a: any, b: any) =>
         String(a.product ?? "").length - String(b.product ?? "").length,
-    },
-    {
-      title: "Price",
-      dataIndex: "price",
-      priority: "always",
-      sorter: (a: any, b: any) =>
-        String(a.price ?? "").length - String(b.price ?? "").length,
     },
     {
       title: "Stock On Hand",
@@ -221,6 +374,7 @@ export default function ProductListComponent() {
 
   return (
     <>
+      {/* MAIN PAGE */}
       <div className="page-wrapper">
         <div className="content">
           <div className="page-header">
@@ -230,366 +384,228 @@ export default function ProductListComponent() {
                 <h6>Manage your items</h6>
               </div>
             </div>
+
             <ul className="table-top-head">
               <TooltipIcons />
               <RefreshIcon />
               <CollapesIcon />
             </ul>
+
             <div className="page-btn">
               <Link href={route.addproduct} className="btn btn-primary">
                 <i className="ti ti-circle-plus me-1"></i>
                 Add New Item
               </Link>
             </div>
-            {/* <div className="page-btn import">
-              <Link
-                href="#"
-                className="btn btn-secondary color"
-                data-bs-toggle="modal"
-                data-bs-target="#view-notes"
-              >
-                <Download className="feather me-2" />
-                Import Item
-              </Link>
-            </div> */}
           </div>
-          {/* /product list */}
+
           <div className="card table-list-card">
-            <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-              <div className="search-set"></div>
-              <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                {/* <div className="dropdown me-2">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Item
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Lenovo IdeaPad 3
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Beats Pro{" "}
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Nike Jordan
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Apple Series 5 Watch
-                      </Link>
-                    </li>
-                  </ul>
-                </div> */}
-                <div className="dropdown me-2">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Created By
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    {creatorOptions.length === 0 && (
-                      <li>
-                        <span className="dropdown-item rounded-1 text-muted">
-                          No creators
-                        </span>
-                      </li>
-                    )}
-                    {creatorOptions.map((name) => (
-                      <li key={name}>
-                        <Link href="#" className="dropdown-item rounded-1">
-                          {name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {/* <div className="dropdown me-2">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Category
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Computers
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Electronics
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Shoe
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Electronics
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="dropdown me-2">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Brand
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Lenovo
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Beats
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Nike
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Apple
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="dropdown">
-                  <Link
-                    href="#"
-                    className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown"
-                  >
-                    Sort By : Last 7 Days
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Recently Added
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Ascending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Desending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Last Month
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="#" className="dropdown-item rounded-1">
-                        Last 7 Days
-                      </Link>
-                    </li>
-                  </ul>
-                </div> */}
-              </div>
-            </div>
             <div className="card-body">
-              {/* <div className="table-top">
-              <div className="search-set">
-                <div className="search-input">
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    className="form-control form-control-sm formsearch"
-                  />
-                  <Link to className="btn btn-searchset">
-                    <i data-feather="search" className="feather-search" />
-                  </Link>
-                </div>
-              </div>
-              <div className="search-path">
-                <Link
-                  className={`btn btn-filter ${
-                    isFilterVisible ? "setclose" : ""
-                  }`}
-                  id="filter_search"
-                >
-                  <Filter
-                    className="filter-icon"
-                    onClick={toggleFilterVisibility}
-                  />
-                  <span onClick={toggleFilterVisibility}>
-                    <img
-                      src="assets/img/icons/closes.svg"
-                      alt="img"
-                    />
-                  </span>
-                </Link>
-              </div>
-              <div className="form-sort">
-                <Sliders className="info-img" />
-                <Select
-                  className="img-select"
-                  classNamePrefix="react-select"
-                  options={options}
-                  placeholder="14 09 23"
+              <div className="table-responsive">
+                <Table
+                  columns={columns}
+                  dataSource={dataSource}
+                  pagination={paginationConfig}
+                  onChange={(pagination: any) => {
+                    const nextPage = pagination?.current || 1;
+                    const nextPageSize = pagination?.pageSize || pageSize;
+                    setPage(nextPage);
+                    setPageSize(nextPageSize);
+                  }}
                 />
               </div>
-            </div> */}
-              {/* /Filter */}
-              {/* <div
-              className={`card${isFilterVisible ? " visible" : ""}`}
-              id="filter_inputs"
-              style={{ display: isFilterVisible ? "block" : "none" }}
-            >
-              <div className="card-body pb-0">
-                <div className="row">
-                  <div className="col-lg-12 col-sm-12">
-                    <div className="row">
-                      <div className="col-lg-2 col-sm-6 col-12">
-                        <div className="input-blocks">
-                          <Box className="info-img" />
-                          <Select
-                            className="img-select"
-                            classNamePrefix="react-select"
-                            options={productlist}
-                            placeholder="Choose Product"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-2 col-sm-6 col-12">
-                        <div className="input-blocks">
-                          <StopCircle className="info-img" />
-                          <Select
-                            className="img-select"
-                            classNamePrefix="react-select"
-                            options={categorylist}
-                            placeholder="Choose Category"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-2 col-sm-6 col-12">
-                        <div className="input-blocks">
-                          <GitMerge className="info-img" />
-                          <Select
-                            className="img-select"
-                            classNamePrefix="react-select"
-                            options={subcategorylist}
-                            placeholder="Choose Sub Category"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-2 col-sm-6 col-12">
-                        <div className="input-blocks">
-                          <StopCircle className="info-img" />
-                          <Select
-                            className="img-select"
-                            classNamePrefix="react-select"
-                            options={brandlist}
-                            placeholder="Nike"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-2 col-sm-6 col-12">
-                        <div className="input-blocks">
-                          <i className="fas fa-money-bill info-img" />
-
-                          <Select
-                            className="img-select"
-                            classNamePrefix="react-select"
-                            options={price}
-                            placeholder="Price"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-2 col-sm-6 col-12">
-                        <div className="input-blocks">
-                          <Link className="btn btn-filters ms-auto">
-                            {" "}
-                            <i
-                              data-feather="search"
-                              className="feather-search"
-                            />{" "}
-                            Search{" "}
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div> */}
-              {/* /Filter */}
-              <div className="table-responsive">
-                <Table columns={columns} dataSource={dataSource} />
-              </div>
             </div>
           </div>
-          {/* /product list */}
-          <Brand />
         </div>
       </div>
-      <>
-        {/* delete modal */}
-        <div className="modal fade" id="delete-modal">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="page-wrapper-new p-0">
-                <div className="content p-5 px-3 text-center">
-                  <span className="rounded-circle d-inline-flex p-2 bg-danger-transparent mb-2">
-                    <i className="ti ti-trash fs-24 text-danger" />
-                  </span>
-                  <h4 className="fs-20 text-gray-9 fw-bold mb-2 mt-1">
-                    Delete Item
-                  </h4>
-                  <p className="text-gray-6 mb-0 fs-16">
-                    Are you sure you want to delete {deleteProductName || "this Item"}?
-                  </p>
-                  <div className="modal-footer-btn mt-3 d-flex justify-content-center">
+
+      {/* VARIANT MODAL */}
+      <div
+        className={`modal fade${variantModalProductId ? " show d-block" : ""}`}
+        id="variant-modal"
+        aria-hidden={variantModalProductId ? "false" : "true"}
+      >
+        <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4>Variants for {variantModalProductName || "Item"}</h4>
+              </div>
+              <button
+                type="button"
+                className="close"
+                aria-label="Close"
+                onClick={closeVariantModal}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {variantModalLoading && (
+                <p className="mb-0 text-muted">Loading variants...</p>
+              )}
+              {variantModalError && !variantModalLoading && (
+                <p className="mb-2 text-danger">{variantModalError}</p>
+              )}
+              {!variantModalLoading && !variantModalError && (
+                <>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h5 className="mb-0">Variant Breakdown</h5>
                     <button
                       type="button"
-                      className="btn me-2 btn-secondary fs-13 fw-medium p-2 px-3 shadow-none"
-                      data-bs-dismiss="modal"
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={handleAddVariantRow}
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary fs-13 fw-medium p-2 px-3"
-                      data-bs-dismiss="modal"
-                      onClick={handleConfirmDelete}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? "Deleting..." : "Yes Delete"}
+                      Add Variant
                     </button>
                   </div>
-                </div>
+                  {variantRows.length === 0 ? (
+                    <p className="mb-0 text-muted">
+                      No variants yet. Use "Add Variant" to create one.
+                    </p>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-bordered mb-0">
+                        <thead>
+                          <tr>
+                            <th>Variant</th>
+                            <th>Cost Price</th>
+                            <th>Selling Price</th>
+                            <th>Available Qty</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {variantRows.map((row, index) => (
+                            <tr key={row.id || `new-${index}`}>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={row.name}
+                                  onChange={(e) =>
+                                    handleVariantRowChange(
+                                      index,
+                                      "name",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="Variant name"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  value={row.costPrice}
+                                  onChange={(e) =>
+                                    handleVariantRowChange(
+                                      index,
+                                      "costPrice",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="0.00"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  value={row.sellingPrice}
+                                  onChange={(e) =>
+                                    handleVariantRowChange(
+                                      index,
+                                      "sellingPrice",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="0.00"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  value={row.quantity}
+                                  onChange={(e) =>
+                                    handleVariantRowChange(
+                                      index,
+                                      "quantity",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="0"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeVariantModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSaveVariants}
+                disabled={variantModalSaving}
+              >
+                {variantModalSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {variantModalProductId && <div className="modal-backdrop fade show" />}
+
+      {/* DELETE MODAL */}
+      <div className="modal fade" id="delete-modal">
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="page-wrapper-new p-4 text-center">
+              <span className="rounded-circle d-inline-flex p-2 bg-danger-transparent mb-2">
+                <i className="ti ti-trash fs-24 text-danger" />
+              </span>
+
+              <h4 className="fs-20 fw-bold">Delete Item</h4>
+              <p>
+                Are you sure you want to delete{" "}
+                <strong>{deleteProductName}</strong>?
+              </p>
+
+              <div className="d-flex justify-content-center gap-2 mt-3">
+                <button
+                  className="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="btn btn-danger"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  data-bs-dismiss="modal"
+                >
+                  {isDeleting ? "Deleting..." : "Yes, Delete"}
+                </button>
               </div>
             </div>
           </div>
         </div>
-      </>
+      </div>
     </>
   );
 }

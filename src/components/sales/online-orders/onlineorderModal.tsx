@@ -393,7 +393,9 @@ const OnlineorderModal = () => {
     if (field === "productId") {
       const productId = value;
       if (productId) {
-        const product = (products?.data ?? []).find((p: any) => p.id === productId);
+        const product: any = (products?.data ?? []).find(
+          (p: any) => p.id === productId,
+        );
         const variants = Array.isArray(product?.variants)
           ? product.variants
           : [];
@@ -678,7 +680,7 @@ const OnlineorderModal = () => {
                               placeholder="Select product"
                             />
                             {(() => {
-                              const product = (products?.data ?? []).find(
+                              const product: any = (products?.data ?? []).find(
                                 (p: any) => p.id === item.productId,
                               );
                               const variants = Array.isArray(product?.variants)

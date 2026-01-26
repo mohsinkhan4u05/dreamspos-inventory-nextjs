@@ -706,14 +706,15 @@ const OnlineorderModal = () => {
                                     options={variantOptions}
                                     value={
                                       variantOptions.find(
-                                        (opt) => opt.value === item.variantId,
+                                        (opt: { value: string; label: string }) =>
+                                          opt.value === item.variantId,
                                       ) || null
                                     }
-                                    onChange={(opt) =>
+                                    onChange={(opt: { value: string; label: string } | null) =>
                                       handleItemChange(
                                         item.id,
                                         "variantId",
-                                        (opt as any)?.value || "",
+                                        opt?.value || "",
                                       )
                                     }
                                     placeholder="Select variant"

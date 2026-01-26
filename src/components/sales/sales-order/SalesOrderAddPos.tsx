@@ -846,14 +846,18 @@ export default function SalesOrderAddPos() {
                                       {/* Hide master price cell; price shown on variant rows */}
                                       <td className="d-none">{priceLabel}</td>
                                       <td>
-                                        {activeVariants.length > 0
-                                          ? totalVariantStock ||
-                                            (typeof product.stockOnHand === "number"
-                                              ? product.stockOnHand
-                                              : 0)
-                                          : typeof product.stockOnHand === "number"
-                                          ? product.stockOnHand
-                                          : 0}
+                                        {(() => {
+                                          const baseStock = product.stockOnHand;
+
+                                          if (activeVariants.length > 0) {
+                                            return (
+                                              totalVariantStock ||
+                                              (typeof baseStock === "number" ? baseStock : 0)
+                                            );
+                                          }
+
+                                          return typeof baseStock === "number" ? baseStock : 0;
+                                        })()}
                                       </td>
                                       <td className="text-center">
                                         {activeVariants.length > 0 ? (
@@ -1154,6 +1158,12 @@ export default function SalesOrderAddPos() {
                                         return null;
                                       }
 
+                                      const baseStock: number =
+                                        typeof product.stockOnHand === "number" &&
+                                        product.stockOnHand >= 0
+                                          ? product.stockOnHand
+                                          : Infinity;
+
                                       const qty = parseNumber(row.quantity);
                                       const rate = parseNumber(row.rate);
                                       const discount = parseNumber(row.discount);
@@ -1230,7 +1240,7 @@ export default function SalesOrderAddPos() {
                                                 type="number"
                                                 className="form-control text-center mx-1"
                                                 min={0}
-                                                max={(() => {
+                                                max={((): number => {
                                                   if (
                                                     row.variantId &&
                                                     typeof selectedVariantStock === "number" &&
@@ -1239,11 +1249,7 @@ export default function SalesOrderAddPos() {
                                                     return selectedVariantStock;
                                                   }
 
-                                                  return
-                                                    typeof product.stockOnHand === "number" &&
-                                                    product.stockOnHand >= 0
-                                                      ? product.stockOnHand
-                                                      : undefined;
+                                                  return baseStock;
                                                 })()}
                                                 value={String(qty)}
                                                 onChange={(e) => {
@@ -1255,7 +1261,7 @@ export default function SalesOrderAddPos() {
                                                     return;
                                                   }
 
-                                                  const maxStock = (() => {
+                                                  const maxStock: number = (() => {
                                                     if (
                                                       row.variantId &&
                                                       typeof selectedVariantStock === "number" &&
@@ -1264,11 +1270,7 @@ export default function SalesOrderAddPos() {
                                                       return selectedVariantStock;
                                                     }
 
-                                                    return
-                                                      typeof product.stockOnHand === "number" &&
-                                                      product.stockOnHand >= 0
-                                                        ? product.stockOnHand
-                                                        : Infinity;
+                                                    return baseStock;
                                                   })();
 
                                                   const clamped = Math.min(

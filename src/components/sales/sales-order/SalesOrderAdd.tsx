@@ -535,14 +535,17 @@ export default function SalesOrderAdd() {
                                     options={variantOptions}
                                     value={
                                       variantOptions.find(
-                                        (opt) => opt.value === row.variantId,
+                                        (opt: { value: string; label: string }) =>
+                                          opt.value === row.variantId,
                                       ) || null
                                     }
-                                    onChange={(opt) =>
+                                    onChange={(
+                                      opt: { value: string; label: string } | null,
+                                    ) =>
                                       handleItemChange(
                                         row.id,
                                         "variantId",
-                                        (opt as any)?.value || "",
+                                        opt?.value || "",
                                       )
                                     }
                                     placeholder="Select variant"
